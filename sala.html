@@ -722,9 +722,25 @@
             });
 
             let isFirstLoad = true;
+            // Sostituisci il listener onSnapshot degli ordini in sala con questo:
             onSnapshot(query(collection(db, "ordini"), where("stato", "in", ["In attesa", "In forno", "Pronto", "Prenotato"])), (snapshot) => {
                 window.tavoliOccupati = {}; 
-                snapshot.forEach(d => { if(d.data().tavolo) window.tavoliOccupati[d.data().tavolo] = { id: d.id, ...d.data() }; });
+                snapshot.forEach(docSnap => {
+                    const d = docSnap.data();
+                    if(d.tavolo) {
+                        const tavKey = String(d.tavolo).trim().toUpperCase();
+                        if (!window.tavoliOccupati[tavKey]) {
+                            window.tavoliOccupati[tavKey] = [];
+                        }
+                        window.tavoliOccupati[tavKey].push({ id: docSnap.id, ...d });
+                    }
+                });
+
+                // Ordina le prenotazioni di ogni tavolo per orario crescente
+                Object.keys(window.tavoliOccupati).forEach(tav => {
+                    window.tavoliOccupati[tav].sort((a, b) => (a.orario || "00:00").localeCompare(b.orario || "00:00"));
+                });
+
                 if (!isFirstLoad) {
                     snapshot.docChanges().forEach((change) => {
                         if (change.type === 'modified') {
@@ -934,7 +950,13 @@
             window.customTables.forEach(t => allIds.add(t));
             if(window.tavoliOccupati) { Object.keys(window.tavoliOccupati).forEach(k => allIds.add(k)); }
             
-            let list = Array.from(allIds).map(id => ({ id, data: window.tavoliOccupati ? window.tavoliOccupati[id] : null }));
+            let list = Array.from(allIds).map(id => {
+                const tavKey = String(id).trim().toUpperCase();
+                const ordiniDelTavolo = (window.tavoliOccupati && window.tavoliOccupati[tavKey]) ? window.tavoliOccupati[tavKey] : [];
+                // Scegliamo l'ordine attivo o la prossima prenotazione imminente
+                const primario = ordiniDelTavolo.length > 0 ? ordiniDelTavolo[0] : null;
+                return { id, data: primario, listaOrdini: ordiniDelTavolo };
+            });
             
             list.sort((a,b) => {
                 return String(a.id).localeCompare(String(b.id), undefined, {numeric: true});
@@ -944,6 +966,7 @@
             list.forEach(it => {
                 const div = document.createElement('div'); 
                 let statusClass = ''; let statusText = 'LIBERO';
+                
                 if(it.data) {
                     let nomeCliente = (it.data.nome || "").trim().toUpperCase();
                     if (!nomeCliente || nomeCliente.startsWith("TAVOLO")) {
@@ -954,14 +977,17 @@
 
                     const hasTags = (Array.isArray(it.data.etichette) && it.data.etichette.length > 0) || it.data.preferenza_servizio || (it.data.seggioloni && parseInt(it.data.seggioloni) > 0);
                     const tagIcon = hasTags ? '🏷️ ' : '';
+                    const multiBadge = it.listaOrdini.length > 1 ? ` <span style="background:var(--primary); font-size:9px; padding:1px 4px; border-radius:4px;">+${it.listaOrdini.length - 1}</span>` : '';
 
-                    if (it.data.stato === 'Prenotato') { statusClass = 'reserved'; statusText = '📅 ' + tagIcon + nomeCliente; } 
-                    else if (it.data.preconto_stampato === true || it.data.richiesta_conto === true) { statusClass = 'occupied paying'; statusText = '💳 ' + tagIcon + nomeCliente; } 
-                    else if (it.data.stato === 'Pronto') { statusClass = 'occupied ready'; statusText = '🔔 ' + tagIcon + nomeCliente; } 
-                    else { statusClass = 'occupied'; statusText = tagIcon + nomeCliente; }
+                    if (it.data.stato === 'Prenotato') { statusClass = 'reserved'; statusText = '📅 ' + tagIcon + nomeCliente + multiBadge; } 
+                    else if (it.data.preconto_stampato === true || it.data.richiesta_conto === true) { statusClass = 'occupied paying'; statusText = '💳 ' + tagIcon + nomeCliente + multiBadge; } 
+                    else if (it.data.stato === 'Pronto') { statusClass = 'occupied ready'; statusText = '🔔 ' + tagIcon + nomeCliente + multiBadge; } 
+                    else { statusClass = 'occupied'; statusText = tagIcon + nomeCliente + multiBadge; }
                 }
+
                 div.className = `table ${statusClass}`;
                 let content = `<div class="status-strip"></div>`;
+                
                 if(it.data) {
                     let min = 0;
                     if(it.data.data_invio) {
@@ -972,6 +998,7 @@
                     const currentMsg = it.data.messaggio_cucina || "";
                     let turniAttiviNelTavolo = new Set();
                     if (it.data.prodotti && Array.isArray(it.data.prodotti)) { it.data.prodotti.forEach(p => turniAttiviNelTavolo.add(parseInt(p.turno || 1))); }
+                    
                     const getBtn = (turn) => {
                         const isCalled = calledTurns.includes(turn) || currentMsg.includes(`TURNO ${turn}`);
                         const hasProductsForThisTurn = turniAttiviNelTavolo.has(turn);
@@ -982,6 +1009,7 @@
                         const clickAction = isDisabled ? '' : `onclick="callCourseFromMap(event, '${it.data.id}', '${it.id}', 'VIA T${turn}')"`;
                         return `<button class="${className}" ${clickAction}>${turn}</button>`;
                     };
+
                     if (it.data.stato === 'Prenotato') {
                         content += `<div class="t-info" onclick="openTableActions('${it.id}')"><span class="timer"><i class="fa fa-clock"></i> ${it.data.orario || '--:--'}</span><span class="coperti-badge">${it.data.coperti} <i class="fa fa-user"></i></span></div><div class="t-main" onclick="openTableActions('${it.id}')">${it.id}</div><div class="t-status" style="margin-bottom:10px; color:#ffb300;">${statusText}</div>`;
                     } else {
@@ -994,15 +1022,22 @@
                 div.innerHTML = content; grid.appendChild(div);
             });
         };
+       window.openTableActions = (tableId) => {
+             const tavKey = String(tableId).trim().toUpperCase();
+             const ordiniDelTavolo = (window.tavoliOccupati && window.tavoliOccupati[tavKey]) ? window.tavoliOccupati[tavKey] : [];
 
-        window.openTableActions = (tableId) => {
-             const data = window.tavoliOccupati[tableId];
-             if(data) {
+             if (ordiniDelTavolo.length === 0) {
+                 window.openOrder(tableId);
+                 return;
+             }
+
+             // Se c'è un solo ordine/prenotazione, apre direttamente le azioni standard
+             if (ordiniDelTavolo.length === 1) {
+                 const data = ordiniDelTavolo[0];
                  window.selT = tableId; window.currentDocId = data.id;
                  if(data.stato === 'Pronto') { updateDoc(doc(db, "ordini", data.id), { stato: "In forno" }).catch(e=>console.log(e)); }
                  
                  const btnTakeOrder = document.querySelector('.btn-take-order');
-                 
                  if(data.stato === 'Prenotato' || !data.prodotti || data.prodotti.length === 0) { 
                      document.getElementById('action-title').innerText = `TAVOLO ${tableId} (PRENOTATO)`; 
                      btnTakeOrder.innerHTML = '<i class="fa fa-plus"></i> APRI E PRENDI ORDINE';
@@ -1015,7 +1050,6 @@
                      btnTakeOrder.style.color = "black";
                  }
 
-                 // Mostra le etichette e informazioni Agenda nel popup azioni tavolo
                  const tagsBox = document.getElementById('action-tags-box');
                  const badgesHtml = window.generaBadgeEtichetteSala(data);
                  if (tagsBox) {
@@ -1029,11 +1063,68 @@
                          tagsBox.style.display = 'none';
                      }
                  }
-                 
                  document.getElementById('table-actions').style.display = 'flex';
-             } else { window.openOrder(tableId); }
+                 return;
+             }
+
+             // Se ci sono PIÙ prenotazioni sullo stesso tavolo nella stessa giornata, mostra un selettore
+             let htmlScelta = `<div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">`;
+             ordiniDelTavolo.forEach((o, index) => {
+                 const nomeC = o.nome || 'Cliente';
+                 const oraC = o.orario || '--:--';
+                 const paxC = o.coperti || 2;
+                 const statoC = o.stato === 'Prenotato' ? '📅 Prenotato' : '🪑 Al Tavolo';
+                 htmlScelta += `
+                    <button onclick="window._selezionaSubOrdineTavolo('${o.id}', '${tableId}')" style="background:#222; border:1px solid #444; color:white; padding:12px; border-radius:8px; cursor:pointer; text-align:left; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <b style="color:var(--gold); font-size:1.1em;">${oraC} - ${nomeC.toUpperCase()}</b>
+                            <div style="font-size:0.85em; color:#aaa;">${paxC} Persone | ${statoC}</div>
+                        </div>
+                        <i class="fa fa-chevron-right" style="color:#666;"></i>
+                    </button>
+                 `;
+             });
+             htmlScelta += `</div>`;
+
+             Swal.fire({
+                 title: `Tavolo ${tableId}: ${ordiniDelTavolo.length} Turni Oggi`,
+                 html: htmlScelta,
+                 background: '#1e1e1e',
+                 color: '#fff',
+                 showConfirmButton: false,
+                 showCancelButton: true,
+                 cancelButtonText: 'Chiudi'
+             });
         };
 
+        window._selezionaSubOrdineTavolo = (docId, tableId) => {
+            Swal.close();
+            const tavKey = String(tableId).trim().toUpperCase();
+            const ordiniDelTavolo = (window.tavoliOccupati && window.tavoliOccupati[tavKey]) ? window.tavoliOccupati[tavKey] : [];
+            const data = ordiniDelTavolo.find(x => x.id === docId);
+            if (!data) return;
+
+            window.selT = tableId; window.currentDocId = data.id;
+            const btnTakeOrder = document.querySelector('.btn-take-order');
+            if(data.stato === 'Prenotato' || !data.prodotti || data.prodotti.length === 0) { 
+                document.getElementById('action-title').innerText = `TAVOLO ${tableId} (PRENOTATO)`; 
+                btnTakeOrder.innerHTML = '<i class="fa fa-plus"></i> APRI E PRENDI ORDINE';
+                btnTakeOrder.style.background = "var(--add-color)";
+                btnTakeOrder.style.color = "black";
+            } else { 
+                document.getElementById('action-title').innerText = `TAVOLO ${tableId}`; 
+                btnTakeOrder.innerHTML = '<i class="fa fa-pencil-alt"></i> MODIFICA ORDINE';
+                btnTakeOrder.style.background = "#ff9800";
+                btnTakeOrder.style.color = "black";
+            }
+            const tagsBox = document.getElementById('action-tags-box');
+            const badgesHtml = window.generaBadgeEtichetteSala(data);
+            if (tagsBox && badgesHtml) {
+                tagsBox.style.display = 'flex';
+                tagsBox.innerHTML = `<div style="font-size:11px; color:#94a3b8; font-weight:bold; text-transform:uppercase;">Dettagli ed Etichette Agenda</div><div style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center;">${badgesHtml}</div>`;
+            }
+            document.getElementById('table-actions').style.display = 'flex';
+        };
         window.closeActions = () => { document.getElementById('table-actions').style.display = 'none'; };
         window.goToOrder = () => { window.closeActions(); window.openOrder(window.selT); };
 
