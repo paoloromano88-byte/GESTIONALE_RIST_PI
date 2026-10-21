@@ -1,0 +1,627 @@
+/* =========================================
+   1. BASE E LAYOUT
+   ========================================= */
+:root {
+    --bg-dark: #111;
+    --bg-card: #1e1e1e;
+    --primary: #2962ff;
+    --accent: #ffea00;
+    --success: #00e676;
+    --danger: #ff5252;
+    --text-main: #eee;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-dark);
+    /* Immagine di sfondo scura */
+    background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url('https://img.freepik.com/free-photo/top-view-pizza-ingredients_23-2148765339.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    color: #333;
+}
+
+/* FIX Z-INDEX SWEETALERT: DEVE ESSERE SOPRA TUTTO (ANCHE SOPRA IL LOGIN) */
+.swal2-container {
+    z-index: 100000 !important;
+}
+
+/* =========================================
+   2. SCHERMATA LOGIN
+   ========================================= */
+#login-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #111;
+    z-index: 90000; /* Alto, ma sotto SweetAlert */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    color: white;
+}
+
+.login-box {
+    background: #222;
+    padding: 40px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    border: 2px solid #d32f2f;
+}
+
+.login-input {
+    padding: 15px;
+    font-size: 1.5em;
+    text-align: center;
+    border-radius: 10px;
+    border: 1px solid #555;
+    background: #333;
+    color: white;
+    width: 200px;
+    margin-bottom: 20px;
+    outline: none;
+    letter-spacing: 5px;
+}
+
+.btn-login {
+    background: #d32f2f;
+    color: white;
+    padding: 15px 30px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    transition: 0.2s;
+}
+.btn-login:active { transform: scale(0.95); }
+
+/* =========================================
+   3. TOP BAR & CONTROLLI
+   ========================================= */
+.top-bar {
+    background-color: #222;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+.top-icons {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    font-size: 1.3em;
+}
+
+.icon-settings {
+    color: #00e5ff;
+    cursor: pointer;
+    animation: spin 10s linear infinite;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+.quick-controls {
+    background: white;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    border-bottom: 1px solid #ccc;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+/* SWITCH TOGGLE */
+.switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+.switch input:checked + .slider { background-color: var(--success); }
+.switch input:checked + .slider:before { transform: translateX(24px); }
+
+/* =========================================
+   4. TIMELINE E RICERCA
+   ========================================= */
+.timeline-bar {
+    background: #37474f;
+    color: white;
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    box-shadow: inset 0 5px 10px rgba(0,0,0,0.2);
+    border-bottom: 1px solid #555;
+}
+
+.time-btn {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 1.1em;
+}
+.btn-today { background: #fdd835; color: black; font-weight: bold; border: none; }
+
+.time-display { font-weight: bold; font-size: 1.2em; display: flex; align-items: center; gap: 10px; }
+.date-picker-dark { background: transparent; border: none; color: white; font-family: inherit; font-size: 1em; font-weight: bold; cursor: pointer; outline: none; }
+
+.search-container {
+    background: #263238;
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    border-bottom: 1px solid #555;
+    align-items: center;
+    gap: 10px;
+}
+
+.search-input {
+    width: 100%;
+    max-width: 400px;
+    padding: 12px 20px;
+    border-radius: 30px;
+    border: none;
+    font-size: 1.1em;
+    text-align: center;
+    outline: none;
+    background: #fff;
+    color: #333;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.btn-new-order {
+    background: var(--success);
+    color: black;
+    padding: 12px 20px;
+    border-radius: 30px;
+    border: none;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+/* =========================================
+   5. TABS PRINCIPALI (Asporto/Tavoli/Pronti)
+   ========================================= */
+.main-tabs-container {
+    display: flex;
+    background: #111;
+    padding: 0;
+    position: sticky;
+    top: 55px;
+    z-index: 90;
+    box-shadow: 0 4px 5px rgba(0,0,0,0.3);
+}
+
+.main-tab {
+    flex: 1;
+    padding: 15px;
+    text-align: center;
+    background: #222;
+    color: #777;
+    font-weight: 900;
+    cursor: pointer;
+    border: none;
+    border-bottom: 4px solid transparent;
+    font-size: 1.1em;
+    text-transform: uppercase;
+    transition: 0.3s;
+}
+.main-tab.active { background: #333; color: white; }
+.tab-asporto.active { border-bottom-color: #ff9800; color: #ff9800; }
+.tab-tavoli.active { border-bottom-color: #29b6f6; color: #29b6f6; }
+.tab-pronti.active { border-bottom-color: var(--success); color: var(--success); }
+
+.tab-badge {
+    background: white;
+    color: black;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8em;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* Animazione Tab Lampeggiante (Nuovo Ordine) */
+@keyframes blink-tab {
+    0% { background-color: #222; color: #777; }
+    50% { background-color: var(--accent); color: black; box-shadow: 0 0 15px var(--accent); }
+    100% { background-color: #222; color: #777; }
+}
+.tab-blink { animation: blink-tab 1s infinite; }
+
+/* =========================================
+   6. GRIGLIA ORDINI E CARDS
+   ========================================= */
+.orders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 15px;
+    padding: 15px;
+}
+
+.order-card {
+    background-color: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    /* max-height: 500px; rimosso per evitare scroll interno eccessivo su ordini lunghi */
+}
+
+.card-time-box {
+    background: #263238;
+    color: #fff;
+    padding: 8px;
+    text-align: center;
+    font-size: 1.4em;
+    font-weight: 900;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.trash-btn { font-size: 0.5em; color: var(--danger); cursor: pointer; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 50%; }
+
+.card-client-box {
+    padding: 10px;
+    background: #fffde7;
+    border-bottom: 2px solid #eee;
+    text-align: center;
+}
+.client-name { font-size: 1.4em; font-weight: 800; color: #000; display: block; text-transform: uppercase; }
+.client-phone { font-size: 1.1em; font-weight: 700; color: #0277bd; text-decoration: none; display: block; }
+
+.card-body { padding: 10px; flex: 1; }
+
+.turn-box { margin-bottom: 8px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+.turn-header { background: #455a64; color: white; padding: 5px 10px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 0.85em; }
+
+.btn-via {
+    background: #ffeb3b; color: #333; border: 1px solid #fdd835;
+    padding: 4px 10px; border-radius: 4px; font-weight: bold;
+    cursor: pointer; font-size: 0.8em; display: flex; align-items: center; gap: 6px;
+}
+
+.order-list { list-style: none; padding: 0; margin: 0; font-size: 1em; background: #fff; }
+.order-item { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; line-height: 1.2; font-size: 0.95em; }
+
+.via-alert {
+    background: #ffeb3b; color: black; padding: 8px; margin-bottom: 8px;
+    border-radius: 5px; border: 2px solid #fbc02d; text-align: center;
+    animation: blink 1.5s infinite; display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;
+}
+@keyframes blink { 50% { opacity: 0.5; } }
+
+.card-total-box {
+    background-color: #e8f5e9; color: #2e7d32;
+    padding: 8px 12px; margin-top: 10px; border-radius: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 1.3em; font-weight: 900; border: 2px solid #c8e6c9;
+}
+
+.status-row { display: flex; gap: 5px; margin-top: 10px; }
+.status-btn { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; background: #eee; color: #555; text-transform: uppercase; font-size: 0.9em; }
+.active-forno { background: #ff9800; color: white; }
+.active-pronto { background: var(--success); color: white; }
+
+.card-actions { display: flex; gap: 5px; margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px; flex-wrap: wrap; }
+.action-btn { flex: 1; min-width: 50px; padding: 8px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.75em; background: white; color: #333; }
+
+/* =========================================
+   7. WAITER SCREEN (PRESA COMANDA)
+   ========================================= */
+.waiter-screen {
+    position: fixed; inset: 0; background: var(--bg-dark);
+    z-index: 2000; display: none; flex-direction: column;
+}
+.screen-header {
+    background: #111; padding: 0 10px; display: flex; justify-content: space-between;
+    align-items: center; border-bottom: 1px solid #444; height: 50px; flex-shrink: 0;
+}
+.btn-close {
+    background: none; border: none; color: white; font-size: 14px;
+    display:flex; align-items:center; gap:5px; padding: 5px; cursor: pointer; font-weight: bold;
+}
+
+.main-layout { display: flex; flex-direction: row; flex: 1; overflow: hidden; position: relative; height: calc(100vh - 50px); }
+.menu-side { flex: 1; display: flex; flex-direction: column; min-width: 0; border-right: 2px solid #333; overflow-y: auto; }
+
+.controls-bar { display: flex; justify-content: space-between; padding: 8px; background: #1a1a1a; align-items: center; border-bottom: 1px solid #444; }
+.coperti-selector { display: flex; align-items: center; gap: 8px; background: #2a2a2a; padding: 4px 8px; border-radius: 30px; border: 1px solid #444; }
+.btn-round { width: 30px; height: 30px; border-radius: 50%; background: #444; border: none; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+.btn-stirata { background: linear-gradient(45deg, #ffd700, #ffb300); color: black; border: none; padding: 8px 12px; border-radius: 20px; font-weight: 900; font-size: 11px; cursor: pointer; }
+
+.cat-row { display: flex; gap: 8px; overflow-x: auto; padding: 10px; scrollbar-width: none; background: #000; flex-shrink: 0; }
+.cat-pill { padding: 8px 16px; background: #222; border: 1px solid #444; border-radius: 20px; font-size: 13px; font-weight: bold; white-space: nowrap; color: #aaa; cursor: pointer; }
+.cat-pill.active { background: #2962ff; color: white; border-color: #2962ff; }
+
+.search-row { padding: 0 10px 5px 10px; flex-shrink: 0; }
+.prod-list { flex: 1; overflow-y: auto; padding: 10px; }
+
+.prod-card {
+    background: var(--bg-card); border-radius: 8px; margin-bottom: 8px;
+    display: flex; justify-content: space-between; border: 1px solid #444;
+    overflow: hidden; cursor: pointer; min-height: 50px;
+}
+.prod-info { flex: 1; padding: 8px; display: flex; flex-direction: column; justify-content: center; }
+.prod-info b { font-size: 14px; display: block; color: white; margin-bottom: 2px; }
+.prod-add-btn { width: 45px; background: #222; color: #2962ff; display: flex; align-items: center; justify-content: center; font-size: 20px; border-left: 1px solid #444; }
+
+.prod-card.disabled { opacity: 0.6; filter: grayscale(100%); pointer-events: none; border-color: #555; background: #111; }
+.tag-sold-out { color: var(--danger); font-weight: bold; font-size: 0.8em; background: rgba(255, 82, 82, 0.1); padding: 2px 5px; border-radius: 4px; border: 1px solid var(--danger); margin-top: 3px; display: inline-block; }
+
+/* CARRELLO LATERALE */
+.cart-side { width: 38%; min-width: 130px; max-width: 400px; background: #111; display: flex; flex-direction: column; z-index: 10; border-left: 2px solid #333; }
+@media (min-width: 768px) { .cart-side { width: 350px; min-width: 350px; } .prod-info b { font-size: 16px; } }
+
+.cart-header { padding: 10px; background: #222; border-bottom: 1px solid #333; text-align: center; font-weight: bold; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: auto; min-height: 50px; }
+#cart-total-display { font-size: 20px; color: var(--accent); text-shadow: 0 0 5px rgba(255, 215, 0, 0.4); margin-top: 2px; display: block; }
+
+.cart-list { flex: 1; overflow-y: auto; padding: 5px; background: #121212; }
+.cart-item { padding: 8px; border-bottom: 1px solid #333; background: var(--bg-card); margin-bottom: 5px; border-radius: 4px; border-left: 4px solid transparent; }
+.cart-row-top { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.cart-prod-name { font-size: 13px; font-weight: bold; color: #fff; line-height: 1.2; }
+.cart-controls { display: flex; align-items: center; gap: 5px; width: 100%; justify-content: space-between; margin-top: 2px; }
+
+.qty-box { display: flex; align-items: center; background: #333; border-radius: 12px; padding: 1px 3px; border: 1px solid #555; }
+.btn-qty { width: 22px; height: 22px; border-radius: 50%; border: none; background: #555; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.qty-val { margin: 0 6px; font-weight: bold; font-size: 13px; min-width: 10px; text-align: center; color: white; }
+
+.btn-trash { color: var(--danger); padding: 4px; cursor: pointer; font-size: 14px; }
+.btn-edit-cart { color: #ffa000; padding: 4px; cursor: pointer; font-size: 14px; }
+
+.turno-row { display: flex; gap: 2px; margin-top: 6px; }
+.turno-btn { flex: 1; padding: 6px 0; font-size: 10px; border: 1px solid #444; background: #222; border-radius: 3px; color: #888; text-align: center; font-weight: bold; cursor: pointer; }
+.turno-btn.active { background: var(--accent); color: black; border-color: var(--accent); }
+
+.cart-footer { padding: 10px; background: #111; border-top: 2px solid #333; }
+.btn-confirm-order { background: linear-gradient(135deg, #00c853, #1b5e20); color: white; border: none; font-weight: 900; font-size: 16px; width: 100%; padding: 15px; border-radius: 8px; text-transform: uppercase; cursor: pointer; }
+
+/* =========================================
+   8. MODALI & GESTIONALE
+   ========================================= */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9); z-index: 2000; display: none;
+    justify-content: center; align-items: flex-start;
+    overflow-y: auto; padding-top: 50px; padding-bottom: 100px;
+}
+
+.modal-box {
+    background: white; width: 90%; max-width: 900px; border-radius: 10px;
+    padding: 20px; position: relative; min-height: 80vh; margin-bottom: 50px;
+}
+
+/* Tabs Gestionale */
+.tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 20px; overflow-x: auto; }
+.tab { padding: 15px 20px; cursor: pointer; font-weight: bold; color: #777; white-space: nowrap; }
+.tab.active { border-bottom: 3px solid #c62828; color: #c62828; }
+
+/* Form Elements */
+.form-row { display: flex; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 15px; border-radius: 8px; align-items: center; flex-wrap: wrap; }
+.input-std { padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; }
+.btn-save { background: #2e7d32; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+.btn-cancel { background: #757575; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+
+/* Liste Gestionale */
+.db-list { max-height: 60vh; overflow-y: auto; padding-bottom: 100px; }
+.db-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; align-items: center; }
+
+/* Filtri Categoria */
+.cat-filters { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-bottom: 15px; border-bottom: 1px solid #eee; scrollbar-width: none; }
+.cat-filter-btn { padding: 8px 15px; background: #eee; border: 1px solid #ccc; border-radius: 20px; white-space: nowrap; cursor: pointer; font-weight: bold; color: #555; transition: 0.2s; }
+.cat-filter-btn.active { background: #d32f2f; color: white; border-color: #d32f2f; box-shadow: 0 2px 5px rgba(211,47,47,0.4); }
+
+/* Configurazione Stampanti */
+.printer-config-box { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
+.cat-checkboxes { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 10px; }
+.cat-check { display: flex; align-items: center; gap: 5px; cursor: pointer; background: #eee; padding: 5px 10px; border-radius: 15px; }
+
+/* Pagamento */
+.payment-grid { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:15px; }
+.btn-pay { padding:20px; font-size:1.2em; font-weight:bold; border:none; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:5px; }
+.pay-cash { background: #4caf50; color: white; }
+.pay-card { background: #2196f3; color: white; }
+.pay-unpaid { background: #d32f2f; color: white; }
+
+.discount-bar { display:flex; gap:5px; overflow-x:auto; padding:10px 0; border-bottom:1px solid #eee; margin-bottom:10px; }
+.btn-discount { background:#eee; border:1px solid #ccc; padding:8px 15px; border-radius:20px; cursor:pointer; font-weight:bold; white-space:nowrap; }
+.btn-discount.active { background:#ff9800; color:white; border-color:#f57c00; }
+
+/* Nuovo Ordine - Type Selector */
+.order-type-selector { display: flex; gap: 10px; margin-bottom: 20px; }
+.type-btn { flex: 1; padding: 15px; border: 2px solid #ddd; border-radius: 10px; background: white; cursor: pointer; font-weight: bold; text-align: center; color: #555; transition: 0.2s; }
+.type-btn.active { border-color: #2962ff; background: #e3f2fd; color: #2962ff; }
+.hidden-field { display: none; }
+
+/* Nuovo Ordine - Time Buttons */
+.quick-time-row { display: flex; gap: 8px; margin-top: 5px; }
+.btn-time { flex: 1; background: #e0e0e0; border: none; padding: 8px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.8em; }
+.btn-time:active { background: #bdbdbd; }
+
+/* Modifica Prodotti e Ingredienti */
+.edit-prod-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fff; border-bottom: 1px solid #eee; }
+.btn-qta { width: 30px; height: 30px; background: #ddd; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+.btn-del-item { background: #ffcdd2; color: #c62828; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; margin-left: 10px; }
+.btn-edit-item { background: #fff9c4; color: #fbc02d; border: 1px solid #fbc02d; border-radius: 5px; padding: 5px 10px; cursor: pointer; margin-left: 5px; }
+
+#modal-item .modal-box { display: flex; flex-direction: column; max-height: 90vh; height: 80vh; overflow: hidden; }
+#modal-item .modal-body { flex: 1; overflow-y: auto; padding-right: 5px; margin-bottom: 0; }
+#modal-item .modal-footer { flex-shrink: 0; padding-top: 15px; background: white; border-top: 1px solid #eee; z-index: 10; }
+
+.ing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.ing-btn { padding: 12px; border: 1px solid #444; border-radius: 8px; text-align: center; font-size: 13px; background: #eee; color: #333; cursor: pointer; }
+.ing-btn.active-add { background: var(--success); color: black; border-color: var(--success); font-weight: bold; }
+.ing-btn.active-rem { background: var(--danger); color: white; border-color: var(--danger); font-weight: bold; }
+.tag-add { color: #00c853; font-weight: bold; font-size: 0.9em; }
+.tag-rem { color: #d32f2f; font-weight: bold; font-size: 0.9em; }
+
+.allergen-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fff; }
+.allergen-check { font-size: 0.9em; display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 5px; border-radius: 5px; transition: background 0.2s; }
+.allergen-check:hover { background: #f0f0f0; }
+.ico-all { font-size: 1.2em; width: 20px; text-align: center; color: #555; }
+
+.pizza-ing-selector { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; padding: 10px; border: 1px dashed #ccc; border-radius: 8px; background: #fafafa; }
+.ing-option { display: flex; align-items: center; gap: 8px; padding: 5px; background: white; border: 1px solid #eee; border-radius: 5px; cursor: pointer; font-size: 0.9em; }
+
+.btn-edit { background: #fbc02d; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-right: 5px; font-size: 1.2em; }
+
+/* =========================================
+   9. MODULO STATISTICHE
+   ========================================= */
+.stats-dashboard { margin-bottom: 20px; }
+.stat-section { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.stat-header { font-weight: 900; font-size: 1.1em; color: #444; border-bottom: 2px solid #eee; padding-bottom: 8px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.stat-cards-row { display: flex; gap: 10px; justify-content: space-between; text-align: center; flex-wrap: wrap; }
+.stat-card-mini { flex: 1; background: #f9f9f9; padding: 10px; border-radius: 8px; min-width: 110px; }
+.stat-val-mini { font-size: 1.6em; font-weight: bold; display: block; margin-bottom: 5px; }
+.stat-lbl-mini { font-size: 0.8em; color: #666; text-transform: uppercase; }
+.color-tot { color: #2e7d32; }
+.color-asp { color: #e65100; }
+.color-sala { color: #1565c0; }
+.stat-split-container { display: flex; gap: 15px; flex-wrap: wrap; }
+.stat-split-box { flex: 1; min-width: 300px; }
+
+.ranking-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.ranking-table th { text-align: left; padding: 10px; border-bottom: 2px solid #ddd; color: #666; }
+.ranking-table td { padding: 10px; border-bottom: 1px solid #eee; }
+.cat-rank-title { background: #eee; padding: 10px; font-weight: bold; margin-top: 20px; border-left: 5px solid #d32f2f; text-transform: uppercase; }
+
+.stat-presets { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+.btn-preset { padding:8px 15px; background:#e0e0e0; border:none; border-radius:20px; cursor:pointer; font-weight:bold; }
+
+/* =========================================
+   10. MODULO CRM & CLIENTI
+   ========================================= */
+.crm-search-box { padding: 15px; background: #eee; border-bottom: 1px solid #ddd; display: flex; gap: 10px; }
+.crm-list { height: 50vh; overflow-y: auto; }
+.crm-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; background: white; transition: 0.2s; }
+.crm-card:hover { background: #e3f2fd; }
+.crm-avatar { width: 40px; height: 40px; background: #37474f; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2em; margin-right: 15px; }
+.crm-info h4 { margin: 0; color: #333; text-transform: uppercase; }
+.crm-info small { color: #666; font-weight: bold; }
+.crm-stats { text-align: right; font-size: 0.9em; }
+.crm-tag { padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: bold; color: white; margin-left: 5px; }
+.tag-vip { background: #fbc02d; color: black; }
+.tag-new { background: #00e676; }
+
+.crm-actions { display: flex; flex-direction: column; gap: 5px; margin-left: 10px; }
+.btn-crm-action { width: 35px; height: 35px; border-radius: 50%; border: none; cursor: pointer; color: white; font-size: 1em; display: flex; align-items: center; justify-content: center; }
+.btn-crm-edit { background: #ff9800; }
+.btn-crm-del { background: #f44336; }
+
+/* Barra Fidelity */
+.fidelity-bar-bg { background: #e0e0e0; border-radius: 10px; height: 8px; width: 100px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 5px; border: 1px solid #ccc;}
+.fidelity-bar-fill { background: linear-gradient(90deg, #ff9800, #ff5252); height: 100%; transition: width 0.3s; }
+.fidelity-label { font-size: 0.8em; color: #d32f2f; font-weight: bold; }
+
+/* =========================================
+   11. MODULO KDS (Monitor Cucina)
+   ========================================= */
+.kds-card { background: #222; color: white; width: 100%; border: 4px solid #4caf50; border-radius: 10px; overflow: hidden; margin-bottom: 15px; }
+.kds-header { color: black; padding: 5px; font-weight: 900; font-size: 1.5em; text-align: center; }
+.kds-item { font-size: 1.4em; border-bottom: 1px solid #444; padding: 8px; line-height: 1.2; }
+.kds-note { color: #ff5252; font-size: 0.7em; font-weight: bold; display: block; }
+@media (min-width: 768px) { .kds-card { width: 300px; } }
+
+/* =========================================
+   12. MODULO MAPPA TAVOLI
+   ========================================= */
+.table-box { 
+    background: #e8f5e9; border: 2px solid #4caf50; border-radius: 10px; 
+    height: 110px; display: flex; flex-direction: column; 
+    justify-content: center; align-items: center; cursor: pointer; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s; color: #2e7d32; 
+    position: relative; 
+}
+.table-box:active { transform: scale(0.95); }
+.table-box.occupied { background: #ffebee; border-color: #f44336; color: #c62828; }
+.table-box.reserved { background: #fff8e1; border-color: #ffb300; color: #f57f17; }
+
+.table-num { font-size: 2.5em; font-weight: 900; line-height: 1; margin-bottom: 5px; }
+.table-info { font-size: 0.9em; font-weight: bold; text-align: center; line-height: 1.2; }
+
+.map-controls { padding: 15px; background: #222; display: flex; gap: 20px; justify-content: center; align-items: center; color: white; border-bottom: 1px solid #444; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 0.9em; }
+.leg-color { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); }
+
+/* =========================================
+   13. STILI PER LA STAMPA (QZ Tray e Browser)
+   ========================================= */
+#print-area { display: none; }
+
+@media print {
+    body > *:not(#print-area) {
+        display: none !important;
+    }
+    
+    #print-area {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white;
+        z-index: 9999;
+    }
+    
+    .ticket-title { text-align: center; font-weight: bold; font-size: 1.5em; margin-bottom: 5px; }
+    .ticket-subtitle { text-align: center; font-size: 0.9em; margin-bottom: 10px; }
+    .ticket-divider { border-top: 1px dashed #000; margin: 5px 0; }
+    .ticket-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .ticket-big { font-size: 1.1em; font-weight: bold; }
+    .ticket-note { font-style: italic; font-size: 0.9em; margin-left: 10px; }
+    .ticket-via-box { border: 4px solid black; padding: 10px; text-align: center; margin-top:20px; }
+    .via-huge { font-size: 4em; font-weight: 900; display: block; line-height: 1; margin-bottom: 10px; }
+    .via-table { font-size: 2.5em; font-weight: bold; display: block; }
+    .via-msg { font-size: 2em; display: block; margin-top: 10px; text-transform: uppercase; }
+}
+/* =========================================
+   14. BADGE E ETICHETTE PERSONALIZZATE
+   ========================================= */
+.badge-servizio { 
+    background: #e2e8f0; 
+    color: #334155; 
+    padding: 3px 8px; 
+    border-radius: 6px; 
+    font-size: 0.75em; 
+    font-weight: 700; 
+    text-transform: uppercase; 
+    margin-left: 8px; 
+    border: 1px solid #cbd5e1; 
+    display: inline-block;
+    vertical-align: middle;
+}

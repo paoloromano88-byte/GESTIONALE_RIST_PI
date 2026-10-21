@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title id="app-window-title">Da Mimmo - App Cliente V8.8 (Definitiva)</title>
+    <link rel="apple-touch-icon" href="logo.png">
+    
+    <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        .swal2-container { z-index: 99999 !important; }
+        :root {
+            --col-red: #e53935;       
+            --col-gold: #ffb300;      
+            --col-green: #43a047;     
+            
+            --col-bg-body: #121212;   
+            --col-bg-card: #1e1e1e;   
+            --col-bg-input: #2c2c2c;  
+            
+            --col-border: #444;       
+            --col-text-main: #eeeeee; 
+            --col-text-muted: #b0b0b0; 
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; margin: 0; padding: 0; 
+            background-color: var(--col-bg-body);
+            background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url('https://img.freepik.com/free-photo/top-view-pepperoni-pizza-with-mushroom-sausages-bell-pepper-olive-corn-black-wooden_141793-2158.jpg');
+            background-size: cover; background-position: center; background-attachment: fixed;
+            color: var(--col-text-main); -webkit-tap-highlight-color: transparent;
+        }
+
+        h1, h3 { color: var(--col-red); }
+        /* --- STILE TOAST COMPATTO --- */
+        .swal2-popup.swal2-toast {
+            border-radius: 50px !important;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8) !important;
+            padding: 8px 15px !important;
+        }
+        .swal2-toast .swal2-title { font-size: 0.85em !important; margin: 0 !important; font-weight: 600 !important; }
+        .swal2-toast .swal2-icon { transform: scale(0.6) !important; margin: 0 8px 0 0 !important; }
+        .swal2-toast .swal2-success-ring { display: none !important; }
+        .main-card, .menu-item, .cart-item-card, .cart-form-box, .modal-content, .track-box {
+            background: var(--col-bg-card) !important;
+            border: 1px solid var(--col-border);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
+            color: var(--col-text-main);
+        }
+
+        /* HOME */
+        #view-home { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        .main-card { width: 90%; max-width: 400px; padding: 40px 20px; border-radius: 20px; text-align: center; backdrop-filter: blur(5px); margin-top: 50px; }
+        .logo-home { max-width: 200px; margin-bottom: 25px; background-color: #000; padding: 20px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.8); border: 2px solid var(--col-gold); }
+        
+        .tel-link { color: var(--col-red); font-weight: 800; text-decoration: none; font-size: 1.2em; display: block; margin-top: 10px; padding: 10px; border: 1px solid var(--col-border); border-radius: 10px; background: rgba(30, 30, 30, 0.8); }
+
+        .btn-big-order {
+            display: flex; align-items: center; justify-content: center;
+            background: var(--col-red); color: white; width: 80%; margin: 30px auto; padding: 18px;
+            border-radius: 50px; font-size: 1.3em; font-weight: 800; text-transform: uppercase; 
+            cursor: pointer; box-shadow: 0 5px 20px rgba(229, 57, 53, 0.3), 0 0 15px rgba(0,0,0, 0.5); 
+            gap: 10px; transition: transform 0.2s;
+        }
+        .btn-big-order:active { transform: scale(0.95); }
+        
+        .track-box { border-radius: 15px; margin-top: 20px; padding-bottom: 20px; }
+        .input-group { display: flex; gap: 10px; margin-top: 10px; }
+        
+        /* Input */
+        .clean-input, .input-track, .select-gusto, .ing-search-bar { 
+            width: 100%; padding: 12px; 
+            border: 1px solid var(--col-border); 
+            border-radius: 8px; font-size: 1em; 
+            background: var(--col-bg-input); 
+            color: white; 
+            box-sizing: border-box;
+        }
+        .clean-input:focus, .input-track:focus { border-color: var(--col-gold); outline: none; }
+        
+        /* MENU */
+        #view-menu { display: none; padding-bottom: 80px; }
+        .app-header { background-color: #1a1a1a; color: white; padding: 15px 20px; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border-bottom: 2px solid var(--col-gold); }
+        .logo-container { background: #000; text-align: center; padding: 20px 0; border-bottom: 2px solid var(--col-border); }
+        .app-logo { max-width: 180px; height: auto; display: block; margin: 0 auto; }
+        
+        .menu-item { margin: 15px; padding: 15px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; }
+        .item-icon { font-size: 2em; color: var(--col-gold); margin-right: 15px; width: 40px; text-align: center; }
+        .item-img { 
+            width: 65px; 
+            height: 65px; 
+            object-fit: contain;
+            border-radius: 12px; 
+            margin-right: 15px; 
+            border: 1px solid var(--col-border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            background: transparent;
+        }
+        .item-details { flex: 1; cursor: pointer; } 
+        .btn-add { background: var(--col-gold); color: black; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.5); cursor: pointer; z-index: 2; }
+        .btn-add:active { transform: scale(0.9); }
+        .allergen-icon { color: var(--col-red); margin-right: 5px; font-size: 1.1em; }
+        
+        .category-scroll { display: flex; gap: 10px; padding: 15px; overflow-x: auto; background: #121212; border-bottom: 1px solid var(--col-border); }
+        .cat-pill { padding: 8px 15px; background: var(--col-bg-input); border: 1px solid var(--col-border); border-radius: 20px; font-size: 0.9em; font-weight: 600; white-space: nowrap; cursor: pointer; color: var(--col-text-muted); }
+        .cat-pill.active { background: var(--col-red); color: white; border-color: var(--col-red); }
+
+        /* CARRELLO */
+        #cart-view { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #121212; z-index: 200; overflow-y: auto; padding-bottom: 120px; }
+        .cart-header-fixed {
+            background: #1a1a1a; padding: 20px; text-align: center; font-weight: 800; font-size: 1.2em;
+            border-bottom: 1px solid var(--col-border); position: sticky; top: 0; z-index: 201; color: var(--col-gold);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .cart-form-box, .cart-item-card { margin: 15px; padding: 20px; border-radius: 15px; }
+        .cart-item-card { display: flex; justify-content: space-between; align-items: flex-start; border-left: 5px solid var(--col-red); }
+        .cart-item-info { flex: 1; }
+        .cart-item-name { font-weight: 800; font-size: 1.1em; color: var(--col-gold); margin-bottom: 5px; }
+        .cart-item-details { font-size: 0.85em; color: var(--col-text-muted); background: var(--col-bg-input); border: 1px solid var(--col-border); padding: 5px 10px; border-radius: 5px; display: inline-block; }
+        .cart-item-actions { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+        .cart-item-price { font-weight: 800; color: var(--col-green); font-size: 1.1em; }
+        
+        .btn-trash { color: #aaa; background: var(--col-bg-input); width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1em; border: 1px solid var(--col-border); }
+        .btn-edit { color: var(--col-gold); background: var(--col-bg-input); width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1em; border: 1px solid var(--col-border); }
+
+        .tag-gf { color: #ffeb3b; font-weight: 900; font-size: 11px; background: #b71c1c; padding: 2px 4px; border-radius: 3px; border: 1px solid #ffeb3b; }
+        .clean-input { margin-bottom: 12px; }
+        
+        .btn-applica { background: var(--col-gold); color: black; border: none; border-radius: 10px; font-weight: bold; padding: 0 20px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .btn-confirm { background-color: var(--col-green); color: white; width: 90%; padding: 18px; border: none; font-size: 1.2em; font-weight: 800; border-radius: 50px; position: fixed; bottom: max(20px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 202; box-shadow: 0 5px 20px rgba(0,0,0,0.7); cursor: pointer;}
+        .btn-confirm:disabled { background: #444; color: #888; cursor: not-allowed; box-shadow: none; }
+
+        /* MODAL */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-content { width: 90%; max-width: 450px; border-radius: 20px; padding: 25px; max-height: 90vh; overflow-y: auto; position: relative; }
+        
+        #modal-opzioni .modal-content { display: flex; flex-direction: column; padding: 0; height: 85vh; max-height: 90vh; overflow: hidden; }
+        .modal-scroll-area { flex: 1; overflow-y: auto; padding: 25px; }
+        .modal-sticky-footer { flex-shrink: 0; padding: 15px 20px; background: var(--col-bg-card); border-top: 1px solid var(--col-border); display: flex; gap: 10px; z-index: 10; box-shadow: 0 -5px 15px rgba(0,0,0,0.3); }
+        .btn-modal-cancel { flex: 1; background: #444; color: white; border: 1px solid #666; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .btn-modal-confirm { flex: 2; background: var(--col-gold); color: black; border: none; padding: 12px; border-radius: 10px; font-weight: 800; font-size: 1.1em; cursor: pointer; box-shadow: 0 4px 10px rgba(255, 179, 0, 0.3); }
+
+        .ing-search-bar { width: 100%; margin-bottom: 15px; }
+        .ingredients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 10px; }
+        .ing-chip { border: 1px solid var(--col-border); padding: 8px; border-radius: 8px; cursor: pointer; background: var(--col-bg-input); text-align: center; font-size: 0.9em; color: var(--col-text-main); }
+        .ing-chip.selected { background: var(--col-green); border-color: var(--col-green); color: white; font-weight: bold; }
+        .rem-chip { border: 1px solid var(--col-border); padding: 8px; border-radius: 8px; cursor: pointer; background: var(--col-bg-input); text-align: center; font-size: 0.9em; color: var(--col-text-muted); }
+        .rem-chip.selected { background: var(--col-red); border-color: var(--col-red); color: white; font-weight: bold; text-decoration: line-through; }
+        
+        .modal-qty-box { display: flex; justify-content: center; gap: 20px; align-items: center; margin-bottom: 20px; background: var(--col-bg-input); padding: 10px; border-radius: 15px; border: 1px solid var(--col-border); }
+        
+        /* BI GUSTO */
+        .bigusto-row { background:var(--col-bg-input); padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid var(--col-border); }
+        .bigusto-row-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+        .btn-mod-half { background: #444; color: #ccc; border: none; padding: 5px 10px; border-radius: 5px; font-weight: bold; font-size: 0.8em; cursor: not-allowed; transition: 0.3s; }
+        .btn-mod-half.active { background: var(--col-gold); color: black; cursor: pointer; }
+        .half-mods-display { font-size: 0.85em; color: var(--col-green); min-height: 15px; font-style: italic; margin-top:5px; }
+
+        #result-box { margin-top: 20px; display: none; text-align: left; background: var(--col-bg-input); padding: 15px; border-radius: 10px; border: 1px solid var(--col-border); }
+        .status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; color: white; margin-bottom: 5px; }
+        .st-attesa { background: #757575; } .st-forno { background: #e65100; } .st-pronto { background: #2e7d32; } .st-consegnato { background: #1565c0; }
+
+        /* FIDELITY E STORICO */
+        .fidelity-box { background: var(--col-bg-input); padding: 15px; border-radius: 10px; margin-top: 15px; border: 1px solid var(--col-gold); text-align: left; }
+        .fidelity-title { color: var(--col-gold); font-weight: 800; font-size: 1.1em; margin-bottom: 5px; display: flex; align-items: center; gap: 5px;}
+        .progress-bg { background: #111; height: 12px; border-radius: 10px; overflow: hidden; margin: 10px 0; border: 1px solid #444; }
+        .progress-fill { background: linear-gradient(90deg, var(--col-red), var(--col-gold)); height: 100%; transition: width 0.8s ease; }
+
+        .storico-item { background: var(--col-bg-input); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--col-border); font-size: 0.9em; text-align: left; }
+        .storico-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold; color: var(--col-gold); }
+        .storico-dettagli { color: var(--col-text-main); margin-bottom: 8px; font-style: italic; }
+        .storico-stato { display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 0.8em; font-weight: bold; color: white; }
+    </style>
+</head>
+<body>
+
+    <div id="view-home">
+        <div style="position:absolute; top:20px; right:20px; z-index:10;">
+            <button id="btn-auth-home" onclick="apriModalAuth()" class="btn-applica" style="padding:10px 15px; font-size:0.9em; display:flex; align-items:center; gap:5px;">
+                <i class="fa-solid fa-user"></i> ACCEDI
+            </button>
+        </div>
+
+        <div class="main-card">
+            <img id="home-logo-img" src="logo.png" alt="Da Mimmo" class="logo-home" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3132/3132693.png'">
+            <h1 id="home-title-txt" style="margin:0; font-weight:800; text-transform:uppercase;">Da Mimmo</h1>
+            <p id="home-slogan-txt" style="margin-top:10px; font-weight:500; color:#ccc;">La vera pizza, direttamente a casa tua.</p>
+            
+            <a id="home-tel-link" href="tel:0965370013" class="tel-link">
+                <i class="fa-solid fa-phone"></i> 0965 370013
+            </a>
+
+            <div class="btn-big-order" onclick="mostraMenu()">
+                <i class="fa-solid fa-pizza-slice"></i> ORDINA ORA
+            </div>
+            <hr style="border:0; border-top:1px solid var(--col-border); margin:20px 0;">
+            
+            <div id="fidelity-container" style="display:none; width: 100%;"></div>
+        </div>
+    </div>
+
+    <div id="view-menu">
+        <div class="app-header">
+            <div style="position:absolute; left:20px; font-size:1.2em; cursor:pointer;" onclick="mostraHome()">
+                <i class="fa-solid fa-arrow-left"></i>
+            </div>
+            <h1 style="font-size:1.2em; margin:0; color:white;">Menu</h1>
+            <div style="position:absolute; right:20px; font-size:1.2em; cursor:pointer;" onclick="apriCarrello()">
+                <i class="fa-solid fa-cart-shopping"></i> <span id="cart-badge" style="font-size:0.7em; background:var(--col-gold); color:black; padding:2px 5px; border-radius:50%; opacity:0; font-weight:bold;">0</span>
+            </div>
+        </div>
+        <div class="logo-container">
+            <img id="menu-logo-img" src="logo.png" alt="Logo" class="app-logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3132/3132693.png'">
+        </div>
+        <div style="padding:15px; background:#121212; border-bottom:1px solid var(--col-border);">
+            <input type="text" id="search-input" class="clean-input" style="margin:0;" placeholder="Cerca prodotto..." onkeyup="cercaProdotto(this.value)">
+        </div>
+        
+        <div class="category-scroll" id="cat-scroll-container">
+            <div class="cat-pill active">TUTTI</div>
+        </div>
+        
+        <div id="menu-list" style="padding:15px;"><div style="text-align:center; color:#888;">Caricamento...</div></div>
+    </div>
+
+    <div id="cart-view">
+        <div class="cart-header-fixed">
+            <div style="position:absolute; left:20px; cursor:pointer; color:var(--col-red);" onclick="document.getElementById('cart-view').style.display='none'">
+                <i class="fa-solid fa-arrow-left"></i>
+            </div>
+            Riepilogo Ordine
+        </div>
+        <div class="cart-form-box">
+            <h3 style="margin-top:0;">I tuoi dati</h3>
+            <input type="text" id="nome" class="clean-input" placeholder="Nome (Obbligatorio)">
+            <input type="text" id="cognome" class="clean-input" placeholder="Cognome (Obbligatorio)">
+            
+            <input type="tel" id="telefono" class="clean-input" placeholder="Telefono (Min 10 cifre)" 
+                   pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '');" minlength="10">
+            
+            <label style="font-weight:bold; font-size:0.9em; display:block; margin-bottom:5px; color:var(--col-gold);">Ritiro:</label>
+            <div style="display:flex; gap:10px;">
+                <input type="date" id="data-ritiro" class="clean-input" onchange="aggiornaOrari()" style="flex:1;">
+                <select id="orario" class="clean-input" style="flex:1;"><option value="">Orario...</option></select>
+            </div>
+            <input type="text" id="note-generali" class="clean-input" placeholder="Note per la cucina (opzionale)">
+        </div>
+        <div id="cart-items-container"></div>
+        <div class="cart-form-box" style="margin-bottom:100px;">
+            <div style="font-weight:bold; margin-bottom:10px; color:var(--col-gold);">Hai un Codice Sconto?</div>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="sconto" class="clean-input" style="margin:0; flex:1;" placeholder="Inserisci codice">
+                <button onclick="applicaSconto()" class="btn-applica">APPLICA</button>
+            </div>
+            <div id="msg-sconto" style="font-weight:bold; font-size:0.9em; margin-top:5px;"></div>
+            
+            <div style="margin-top:20px; padding-top:10px; border-top:1px solid var(--col-border);">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="privacy-check" style="width: 20px; height: 20px;">
+                    <small>Ho letto e accetto la <span onclick="apriModalPrivacy()" style="color: var(--col-gold); font-weight: bold; text-decoration: underline; cursor: pointer;">Privacy Policy</span></small>
+                </label>
+            </div>
+        </div>
+
+        <button id="btn-invia" class="btn-confirm" disabled onclick="preInviaOrdine()">CONFERMA</button>
+    </div>
+
+    <div id="modal-opzioni" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-scroll-area">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <h3 id="modal-prod-name" style="margin-top:0; color:var(--col-gold);">Pizza</h3>
+                    <div style="font-size:1.5em; cursor:pointer; color:var(--col-red);" onclick="closeItemModal()">&times;</div>
+                </div>
+                <p id="modal-prod-desc" style="color:var(--col-text-muted); margin-bottom:15px;"></p>
+                <input type="text" id="ing-search-input" class="ing-search-bar" placeholder="🔍 Cerca ingrediente..." onkeyup="filtraIngredientiModal(this.value)">
+                <div style="font-weight:bold; margin-bottom:5px; color:var(--col-green);">Aggiungi:</div>
+                <div id="lista-aggiunte" class="ingredients-grid"></div>
+                <div style="font-weight:bold; margin:10px 0 5px 0; color:var(--col-red);">Rimuovi:</div>
+                <div id="lista-rimozioni" class="ingredients-grid"></div>
+                <textarea id="modal-note" class="clean-input" style="height:70px; margin-top:10px;" placeholder="Note specifiche..."></textarea>
+                <div id="std-qty-box" class="modal-qty-box">
+                    <div onclick="cambiaQtaModal(-1)" style="width:40px; height:40px; background:var(--col-bg-input); border:1px solid var(--col-border); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; cursor:pointer; color:var(--col-red);">-</div>
+                    <span id="modal-qty" style="font-size:1.5em; font-weight:bold; color:white;">1</span>
+                    <div onclick="cambiaQtaModal(1)" style="width:40px; height:40px; background:var(--col-red); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.5);">+</div>
+                </div>
+            </div>
+            <div class="modal-sticky-footer">
+                <button class="btn-modal-cancel" onclick="closeItemModal()">ANNULLA</button>
+                <button class="btn-modal-confirm" onclick="saveCustomItem()">AGGIUNGI - <span id="modal-price">0.00</span> €</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-bigusto" class="modal-overlay">
+        <div class="modal-content">
+            <div style="position:absolute; right:15px; top:10px; font-size:1.5em; cursor:pointer; color:var(--col-red);" onclick="document.getElementById('modal-bigusto').style.display='none'">&times;</div>
+            <h3 style="margin-top:0;">🍕 Crea Stirata Bi-Gusto</h3>
+            <p style="color:var(--col-text-muted); font-size:0.9em;">Scegli due gusti e modifica gli ingredienti per ogni metà.</p>
+            <div class="bigusto-row">
+                <div class="bigusto-row-header">
+                    <label style="font-weight:bold; color:var(--col-text-main);">Gusto 1 (Metà)</label>
+                    <button id="btn-mod-1" class="btn-mod-half" onclick="editHalf(1)">✏️ MODIFICA</button>
+                </div>
+                <select id="bg-gusto1" class="select-gusto" onchange="updateBiGustoHalf(1)"><option value="">Scegli...</option></select>
+                <div id="bg-mods-1" class="half-mods-display"></div>
+            </div>
+            <div class="bigusto-row">
+                <div class="bigusto-row-header">
+                    <label style="font-weight:bold; color:var(--col-text-main);">Gusto 2 (Metà)</label>
+                    <button id="btn-mod-2" class="btn-mod-half" onclick="editHalf(2)">✏️ MODIFICA</button>
+                </div>
+                <select id="bg-gusto2" class="select-gusto" onchange="updateBiGustoHalf(2)"><option value="">Scegli...</option></select>
+                <div id="bg-mods-2" class="half-mods-display"></div>
+            </div>
+            <textarea id="bg-note" class="clean-input" style="height:60px;" placeholder="Note generali sulla bi-gusto..."></textarea>
+            <button id="btn-confirm-stirata" class="btn-confirm" style="position:relative; bottom:0; left:0; transform:none; width:100%; background:var(--col-gold); color:black;" onclick="aggiungiBiGusto()" disabled>AGGIUNGI - <span id="bg-price">0.00</span> €</button>
+        </div>
+    </div>
+
+    <div id="modal-legenda" class="modal-overlay">
+        <div class="modal-content" style="max-width: 350px;">
+            <div style="position:absolute; right:15px; top:10px; font-size:1.5em; cursor:pointer;" onclick="document.getElementById('modal-legenda').style.display='none'">&times;</div>
+            <h3 style="color:var(--col-red);">ℹ️ Legenda Allergeni</h3>
+            <div id="legenda-container"></div>
+            <button class="btn-confirm" style="position:relative; bottom:0; left:0; transform:none; width:100%; margin-top:20px;" onclick="document.getElementById('modal-legenda').style.display='none'">CHIUDI</button>
+        </div>
+    </div>
+
+    <div id="modal-privacy" class="modal-overlay">
+        <div class="modal-content">
+            <div style="position:absolute; right:15px; top:10px; font-size:1.5em; cursor:pointer; color:var(--col-red);" onclick="document.getElementById('modal-privacy').style.display='none'">&times;</div>
+            <h3 style="color:var(--col-gold); margin-top:0;"><i class="fa-solid fa-shield-halved"></i> Privacy Policy</h3>
+            
+            <div class="modal-scroll-area" style="height: 50vh; padding: 0; margin-bottom: 20px; font-size: 0.85em; color: var(--col-text-muted); line-height: 1.5; text-align: left;">
+                <p><strong>1. Titolare del Trattamento</strong><br>
+                Il Titolare del trattamento dei dati è "Da Mimmo - Restaurant & Pizza".</p>
+                
+                <p><strong>2. Finalità del Trattamento</strong><br>
+                I dati personali forniti (Nome, Cognome, Telefono) vengono utilizzati esclusivamente per la gestione e l'evasione dell'ordine, e per contattarti in caso di necessità riguardanti la consegna o il ritiro.</p>
+                
+                <p><strong>3. Conservazione dei Dati</strong><br>
+                I dati verranno conservati nel nostro database sicuro al fine di facilitare i tuoi ordini futuri e per farti partecipare alla raccolta punti (Fidelity Card). Non cederemo né venderemo MAI i tuoi dati a terzi.</p>
+                
+                <p><strong>4. Diritti dell'Utente</strong><br>
+                Hai il diritto in qualunque momento di richiedere la cancellazione, la modifica o la visione dei tuoi dati contattandoci telefonicamente o recandoti in pizzeria.</p>
+            </div>
+            
+            <button class="btn-confirm" style="position:relative; bottom:0; left:0; transform:none; width:100%;" onclick="document.getElementById('modal-privacy').style.display='none'">HO CAPITO</button>
+        </div>
+    </div>
+
+    <div id="modal-auth" class="modal-overlay">
+        <div class="modal-content">
+            <div style="text-align:right;">
+                <span style="font-size:1.5em; cursor:pointer; color:var(--col-red);" onclick="chiudiModalAuth()">&times;</span>
+            </div>
+            
+            <div id="auth-sms-flow">
+                <h2 style="color:var(--col-gold); text-align:center; margin-top:0;"><i class="fa-solid fa-mobile-screen"></i> Accesso</h2>
+                
+                <div id="auth-step-1">
+                    <p style="color:#ccc; text-align:center; font-size:0.9em;">Inserisci il tuo numero di telefono per accedere o registrarti.</p>
+                    <input type="tel" id="sms-phone" class="clean-input" placeholder="Es. 3401234567" style="text-align:center; font-size:1.2em; font-weight:bold; letter-spacing:2px;">
+                    <div id="recaptcha-container" style="display:flex; justify-content:center; margin:15px 0;"></div>
+                    <button class="btn-confirm" style="position:relative; transform:none; left:0; width:100%; margin-top:10px;" onclick="inviaCodiceSMS()">CONTINUA</button>
+                </div>
+
+                <div id="auth-step-2" style="display:none;">
+                    <p style="color:var(--col-green); text-align:center; font-weight:bold;">SMS Inviato!</p>
+                    <p style="color:#ccc; text-align:center; font-size:0.9em;">Inserisci il codice di 6 cifre che hai ricevuto.</p>
+                    <input type="number" id="sms-code" class="clean-input" placeholder="123456" style="text-align:center; font-size:1.5em; font-weight:bold; letter-spacing:5px;">
+                    <button class="btn-confirm" style="position:relative; transform:none; left:0; width:100%; margin-top:10px;" onclick="verificaCodiceOTP()">VERIFICA</button>
+                    <button onclick="annullaSMS()" style="background:none; border:none; color:var(--col-text-muted); width:100%; margin-top:15px; text-decoration:underline; cursor:pointer;">Cambia Numero</button>
+                </div>
+
+                <div id="auth-step-3" style="display:none;">
+                    <p style="color:var(--col-gold); text-align:center; font-weight:bold;">🎉 Numero confermato!</p>
+                    <p style="color:#ccc; text-align:center; font-size:0.9em;">Sembra essere la tua prima volta qui. Dicci come ti chiami per completare la registrazione.</p>
+                    <input type="text" id="sms-nome" class="clean-input" placeholder="Nome">
+                    <input type="text" id="sms-cognome" class="clean-input" placeholder="Cognome">
+                    <button class="btn-confirm" style="position:relative; transform:none; left:0; width:100%; margin-top:10px; background:var(--col-gold); color:black;" onclick="salvaNuovoUtente()">SALVA E ACCEDI</button>
+                </div>
+            </div>
+
+            <div id="user-info-box" style="display:none; text-align:center;">
+                <h3 style="color:var(--col-green);">Benvenuto, <span id="lbl-user-name"></span>!</h3>
+                <p style="color:#ccc;">Sei connesso con il numero <span id="lbl-user-phone" style="color:var(--col-gold); font-weight:bold;"></span></p>
+                
+                <button class="btn-applica" style="width:100%; padding:15px; margin-top:10px; border-radius:10px; font-size:1em;" onclick="caricaStoricoOrdini()">
+                    <i class="fa-solid fa-clock-rotate-left"></i> I MIEI ORDINI
+                </button>
+
+                <div id="storico-ordini-container" style="display:none; margin-top:15px; max-height: 40vh; overflow-y: auto;"></div>
+
+                <button class="btn-trash" style="width:100%; border-radius:10px; background:#333; color:white; margin-top:20px;" onclick="doLogout()">ESCI DALL'ACCOUNT</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc, getDoc, query, where, orderBy, limit, setDoc, writeBatch, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithPhoneNumber, RecaptchaVerifier, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // --- CONFIGURAZIONE NUOVO PROGETTO FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU", 
+            authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+            projectId: "gestionale-ristoranti-96c5b",
+            storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+            messagingSenderId: "855115229099",
+            appId: "1:855115229099:web:99785936847d28016254ee"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        auth.languageCode = 'it'; 
+
+        let MENU = [], INGREDIENTI = [], RIMOZIONI = [], SCONTI = [], carrello = [];
+        const savedCart = localStorage.getItem('mimmo_cart');
+        if (savedCart) {
+            try {
+                carrello = JSON.parse(savedCart);
+                setTimeout(updateCartUI, 500); 
+            } catch (e) {
+                console.error("Errore lettura carrello", e);
+            }
+        }
+
+        let tempProd = null, tempQty = 1, tempAgg = [], tempRem = [], curCat = 'tutti', GIORNO_CHIUSURA = "";
+        let FIDELITY_CONFIG = { attiva: true, soglia: 10, premio: 'Omaggio' }; 
+        let scontoAttivoObj = null, codiceScontoAttivo = "";
+        let activeOrderListener = null;
+        let currentUserData = null; 
+        let tempPhoneDirect = "";
+        window.storicoOrdiniDati = {}; 
+        let limiteFornoDinamico = 10;
+        let crossSellAttivo = false;
+
+        window.biGustoData = { h1: {id:null, name:'', price:0, extraPrice:0, details:[]}, h2: {id:null, name:'', price:0, extraPrice:0, details:[]} };
+        window.modificationContext = 'CART'; 
+
+        const ALLERGENI_ICONS = { 
+            "Glutine": "fa-wheat-awn", "Latte": "fa-cow", "Uova": "fa-egg", "Pesce": "fa-fish", "Crostacei": "fa-shrimp", "Frutta a guscio": "fa-cookie", "Arachidi": "fa-jar", 
+            "Soia": "fa-leaf", "Sedano": "fa-carrot", "Senape": "fa-bottle-droplet", "Sesamo": "fa-seedling", "Solfiti": "fa-wine-glass", "Lupini": "fa-circle-dot", 
+            "Molluschi": "fa-worm", "Surgelato ❄️": "fa-snowflake", "Congelato 🧊": "fa-icicles" 
+        };
+
+        const CATEGORY_ORDER = ['ant_pizzeria', 'ant_ristorante', 'pizza', 'speciale', 'stirata', 'gf', 'primo', 'secondo', 'contorno', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra'];
+        const EXCLUDED_CATS = ['ant_ristorante', 'primo', 'secondo', 'contorno', 'vino', 'amaro', 'pescato'];
+        const CATEGORY_LABELS = { 'pizza': 'PIZZE', 'stirata': 'STIRATE', 'gf': 'GLUTEN FREE', 'speciale': '✨ SPECIALI', 'ant_pizzeria': 'ANT. PIZZERIA', 'dolce': 'DOLCI', 'bibita': 'BIBITE', 'bibita_lattina': 'LATTINE', 'bibita_bottiglia': 'BOTTIGLIE', 'birra': 'BIRRE', 'amaro': 'AMARI/CAFFÈ' };
+
+        window.confirmationResult = null;
+
+        function impostaUtenteLoggato(data) {
+            currentUserData = data;
+            localStorage.setItem('mimmo_user_session', JSON.stringify(data));
+            const btnHome = document.getElementById('btn-auth-home');
+            if(btnHome) btnHome.innerHTML = `<i class="fa-solid fa-user-check"></i> CIAO ${(data.nome || 'CLIENTE').toUpperCase()}`;
+            
+            const lblName = document.getElementById('lbl-user-name');
+            const lblPhone = document.getElementById('lbl-user-phone');
+            if(lblName) lblName.innerText = data.nome || '';
+            if(lblPhone) lblPhone.innerText = data.telefono || '';
+            
+            precompilaCarrello();
+            
+            if (window.calcolaFidelity && data.telefono) {
+                window.calcolaFidelity(data.telefono);
+            }
+            updateAuthModalUI(true);
+        }
+
+        function logoutUI() {
+            currentUserData = null;
+            localStorage.removeItem('mimmo_user_session');
+            const btnHome = document.getElementById('btn-auth-home');
+            if(btnHome) btnHome.innerHTML = `<i class="fa-solid fa-user"></i> ACCEDI`;
+            const fidContainer = document.getElementById('fidelity-container');
+            if(fidContainer) fidContainer.style.display = 'none'; 
+            updateAuthModalUI(false);
+        }
+
+        // Ripristina eventuale sessione locale salvata
+        const savedSession = localStorage.getItem('mimmo_user_session');
+        if (savedSession) {
+            try {
+                const parsedUser = JSON.parse(savedSession);
+                if (parsedUser && parsedUser.telefono) {
+                    setTimeout(() => impostaUtenteLoggato(parsedUser), 200);
+                }
+            } catch (e) {}
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const docRef = doc(db, "clienti_registrati", user.uid);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    impostaUtenteLoggato(docSnap.data());
+                } else {
+                    let telCheck = user.phoneNumber ? user.phoneNumber.replace('+39', '') : ""; 
+                    let oldClientExists = false;
+                    let oldData = null;
+                    
+                    if (telCheck !== "") {
+                        const oldClientRef = doc(db, "clienti", telCheck);
+                        const oldClientSnap = await getDoc(oldClientRef);
+                        if (oldClientSnap.exists()) {
+                            oldClientExists = true;
+                            oldData = oldClientSnap.data();
+                        }
+                    }
+                    
+                    if (oldClientExists) {
+                        const partiNome = (oldData.nome || "Cliente").split(" ");
+                        const newData = {
+                            nome: partiNome[0] || "Cliente",
+                            cognome: oldData.cognome || partiNome.slice(1).join(" ") || "",
+                            telefono: telCheck,
+                            data_reg: serverTimestamp()
+                        };
+                        await setDoc(docRef, newData);
+                        impostaUtenteLoggato(newData);
+                        window.chiudiModalAuth();
+                    } else {
+                        updateAuthModalUI(false, true); 
+                    }
+                }
+            }
+        });
+
+        window.apriModalAuth = () => { 
+            document.getElementById('modal-auth').style.display = 'flex'; 
+            if(!window.recaptchaVerifier) {
+                try {
+                    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'normal' });
+                    window.recaptchaVerifier.render().catch(() => {});
+                } catch (e) {}
+            }
+        };
+        
+        window.chiudiModalAuth = () => { document.getElementById('modal-auth').style.display = 'none'; };
+
+        // --- GESTIONE ACCESSO CON FALLBACK AUTOMATICO SE SMS DISABILITATO SU FIREBASE ---
+        async function accessoDirettoSenzaSMS(tel) {
+            tempPhoneDirect = tel;
+            try {
+                const oldClientRef = doc(db, "clienti", tel);
+                const oldClientSnap = await getDoc(oldClientRef);
+                if (oldClientSnap.exists()) {
+                    const oldData = oldClientSnap.data();
+                    const parti = (oldData.nome || "Cliente").trim().split(" ");
+                    const userData = {
+                        nome: parti[0] || "Cliente",
+                        cognome: oldData.cognome || parti.slice(1).join(" ") || "",
+                        telefono: tel
+                    };
+                    impostaUtenteLoggato(userData);
+                    window.chiudiModalAuth();
+                    Swal.fire({icon: 'success', title: 'Bentornato ' + userData.nome + '!', timer: 1500, showConfirmButton: false});
+                    return;
+                }
+            } catch (e) {
+                console.warn("Verifica cliente diretta:", e);
+            }
+            // Se il numero è nuovo, passa allo step 3 (Nome e Cognome)
+            document.getElementById('auth-step-1').style.display = 'none';
+            document.getElementById('auth-step-2').style.display = 'none';
+            document.getElementById('auth-step-3').style.display = 'block';
+        }
+
+        window.inviaCodiceSMS = () => {
+            let tel = document.getElementById('sms-phone').value.trim();
+            if(!/^(3\d{9})$/.test(tel)) return Swal.fire("Attenzione", "Inserisci un numero di cellulare valido di 10 cifre.", "warning");
+            
+            tempPhoneDirect = tel;
+            const telInternazionale = '+39' + tel; 
+            Swal.fire({title: 'Verifica numero...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
+
+            if (!window.recaptchaVerifier) {
+                Swal.close();
+                accessoDirettoSenzaSMS(tel);
+                return;
+            }
+
+            signInWithPhoneNumber(auth, telInternazionale, window.recaptchaVerifier)
+                .then((confirmationResult) => {
+                    window.confirmationResult = confirmationResult;
+                    Swal.close();
+                    document.getElementById('auth-step-1').style.display = 'none';
+                    document.getElementById('auth-step-2').style.display = 'block';
+                }).catch((error) => {
+                    console.warn("SMS Auth non attivo o regione bloccata, attivo accesso diretto CRM:", error.code);
+                    Swal.close();
+                    // Fallback automatico: non blocca mai il cliente se gli SMS non sono attivi su Firebase
+                    accessoDirettoSenzaSMS(tel);
+                });
+        };
+
+        window.verificaCodiceOTP = () => {
+            const code = document.getElementById('sms-code').value.trim();
+            if(code.length !== 6) return Swal.fire("Attenzione", "Il codice deve essere di 6 cifre.", "warning");
+
+            Swal.fire({title: 'Verifica in corso...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
+
+            window.confirmationResult.confirm(code).then(async (result) => {
+                const user = result.user;
+                const docRef = doc(db, "clienti_registrati", user.uid);
+                const docSnap = await getDoc(docRef);
+
+                Swal.close();
+
+                if(docSnap.exists()) {
+                    impostaUtenteLoggato(docSnap.data());
+                    window.chiudiModalAuth();
+                    Swal.fire({icon: 'success', title: 'Bentornato!', timer: 1500, showConfirmButton: false});
+                } else {
+                    let telCheck = user.phoneNumber ? user.phoneNumber.replace('+39', '') : tempPhoneDirect;
+                    let oldClientExists = false;
+                    let oldData = null;
+                    
+                    if (telCheck !== "") {
+                        const oldClientRef = doc(db, "clienti", telCheck);
+                        const oldClientSnap = await getDoc(oldClientRef);
+                        if(oldClientSnap.exists()) {
+                            oldClientExists = true;
+                            oldData = oldClientSnap.data();
+                        }
+                    }
+                    
+                    if (oldClientExists) {
+                        const parti = (oldData.nome || "Cliente").trim().split(" ");
+                        const newData = {
+                            nome: parti[0] || "Cliente",
+                            cognome: oldData.cognome || parti.slice(1).join(" ") || "",
+                            telefono: telCheck,
+                            data_reg: serverTimestamp()
+                        };
+                        await setDoc(docRef, newData);
+                        impostaUtenteLoggato(newData);
+                        window.chiudiModalAuth();
+                        Swal.fire({icon: 'success', title: 'Bentornato ' + newData.nome + '!', timer: 2000, showConfirmButton: false});
+                    } else {
+                        document.getElementById('auth-step-2').style.display = 'none';
+                        document.getElementById('auth-step-3').style.display = 'block';
+                    }
+                }
+            }).catch((error) => {
+                Swal.fire("Codice Errato", "Il codice inserito non è corretto o è scaduto.", "error");
+            });
+        };
+
+        window.salvaNuovoUtente = async () => {
+            const nome = document.getElementById('sms-nome').value.trim();
+            const cognome = document.getElementById('sms-cognome').value.trim();
+            
+            if(!/^[a-zA-Z\sàèéìíòóùú']+$/i.test(nome) || !/^[a-zA-Z\sàèéìíòóùú']+$/i.test(cognome)) {
+                return Swal.fire("Attenzione", "Inserisci nome e cognome reali (solo lettere).", "warning");
+            }
+
+            const user = auth.currentUser;
+            let tel = (user && user.phoneNumber) ? user.phoneNumber.replace('+39', '') : tempPhoneDirect;
+
+            const newData = {
+                nome: nome,
+                cognome: cognome,
+                telefono: tel,
+                data_reg: serverTimestamp()
+            };
+
+            try {
+                if (user && user.uid) {
+                    await setDoc(doc(db, "clienti_registrati", user.uid), newData);
+                }
+                if (tel) {
+                    await setDoc(doc(db, "clienti", tel), {
+                        nome: `${nome} ${cognome}`.trim(),
+                        cognome: cognome,
+                        telefono: tel,
+                        ultimaData: new Date().toISOString().split('T')[0]
+                    }, { merge: true });
+                }
+            } catch (e) {
+                console.warn("Salvataggio profilo:", e);
+            }
+
+            impostaUtenteLoggato(newData);
+            window.chiudiModalAuth();
+            Swal.fire({icon: 'success', title: 'Registrazione Completata!', timer: 2000, showConfirmButton: false});
+        };
+
+        window.annullaSMS = () => {
+            document.getElementById('auth-step-1').style.display = 'block';
+            document.getElementById('auth-step-2').style.display = 'none';
+            document.getElementById('sms-code').value = "";
+        };
+
+        window.doLogout = () => {
+            logoutUI();
+            signOut(auth).catch(() => {});
+            window.chiudiModalAuth();
+            Swal.fire({icon: 'info', title: 'Disconnesso', timer: 1500, showConfirmButton: false});
+        };
+
+        function updateAuthModalUI(isLogged, missingName = false) {
+            const flowBox = document.getElementById('auth-sms-flow');
+            const infoBox = document.getElementById('user-info-box');
+            const s1 = document.getElementById('auth-step-1');
+            const s2 = document.getElementById('auth-step-2');
+            const s3 = document.getElementById('auth-step-3');
+
+            if(isLogged && !missingName) {
+                flowBox.style.display = 'none';
+                infoBox.style.display = 'block';
+            } else if (isLogged && missingName) {
+                flowBox.style.display = 'block';
+                infoBox.style.display = 'none';
+                s1.style.display = 'none';
+                s2.style.display = 'none';
+                s3.style.display = 'block';
+            } else {
+                flowBox.style.display = 'block';
+                infoBox.style.display = 'none';
+                s1.style.display = 'block';
+                s2.style.display = 'none';
+                s3.style.display = 'none';
+            }
+        }
+
+        function precompilaCarrello() {
+            if(currentUserData) {
+                const iNome = document.getElementById('nome');
+                const iCognome = document.getElementById('cognome');
+                const iTel = document.getElementById('telefono');
+                if(iNome && !iNome.value) iNome.value = currentUserData.nome || '';
+                if(iCognome && !iCognome.value) iCognome.value = currentUserData.cognome || '';
+                if(iTel && !iTel.value) iTel.value = currentUserData.telefono || '';
+            }
+        }
+
+        window.caricaStoricoOrdini = async () => {
+            const container = document.getElementById('storico-ordini-container');
+            
+            if(container.style.display === 'block') {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.innerHTML = "<div style='text-align:center; color:#888;'>Caricamento ordini... <i class='fa-solid fa-spinner fa-spin'></i></div>";
+            container.style.display = 'block';
+
+            if(!currentUserData || !currentUserData.telefono) {
+                container.innerHTML = "<div style='color:var(--col-red);'>Errore: Nessun telefono associato all'account.</div>";
+                return;
+            }
+
+            try {
+                let q = query(collection(db, "ordini"), where("telefono", "==", currentUserData.telefono));
+                let snap = await getDocs(q);
+
+                if(snap.empty) {
+                    q = query(collection(db, "ordini"), where("cliente.telefono", "==", currentUserData.telefono));
+                    snap = await getDocs(q);
+                }
+
+                if(snap.empty) {
+                    container.innerHTML = "<div style='text-align:center; color:#888; padding:10px;'>Non hai ancora effettuato ordini.</div>";
+                    return;
+                }
+
+                container.innerHTML = ""; 
+                window.storicoOrdiniDati = {}; 
+
+                let ordiniTrovati = [];
+                snap.forEach(docSnap => {
+                    ordiniTrovati.push({ id: docSnap.id, ...docSnap.data() });
+                });
+
+                ordiniTrovati.sort((a, b) => {
+                    let dataA = a.data_invio && a.data_invio.toMillis ? a.data_invio.toMillis() : 0;
+                    let dataB = b.data_invio && b.data_invio.toMillis ? b.data_invio.toMillis() : 0;
+                    return dataB - dataA;
+                });
+
+                ordiniTrovati.slice(0, 10).forEach(d => {
+                    window.storicoOrdiniDati[d.id] = d; 
+
+                    let dataFormat = "N/D";
+                    if(d.data_invio && d.data_invio.toDate) {
+                        const date = d.data_invio.toDate();
+                        dataFormat = date.toLocaleDateString('it-IT') + " " + date.toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'});
+                    } else if (d.data_ritiro) {
+                        dataFormat = d.data_ritiro + " " + (d.orario || "");
+                    }
+
+                    let st = d.stato || "In Attesa";
+                    let bg = "#757575"; 
+                    if(st.toLowerCase().includes('forno')) bg = "#e65100"; 
+                    if(st.toLowerCase().includes('pronto')) bg = "#2e7d32"; 
+                    if(st.toLowerCase().includes('consegnato')) bg = "#1565c0"; 
+                    if(st.toLowerCase().includes('annullato')) bg = "#b71c1c"; 
+
+                    let prodList = "";
+                    if(d.prodotti && d.prodotti.length > 0) {
+                        prodList = d.prodotti.map(p => `${p.qta}x ${p.nome}`).join(", ");
+                    }
+
+                    container.innerHTML += `
+                        <div class="storico-item">
+                            <div class="storico-header">
+                                <span><i class="fa-regular fa-calendar"></i> ${dataFormat}</span>
+                                <span>€ ${(parseFloat(d.totale) || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="storico-dettagli">
+                                🍕 ${prodList}
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                                <div>
+                                    <span class="storico-stato" style="background:${bg};">${st.toUpperCase()}</span>
+                                    <span style="font-size:0.8em; color:#888; margin-left:10px;">Ritiro: ${d.orario || 'N/D'}</span>
+                                </div>
+                                <button onclick="eseguiRiordino('${d.id}')" style="background:var(--col-gold); color:black; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; cursor:pointer;">
+                                    <i class="fa-solid fa-rotate-right"></i> RIORDINA
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+            } catch (e) {
+                console.error("Errore storico: ", e);
+                container.innerHTML = "<div style='color:var(--col-red); text-align:center;'>Impossibile caricare lo storico.</div>";
+            }
+        };
+
+        window.eseguiRiordino = (orderId) => {
+            const ordineTarget = window.storicoOrdiniDati[orderId];
+            if (!ordineTarget || !ordineTarget.prodotti) {
+                return Swal.fire("Errore", "Impossibile recuperare i prodotti di questo ordine.", "error");
+            }
+
+            Swal.fire({
+                title: 'Vuoi riordinare questi prodotti?',
+                text: 'Verranno aggiunti al tuo carrello attuale.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: 'var(--col-gold)',
+                cancelButtonColor: '#444',
+                confirmButtonText: '<span style="color:black; font-weight:bold;">Sì, aggiungili</span>',
+                cancelButtonText: 'Annulla',
+                background: 'var(--col-bg-card)',
+                color: 'white'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    ordineTarget.prodotti.forEach(p => {
+                        const newItem = {
+                            nome: p.nome,
+                            prezzo: parseFloat(p.prezzo),
+                            qta: parseInt(p.qta),
+                            dettagli: p.dettagli,
+                            cat: p.cat,
+                            isPeso: p.isPeso || false
+                        };
+                        pushToCart(newItem);
+                    });
+                    
+                    window.chiudiModalAuth();
+                    window.apriCarrello();
+                    
+                    const Toast = Swal.mixin({
+                        toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: 'var(--col-bg-card)', color: 'white'
+                    });
+                    Toast.fire({ icon: 'success', title: 'Aggiunti al carrello!' });
+                }
+            });
+        };
+
+        window.mostraMenu = () => { document.getElementById('view-home').style.display='none'; document.getElementById('view-menu').style.display='block'; };
+        window.mostraHome = () => { document.getElementById('view-home').style.display='flex'; document.getElementById('view-menu').style.display='none'; };
+        window.apriCarrello = () => { document.getElementById('cart-view').style.display='block'; updateCartUI(); precompilaCarrello(); };
+        window.apriLegenda = () => { document.getElementById('modal-legenda').style.display='flex'; };
+
+        async function init() {
+            // 1. Impostazioni Negozio (White-Label in tempo reale + Giorno Chiusura)
+            onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
+                if(docNegozio.exists()) {
+                    const dn = docNegozio.data();
+                    GIORNO_CHIUSURA = dn.giorno_riposo || "";
+                    if (dn.nome) {
+                        document.getElementById('app-window-title').innerText = `${dn.nome} - Ordina Online`;
+                        document.getElementById('home-title-txt').innerText = dn.nome;
+                    }
+                    if (dn.slogan) document.getElementById('home-slogan-txt').innerText = dn.slogan;
+                    if (dn.telefono_ordini) {
+                        const tl = document.getElementById('home-tel-link');
+                        tl.href = `tel:${dn.telefono_ordini}`;
+                        tl.innerHTML = `<i class="fa-solid fa-phone"></i> ${dn.telefono_ordini}`;
+                    }
+                    if (dn.logo_url) {
+                        document.getElementById('home-logo-img').src = dn.logo_url;
+                        document.getElementById('menu-logo-img').src = dn.logo_url;
+                    }
+                }
+            });
+
+            onSnapshot(doc(db, "impostazioni", "forno"), (d) => { if(d.exists() && d.data().limite_pizze) limiteFornoDinamico = d.data().limite_pizze; });
+            onSnapshot(doc(db, "impostazioni", "app_cliente"), (d) => { if(d.exists() && d.data().cross_sell_bibite !== undefined) crossSellAttivo = d.data().cross_sell_bibite; });
+            onSnapshot(doc(db, "impostazioni", "fidelity"), (d) => { if(d.exists()) FIDELITY_CONFIG = d.data(); });
+            
+            onSnapshot(collection(db, "prodotti"), (snap) => { 
+                MENU = [];
+                snap.forEach(d => {
+                    const data = d.data();
+                    if (!EXCLUDED_CATS.includes(data.cat)) {
+                        MENU.push({...data, id: d.id});
+                    }
+                }); 
+                renderCategoryPills();
+                renderMenu(); 
+            });
+
+            onSnapshot(collection(db, "ingredienti"), (snap) => {
+                INGREDIENTI = [];
+                snap.forEach(d => INGREDIENTI.push(d.data()));
+                INGREDIENTI.sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+            });
+
+            onSnapshot(collection(db, "rimozioni"), (snap) => {
+                RIMOZIONI = [];
+                snap.forEach(d => RIMOZIONI.push(d.data()));
+                RIMOZIONI.sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+            });
+
+            onSnapshot(collection(db, "sconti"), (snap) => {
+                SCONTI = [];
+                snap.forEach(d => SCONTI.push(d.data()));
+            });
+            
+            const now = new Date();
+            const dataLocale = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+            document.getElementById('data-ritiro').value = dataLocale;
+            window.aggiornaOrari();
+
+            const legContainer = document.getElementById('legenda-container');
+            legContainer.innerHTML = "";
+            for (const [key, icon] of Object.entries(ALLERGENI_ICONS)) {
+                legContainer.innerHTML += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #333;"><i class="fa-solid ${icon}" style="color:var(--col-red);width:25px;text-align:center;"></i><span>${key}</span></div>`;
+            }
+        }
+        init();
+
+        window.filtra = (cat, el) => { document.querySelectorAll('.cat-pill').forEach(c=>c.classList.remove('active')); el.classList.add('active'); curCat=cat; renderMenu(); };
+        window.cercaProdotto = (val) => renderMenu(val.toLowerCase());
+
+        function renderCategoryPills() {
+            const container = document.getElementById('cat-scroll-container');
+            container.innerHTML = `<div class="cat-pill ${curCat==='tutti'?'active':''}" onclick="filtra('tutti',this)">TUTTI</div>`;
+            const availableCats = new Set(MENU.map(p => p.cat));
+            CATEGORY_ORDER.forEach(cat => { if (availableCats.has(cat)) { const label = CATEGORY_LABELS[cat] || cat.toUpperCase(); const activeClass = curCat === cat ? 'active' : ''; container.innerHTML += `<div class="cat-pill ${activeClass}" onclick="filtra('${cat}',this)">${label}</div>`; } });
+            availableCats.forEach(cat => { if (!CATEGORY_ORDER.includes(cat) && !EXCLUDED_CATS.includes(cat)) { const activeClass = curCat === cat ? 'active' : ''; container.innerHTML += `<div class="cat-pill ${activeClass}" onclick="filtra('${cat}',this)">${cat.toUpperCase()}</div>`; } });
+        }
+
+        function renderMenu(searchVal = "") {
+            const list = document.getElementById('menu-list'); list.innerHTML = "";
+            if(curCat === 'stirata' && !searchVal) {
+                const biGustoDiv = document.createElement('div'); biGustoDiv.className = 'menu-item'; biGustoDiv.style.border = "2px solid var(--col-gold)"; biGustoDiv.style.background = "#2d2d2d"; 
+                biGustoDiv.innerHTML = `<div class="item-icon"><i class="fa-solid fa-star" style="color:var(--col-gold);"></i></div><div class="item-details"><div style="font-weight:800; font-size:1.1em; color:var(--col-red);">🌟 CREA LA TUA BI-GUSTO</div><div style="font-size:0.9em; color:#aaa;">Scegli 2 gusti dalla lista delle stirate!</div><div style="color:var(--col-green); font-weight:bold;">Prezzo Stirata Maggiore ></div></div><div class="btn-add" style="background:var(--col-red); color:white;">+</div>`;
+                biGustoDiv.onclick = () => window.apriModalBiGusto(); list.appendChild(biGustoDiv);
+            }
+
+            let filtered = MENU.filter(p => (curCat==='tutti'||p.cat===curCat) && (!searchVal||(p.nome || '').toLowerCase().includes(searchVal)));
+            filtered.sort((a,b) => parseFloat(a.prezzo) - parseFloat(b.prezzo));
+            if(filtered.length === 0 && curCat !== 'stirata') { list.innerHTML = "<div style='text-align:center;color:#888;'>Nessun prodotto.</div>"; return; }
+            
+            filtered.forEach(p => {
+                const scortaZero = (p.scorta !== null && p.scorta !== undefined && p.scorta !== "" && parseFloat(p.scorta) <= 0);
+                const isEsaurito = p.attivo === false || scortaZero; 
+                const div = document.createElement('div'); 
+                div.className = `menu-item ${isEsaurito?'esaurito':''}`;
+                
+                let iconsHtml = p.allergeni ? p.allergeni.map(a => `<i class="fa-solid ${ALLERGENI_ICONS[a]||'fa-circle-exclamation'} allergen-icon" title="${a}"></i>`).join('') : '';
+                
+                let visualHTML = '';
+                const imgSource = p.immagine_url || p.foto;
+                if (imgSource) {
+                    visualHTML = `<img src="${imgSource}" class="item-img" alt="${p.nome}" loading="lazy">`;
+                } else {
+                    let icon = 'fa-utensils'; 
+                    if(p.cat==='pizza'||p.cat==='speciale'||p.cat==='stirata'||p.cat==='gf') icon = 'fa-pizza-slice'; 
+                    else if((p.cat || '').includes('bibita')) icon = 'fa-glass-water'; 
+                    else if(p.cat==='birra') icon = 'fa-beer-mug-empty';
+                    visualHTML = `<div class="item-icon"><i class="fa ${icon}"></i></div>`;
+                }
+                
+                div.innerHTML = `
+                ${visualHTML}
+                <div class="item-details" onclick="${isEsaurito ? '' : `window.apriModal('${p.id}')`}">
+                    <div style="font-weight:bold;font-size:1.1em; color:var(--col-text-main);">${p.nome} <i class="fa fa-pencil" style="font-size:0.7em; color:#666;"></i></div>
+                    <div style="margin-top:2px;">${iconsHtml}</div>
+                    <div style="font-size:0.9em;color:var(--col-text-muted);">${p.desc || ''}</div>
+                    <div style="color:var(--col-green);font-weight:bold;">€ ${parseFloat(p.prezzo).toFixed(2)} ${p.isPeso ? '<span style="font-size:0.7em; color:#888;">(AL KG)</span>' : ''}</div>
+                </div>
+                ${isEsaurito ? '<b style="color:var(--col-red)">ESAURITO</b>' : `<div class="btn-add" onclick="window.quickAdd('${p.id}')">+</div>`}`;
+                
+                list.appendChild(div);
+            });
+        }
+
+        window.apriModal = (id) => {
+            tempProd = MENU.find(p=>p.id===id); if(!tempProd) return;
+            if(tempProd.isPeso) { window.quickAdd(id); return; }
+            tempQty = 1; tempAgg = []; tempRem = [];
+            
+            if(window.modificationContext !== 'BG_1' && window.modificationContext !== 'BG_2') { window.modificationContext = 'CART'; document.getElementById('std-qty-box').style.display = 'flex'; } else { document.getElementById('std-qty-box').style.display = 'none'; }
+            document.getElementById('modal-prod-name').innerText = tempProd.nome; document.getElementById('modal-prod-desc').innerText = tempProd.desc || ''; document.getElementById('modal-qty').innerText = 1; document.getElementById('ing-search-input').value = ""; 
+            renderIngredientiModal(""); calcPrice(); document.getElementById('modal-opzioni').style.display='flex';
+        };
+
+        window.filtraIngredientiModal = (text) => { renderIngredientiModal(text); };
+
+        function renderIngredientiModal(filterText) {
+            const divAgg = document.getElementById('lista-aggiunte'); divAgg.innerHTML=""; const divRem = document.getElementById('lista-rimozioni'); divRem.innerHTML=""; const filter = filterText ? filterText.toLowerCase() : "";
+            if(['pizza','stirata','speciale','gf'].includes(tempProd.cat) || (tempProd.cat || '').includes('ant_')) {
+                const filteredIngs = INGREDIENTI.filter(i => i.attivo!==false && (i.nome || '').toLowerCase().includes(filter));
+                filteredIngs.forEach(i => { 
+                    const el=document.createElement('div'); el.className='ing-chip'; const isSelected = tempAgg.some(x => x.nome === i.nome); if(isSelected) el.classList.add('selected');
+                    el.innerHTML=`${i.nome}<br><small>+${i.prezzo}</small>`; 
+                    el.onclick=function(){ this.classList.toggle('selected'); const idx=tempAgg.findIndex(x=>x.nome===i.nome); idx>-1?tempAgg.splice(idx,1):tempAgg.push(i); calcPrice(); }; divAgg.appendChild(el); 
+                });
+                let listRim = []; if(tempProd.ingredienti && Array.isArray(tempProd.ingredienti) && tempProd.ingredienti.length > 0) { listRim = tempProd.ingredienti.map(n => ({nome: n})); } else { listRim = RIMOZIONI.filter(r=>r.attivo!==false); }
+                const filteredRims = listRim.filter(r => (r.nome || '').toLowerCase().includes(filter));
+                filteredRims.forEach(r => { 
+                    const el=document.createElement('div'); el.className='rem-chip'; const isSelected = tempRem.includes(r.nome); if(isSelected) el.classList.add('selected');
+                    el.innerText=r.nome; el.onclick=function(){ this.classList.toggle('selected'); const idx=tempRem.indexOf(r.nome); idx>-1?tempRem.splice(idx,1):tempRem.push(r.nome); calcPrice(); }; divRem.appendChild(el); 
+                });
+            }
+        }
+
+        window.closeItemModal = () => { document.getElementById('modal-opzioni').style.display='none'; if(window.modificationContext === 'BG_1' || window.modificationContext === 'BG_2') { document.getElementById('modal-bigusto').style.display = 'flex'; } };
+
+        function calcPrice() { 
+            let baseP = parseFloat(tempProd.prezzo); let extraP = 0; tempAgg.forEach(i => extraP += parseFloat(i.prezzo || 0));
+            let remP = 0; tempRem.forEach(name => { let rim = RIMOZIONI.find(r => r.nome.trim().toLowerCase() === name.trim().toLowerCase()); if (!rim) rim = INGREDIENTI.find(i => i.nome.trim().toLowerCase() === name.trim().toLowerCase()); if(rim) remP += Math.abs(parseFloat(rim.prezzo || 0)); });
+            if(window.modificationContext === 'BG_1' || window.modificationContext === 'BG_2') { document.getElementById('modal-price').innerText = (extraP - remP).toFixed(2); } else { document.getElementById('modal-price').innerText = ((baseP + extraP - remP) * tempQty).toFixed(2); }
+        }
+
+        window.cambiaQtaModal = (d) => { tempQty+=d; if(tempQty<1)tempQty=1; document.getElementById('modal-qty').innerText=tempQty; calcPrice(); };
+        
+        window.saveCustomItem = () => {
+            let note = document.getElementById('modal-note').value; let det = []; if(tempProd.cat === 'gf') det.push('<span class="tag-gf">❌🌾 GLUTEN FREE</span>');
+            if(tempAgg.length) det.push("+"+tempAgg.map(a=>a.nome).join(',')); if(tempRem.length) det.push("NO "+tempRem.join(',')); if(note) det.push(note);
+            
+            let extraCost = 0; tempAgg.forEach(i => extraCost += parseFloat(i.prezzo || 0));
+            tempRem.forEach(name => { let rim = RIMOZIONI.find(r => r.nome.trim().toLowerCase() === name.trim().toLowerCase()); if (!rim) rim = INGREDIENTI.find(i => i.nome.trim().toLowerCase() === name.trim().toLowerCase()); if(rim) extraCost -= Math.abs(parseFloat(rim.prezzo || 0)); });
+
+            if (window.modificationContext === 'BG_1') {
+                window.biGustoData.h1.extraPrice = extraCost; window.biGustoData.h1.details = det; document.getElementById('bg-mods-1').innerHTML = det.join(" "); window.calcBiGustoPrice(); document.getElementById('modal-opzioni').style.display='none'; document.getElementById('modal-bigusto').style.display='flex';
+            } else if (window.modificationContext === 'BG_2') {
+                window.biGustoData.h2.extraPrice = extraCost; window.biGustoData.h2.details = det; document.getElementById('bg-mods-2').innerHTML = det.join(" "); window.calcBiGustoPrice(); document.getElementById('modal-opzioni').style.display='none'; document.getElementById('modal-bigusto').style.display='flex';
+            } else {
+                let unitP = parseFloat(tempProd.prezzo) + extraCost;
+                pushToCart({ nome: tempProd.nome, prezzo: unitP, qta: tempQty, dettagli: det.join('|')||'Normale', cat: tempProd.cat, isPeso: tempProd.isPeso || false });
+                document.getElementById('modal-opzioni').style.display='none';
+                
+                Swal.fire({
+                    toast: true, position: 'top-end', showConfirmButton: false, timer: 1500,
+                    icon: 'success', title: `${tempQty}x ${tempProd.nome} aggiunto!`,
+                    background: 'var(--col-bg-card)', color: 'white',
+                    width: 'auto'
+                });
+            }
+        };
+
+        window.apriModalPrivacy = () => { document.getElementById('modal-privacy').style.display='flex'; };
+        
+        window.quickAdd = (id) => { 
+            const p = MENU.find(x=>x.id===id); 
+            let details = 'Normale'; 
+            if(p.cat === 'gf') details = '<span class="tag-gf">❌🌾 GLUTEN FREE</span>'; 
+            
+            pushToCart({ nome: p.nome, prezzo: parseFloat(p.prezzo), qta: 1, dettagli: details, cat: p.cat, isPeso: p.isPeso || false }); 
+            
+            Swal.fire({
+                toast: true, position: 'top-end', showConfirmButton: false, timer: 1500,
+                icon: 'success', title: `${p.nome} aggiunto!`,
+                background: 'var(--col-bg-card)', color: 'white',
+                width: 'auto'
+            });
+        };
+
+        window.apriModalBiGusto = () => {
+            window.biGustoData = { h1: {id:null, name:'', price:0, extraPrice:0, details:[]}, h2: {id:null, name:'', price:0, extraPrice:0, details:[]} }; window.modificationContext = 'CART';
+            const s1 = document.getElementById('bg-gusto1'); const s2 = document.getElementById('bg-gusto2'); s1.innerHTML = "<option value=''>Scegli Gusto 1...</option>"; s2.innerHTML = "<option value=''>Scegli Gusto 2...</option>";
+            const stirate = MENU.filter(p => p.cat === 'stirata'); stirate.sort((a,b) => a.nome.localeCompare(b.nome));
+            stirate.forEach(p => { const opt = `<option value="${p.id}" data-nome="${p.nome}" data-prezzo="${p.prezzo}">${p.nome} (€ ${p.prezzo})</option>`; s1.innerHTML += opt; s2.innerHTML += opt; });
+            document.getElementById('bg-price').innerText = "0.00"; document.getElementById('bg-note').value = ""; document.getElementById('bg-mods-1').innerHTML = ""; document.getElementById('bg-mods-2').innerHTML = "";
+            document.getElementById('btn-mod-1').classList.remove('active'); document.getElementById('btn-mod-1').disabled = true; document.getElementById('btn-mod-2').classList.remove('active'); document.getElementById('btn-mod-2').disabled = true; document.getElementById('btn-confirm-stirata').disabled = true;
+            document.getElementById('modal-bigusto').style.display = 'flex';
+        };
+
+        window.updateBiGustoHalf = (halfNum) => {
+            const select = document.getElementById(`bg-gusto${halfNum}`); const btnMod = document.getElementById(`btn-mod-${halfNum}`); const id = select.value; const halfKey = 'h'+halfNum;
+            if (id) { const opt = select.options[select.selectedIndex]; window.biGustoData[halfKey].id = id; window.biGustoData[halfKey].name = opt.getAttribute('data-nome'); window.biGustoData[halfKey].price = parseFloat(opt.getAttribute('data-prezzo')); window.biGustoData[halfKey].extraPrice = 0; window.biGustoData[halfKey].details = []; document.getElementById(`bg-mods-${halfNum}`).innerHTML = ""; btnMod.classList.add('active'); btnMod.disabled = false;
+            } else { window.biGustoData[halfKey] = {id:null, name:'', price:0, extraPrice:0, details:[]}; document.getElementById(`bg-mods-${halfNum}`).innerHTML = ""; btnMod.classList.remove('active'); btnMod.disabled = true; }
+            window.calcBiGustoPrice();
+        };
+
+        window.editHalf = (halfNum) => { const halfKey = 'h'+halfNum; if(!window.biGustoData[halfKey].id) return; window.modificationContext = 'BG_' + halfNum; document.getElementById('modal-bigusto').style.display = 'none'; window.apriModal(window.biGustoData[halfKey].id); document.getElementById('modal-note').value = ""; };
+
+        window.calcBiGustoPrice = () => { const d = window.biGustoData; let basePrice = Math.max(d.h1.price, d.h2.price); let finalPrice = basePrice + d.h1.extraPrice + d.h2.extraPrice; document.getElementById('bg-price').innerText = finalPrice.toFixed(2); document.getElementById('btn-confirm-stirata').disabled = !(d.h1.id && d.h2.id); };
+
+        window.aggiungiBiGusto = () => {
+            const d = window.biGustoData; if(!d.h1.id || !d.h2.id) return alert("Scegli entrambi i gusti!");
+            const note = document.getElementById('bg-note').value; const price = parseFloat(document.getElementById('bg-price').innerText);
+            let details = `<b>1/2</b> ${d.h1.name}`; if(d.h1.details.length > 0) details += ` <br>${d.h1.details.join(' ')}`;
+            details += `<br><b>1/2</b> ${d.h2.name}`; if(d.h2.details.length > 0) details += ` <br>${d.h2.details.join(' ')}`;
+            if(note) details += `<br><b>Note:</b> ${note}`;
+            pushToCart({ nome: "STIRATA BI-GUSTO", prezzo: price, qta: 1, dettagli: details, cat: 'stirata', isPeso: false }); document.getElementById('modal-bigusto').style.display='none';
+        };
+
+        function pushToCart(newItem) {
+            if(newItem.isPeso) { carrello.push(newItem); } else { const found = carrello.find(i => i.nome === newItem.nome && i.dettagli === newItem.dettagli && i.prezzo === newItem.prezzo); if(found) { found.qta += newItem.qta; } else { carrello.push(newItem); } } updateCartUI();
+        }
+
+        window.editCartItem = (index) => {
+            const item = carrello[index]; if(!item) return; 
+            carrello.splice(index, 1); updateCartUI();
+            if(item.nome === "STIRATA BI-GUSTO") { window.apriModalBiGusto(); return; }
+            const originalProd = MENU.find(p => p.nome === item.nome);
+            if(originalProd) { tempProd = originalProd; tempQty = item.qta; tempAgg = []; tempRem = []; document.getElementById('modal-prod-name').innerText = tempProd.nome; window.apriModal(originalProd.id); }
+        };
+
+        function calcolaTotaleConSconto(totBase) {
+            if (!scontoAttivoObj) return totBase;
+            const val = parseFloat(scontoAttivoObj.valore ?? scontoAttivoObj.val ?? 0);
+            if (scontoAttivoObj.tipo === 'euro' || scontoAttivoObj.tipo === 'fixed') {
+                return Math.max(0, totBase - val);
+            }
+            return Math.max(0, totBase - (totBase * val / 100));
+        }
+
+        function updateCartUI() {
+            const cnt = carrello.reduce((s,i)=>s+parseFloat(i.qta),0); const badge = document.getElementById('cart-badge'); if(badge) { badge.innerText = cnt; badge.style.opacity = cnt > 0 ? 1 : 0; }
+            const box = document.getElementById('cart-items-container'); box.innerHTML = ""; let tot = 0; if(carrello.length === 0) box.innerHTML = "<div style='text-align:center; padding:30px; color:#999;'>Il carrello è vuoto.</div>";
+            carrello.forEach((item,i) => {
+                if(!item.isPeso) tot += item.prezzo * item.qta; 
+                
+                const qtyDisplay = item.isPeso ? '1 (Al Kg)' : item.qta; 
+                const priceDisplay = item.isPeso ? 'Da pesare in cassa' : `€ ${(item.prezzo * item.qta).toFixed(2)}`;
+                box.innerHTML += `<div class="cart-item-card"><div class="cart-item-info"><div class="cart-item-name">${qtyDisplay}x ${item.nome}</div><div class="cart-item-details">${item.dettagli}</div></div><div class="cart-item-actions"><div class="cart-item-price" style="${item.isPeso ? 'font-size:0.8em; color:var(--col-gold);' : ''}">${priceDisplay}</div><div style="display:flex; gap:10px;"><div class="btn-edit" onclick="window.editCartItem(${i})"><i class="fa-solid fa-pencil"></i></div><div class="btn-trash" onclick="window.delItem(${i})"><i class="fa-solid fa-trash"></i></div></div></div></div>`;
+            });
+            let totFin = calcolaTotaleConSconto(tot);
+            document.getElementById('btn-invia').innerText = `CONFERMA - € ${totFin.toFixed(2)}`; document.getElementById('btn-invia').disabled = carrello.length<=0; 
+            if(document.getElementById('data-ritiro').value !== "") window.aggiornaOrari();
+            localStorage.setItem('mimmo_cart', JSON.stringify(carrello));
+        }
+
+        window.delItem = (i) => { carrello.splice(i,1); updateCartUI(); };
+
+        window.applicaSconto = () => {
+            const input = document.getElementById('sconto'); const code = input.value.trim().toUpperCase(); 
+            if(!code) { scontoAttivoObj=null; codiceScontoAttivo=""; document.getElementById('msg-sconto').innerText=""; updateCartUI(); return; }
+            const f = SCONTI.find(s => ((s.codice || s.nome || '').toUpperCase() === code));
+            if(f) {
+                scontoAttivoObj = f;
+                codiceScontoAttivo = code;
+                const val = f.valore ?? f.val ?? 0;
+                const simb = (f.tipo === 'euro' || f.tipo === 'fixed') ? '€' : '%';
+                document.getElementById('msg-sconto').innerText=`✅ Sconto ${val}${simb} applicato!`;
+                document.getElementById('msg-sconto').style.color="var(--col-green)";
+            } else {
+                scontoAttivoObj = null;
+                codiceScontoAttivo = "";
+                document.getElementById('msg-sconto').innerText="❌ Codice non valido";
+                document.getElementById('msg-sconto').style.color="var(--col-red)";
+            }
+            updateCartUI();
+        };
+
+        window.aggiornaOrari = async () => {
+            const sel = document.getElementById('orario'); sel.innerHTML="<option value=''>Caricamento...</option>"; const dateInput = document.getElementById('data-ritiro').value; const d = new Date(dateInput);
+            if(GIORNO_CHIUSURA && String(d.getDay()) === String(GIORNO_CHIUSURA)) { sel.innerHTML="<option value=''>CHIUSO</option>"; Swal.fire("Siamo chiusi in questo giorno."); return; }
+            const snap = await getDocs(query(collection(db, "ordini"), where("data_ritiro", "==", dateInput))); const slotCounts = {}; 
+            snap.forEach(docSnap => { const o = docSnap.data(); if(o.stato !== 'Annullato' && o.prodotti) { let pizzeCount = 0; o.prodotti.forEach(p => { if(['pizza', 'stirata', 'gf', 'speciale'].includes(p.cat)) pizzeCount += parseFloat(p.qta || 0); }); if(o.orario) slotCounts[o.orario] = (slotCounts[o.orario] || 0) + pizzeCount; } });
+            let myCartPizzas = 0; carrello.forEach(p => { if(['pizza', 'stirata', 'gf', 'speciale'].includes(p.cat)) myCartPizzas += parseFloat(p.qta || 0); });
+            sel.innerHTML="<option value=''>Orario...</option>"; const now = new Date(); const isToday = (dateInput === now.toISOString().split('T')[0]);
+            for(let h=19;h<23;h++) {
+                for(let m=0;m<60;m+=15) {
+                    if(isToday && (h < now.getHours() || (h === now.getHours() && m < now.getMinutes()))) continue; 
+                    const timeStr = `${h}:${m<10?'0'+m:m}`; const booked = slotCounts[timeStr] || 0; const totalProjected = booked + myCartPizzas;
+                    if (totalProjected > limiteFornoDinamico) { sel.innerHTML += `<option value="" disabled style="color:var(--col-red);">${timeStr} (PIENO)</option>`; } else { sel.innerHTML += `<option value="${timeStr}">${timeStr}</option>`; }
+                }
+            }
+        };
+
+        window.preInviaOrdine = async () => {
+            const btn = document.getElementById('btn-invia'); if (btn.disabled) return;
+            
+            const nome = document.getElementById('nome').value.trim();
+            const cognome = document.getElementById('cognome').value.trim();
+            const tel = document.getElementById('telefono').value.trim();
+            const ora = document.getElementById('orario').value;
+            const priv = document.getElementById('privacy-check').checked;
+
+            if(!nome || !cognome || !tel || !ora) return Swal.fire("Attenzione", "Compila tutti i campi obbligatori.", "warning"); 
+            if(!/^[a-zA-Z\sàèéìíòóùú']+$/i.test(nome) || !/^[a-zA-Z\sàèéìíòóùú']+$/i.test(cognome)) return Swal.fire("Attenzione", "Inserisci nome e cognome reali (solo lettere).", "warning");
+            if(!/^(3\d{9})$/.test(tel)) return Swal.fire("Attenzione", "Inserisci un numero di cellulare valido di 10 cifre (deve iniziare con 3).", "warning");
+            if(!priv) return Swal.fire("Attenzione", "Devi accettare la Privacy Policy per continuare.", "warning");
+            if(carrello.length === 0) return Swal.fire("Attenzione", "Il carrello è vuoto!", "warning");
+
+            // Se l'utente non aveva ancora effettuato l'accesso in alto, salviamo la sua sessione automaticamente
+            if (!currentUserData || !currentUserData.telefono) {
+                impostaUtenteLoggato({ nome, cognome, telefono: tel });
+            }
+
+            const haBibite = carrello.some(p => p.cat && (p.cat.includes('bibita') || p.cat.includes('birra')));
+            if (crossSellAttivo && !haBibite) {
+                const result = await Swal.fire({ title: 'Hai dimenticato da bere?', text: "Aggiungi una Coca-Cola in Lattina fredda a 2.00€!", showCancelButton: true, confirmButtonText: 'Sì, aggiungi!', cancelButtonText: 'No, grazie', confirmButtonColor: 'var(--col-green)', cancelButtonColor: '#444', background: 'var(--col-bg-card)', color: 'white' });
+                if (result.isConfirmed) { 
+                    pushToCart({ nome: "Coca Cola Lattina", prezzo: 2.00, qta: 1, dettagli: "Normale", cat: "bibita_lattina", isPeso: false }); 
+                    Swal.fire({title: 'Aggiunta!', icon: 'success', timer: 1000, showConfirmButton: false, background: 'var(--col-bg-card)', color: 'white'}).then(() => { window.inviaOrdineEffettivo(); }); 
+                    return; 
+                }
+            }
+            window.inviaOrdineEffettivo();
+        };
+
+        window.inviaOrdineEffettivo = async () => {
+            const lastTime = localStorage.getItem('mimmo_last_order'); if (lastTime) { const diff = Date.now() - parseInt(lastTime); if (diff < 60000) { return Swal.fire("Attendi...", `Hai appena inviato un ordine! Attendi qualche secondo.`, "info"); } }
+            const btn = document.getElementById('btn-invia'); const nome = document.getElementById('nome').value.trim(); const cognome = document.getElementById('cognome').value.trim(); const tel = document.getElementById('telefono').value.trim(); const ora = document.getElementById('orario').value; 
+            
+            let totBase = 0;
+            carrello.forEach(i => { if(!i.isPeso) totBase += (parseFloat(i.prezzo) * parseFloat(i.qta)); });
+            let totFinale = calcolaTotaleConSconto(totBase);
+            
+            if(totFinale > 300) return Swal.fire("Attenzione", "Per ordini superiori a €300, ti preghiamo di chiamarci al telefono.", "warning");
+            btn.innerText="INVIO IN CORSO..."; btn.disabled=true;
+            try {
+                const dataRitiroVal = document.getElementById('data-ritiro').value;
+                await addDoc(collection(db, "ordini"), {
+                    cliente: {nome, cognome, telefono:tel},
+                    nome: nome,
+                    cognome: cognome,
+                    telefono: tel,
+                    prodotti: carrello,
+                    totale: totFinale,
+                    orario: ora,
+                    data_ritiro: dataRitiroVal,
+                    note_ordine: document.getElementById('note-generali').value.substring(0, 200),
+                    codice_sconto: codiceScontoAttivo,
+                    sconto_applicato: codiceScontoAttivo || null,
+                    tipo: "ASPORTO",
+                    stato: "In attesa",
+                    data_invio: serverTimestamp(),
+                    user_agent: navigator.userAgent
+                });
+
+                // Scala Scorte Zero-Click e aggiorna CRM Cliente
+                try {
+                    const batch = writeBatch(db);
+                    carrello.forEach(item => {
+                        const prodOrig = MENU.find(m => m.nome === item.nome);
+                        if (prodOrig && prodOrig.scorta !== null && prodOrig.scorta !== undefined && prodOrig.scorta !== "") {
+                            const nuovaScorta = Math.max(0, parseFloat(prodOrig.scorta) - parseFloat(item.qta || 1));
+                            batch.update(doc(db, "prodotti", prodOrig.id), {
+                                scorta: nuovaScorta,
+                                attivo: nuovaScorta > 0
+                            });
+                        }
+                    });
+                    if (tel) {
+                        batch.set(doc(db, "clienti", tel), {
+                            nome: `${nome} ${cognome}`.trim(),
+                            cognome: cognome,
+                            telefono: tel,
+                            totaleSpeso: increment(totFinale),
+                            numOrdini: increment(1),
+                            ultimaData: dataRitiroVal
+                        }, { merge: true });
+                    }
+                    await batch.commit();
+                } catch (errBatch) {
+                    console.warn("Aggiornamento scorte/CRM:", errBatch);
+                }
+
+                localStorage.setItem('mimmo_last_order', Date.now());
+                localStorage.removeItem('mimmo_cart');
+                Swal.fire({title: "Ordine Inviato!", text: "Il tuo ordine è stato ricevuto.", icon: "success"}).then(() => { location.reload(); });
+            } catch(e) {
+                Swal.fire("Errore di Rete", "Non è stato possibile inviare l'ordine: " + e.message, "error");
+                btn.innerText="CONFERMA";
+                btn.disabled=false;
+            }
+        };
+
+        window.cercaOrdine = async () => {
+            const tel = document.getElementById('track-tel')?.value; if(!tel) return Swal.fire("Attenzione", "Inserisci il tuo numero di telefono.", "warning");
+            try {
+                let snap = await getDocs(query(collection(db, "ordini"), where("telefono", "==", tel)));
+                if(snap.empty) snap = await getDocs(query(collection(db, "ordini"), where("cliente.telefono", "==", tel)));
+                if(snap.empty) return Swal.fire("Ops!", "Nessun ordine recente trovato per questo numero.", "info");
+                const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                docs.sort((a,b) => (b.data_invio?.toMillis?.() || 0) - (a.data_invio?.toMillis?.() || 0));
+                monitoraOrdineLive(docs[0].id);
+                window.calcolaFidelity(tel);
+            } catch(e){ console.log(e); Swal.fire("Errore", "Impossibile recuperare l'ordine.", "error"); }
+        };
+
+        function monitoraOrdineLive(id) { if(activeOrderListener) activeOrderListener(); activeOrderListener = onSnapshot(doc(db, "ordini", id), (docSnap) => { if(docSnap.exists()) renderStato(docSnap.data()); }); }
+        function renderStato(d) {
+            const rb = document.getElementById('result-box'); if (!rb) return;
+            rb.style.display='block'; document.getElementById('res-orario').innerText=d.orario; document.getElementById('res-nome').innerText=d.cliente?.nome||d.nome;
+            let st="IN ATTESA", cls="st-attesa"; if(d.stato.toLowerCase().includes('forno')){st="🔥 IN FORNO";cls="st-forno";} if(d.stato.toLowerCase().includes('pronto')){st="✅ PRONTO";cls="st-pronto";} if(d.stato.toLowerCase().includes('consegnato')){st="RITIRATO";cls="st-consegnato";}
+            const badge = document.getElementById('res-status'); badge.innerText=st; badge.className=`status-badge ${cls}`;
+        }
+
+        window.calcolaFidelity = async (tel) => {
+            const docFid = await getDoc(doc(db, "impostazioni", "fidelity")); const config = docFid.exists() ? docFid.data() : { attiva: false };
+            if (!config.attiva) { const container = document.getElementById('fidelity-container'); if(container) container.style.display = 'none'; return; }
+            const soglia = parseInt(FIDELITY_CONFIG.soglia) || 10; const premioTxt = FIDELITY_CONFIG.premio || 'Omaggio';
+            try {
+                const snap = await getDocs(query(collection(db, "ordini"), where("telefono", "==", tel), where("stato", "==", "Consegnato"))); let totalPizze = 0;
+                snap.forEach(docSnap => { const o = docSnap.data(); if(o.prodotti) o.prodotti.forEach(p => { if(['pizza', 'speciale', 'gf', 'stirata'].includes(p.cat)) totalPizze += parseFloat(p.qta || 1); }); });
+                totalPizze = Math.floor(totalPizze); let progress = totalPizze % soglia; let premioSbloccato = false; if (totalPizze > 0 && progress === 0) { premioSbloccato = true; progress = soglia; }
+                const percentage = (progress / soglia) * 100; const mancano = soglia - progress;
+                const winText = `🎉 Hai raggiunto ${soglia} Pizze! Richiedi il tuo premio nel prossimo ordine: <b>${premioTxt.toUpperCase()}</b>!`; const waitText = `Ancora <b>${mancano}</b> pizze per sbloccare: <b>${premioTxt}</b>!`;
+                document.getElementById('fidelity-container').style.display = 'block';
+                document.getElementById('fidelity-container').innerHTML = `<div class="fidelity-box"><div class="fidelity-title"><i class="fa-solid fa-gift"></i> Fidelity Card</div><div style="font-size:0.9em; color:#ccc;">Hai ordinato storicamente <b>${totalPizze}</b> pizze.</div><div class="progress-bg"><div class="progress-fill" style="width: ${percentage}%; ${premioSbloccato ? 'background: #4caf50;' : ''}"></div></div><div style="font-size:0.85em; color:var(--col-gold); font-weight:bold; line-height: 1.3;">${premioSbloccato ? winText : waitText}</div></div>`;
+            } catch (e) { console.log("Errore fidelity:", e); }
+        };
+    </script>
+</body>
+</html>

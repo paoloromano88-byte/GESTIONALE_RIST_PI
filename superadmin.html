@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaaS Master Console - Gestione Ristoranti</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
+        .container { max-width: 720px; margin: 0 auto; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: none; }
+        h1 { margin-top: 0; color: #58a6ff; display: flex; align-items: center; justify-content: space-between; font-size: 1.5em; flex-wrap: wrap; gap: 10px; }
+        .tenant-bar { background: #21262d; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; border: 1px solid #30363d; }
+        .status-card { padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border: 2px solid; }
+        .status-active { background: rgba(46, 160, 67, 0.15); border-color: #2ea043; }
+        .status-suspended { background: rgba(248, 81, 73, 0.15); border-color: #f85149; }
+        .label { font-weight: bold; font-size: 0.9em; color: #8b949e; margin-bottom: 6px; display: block; margin-top: 15px; }
+        .input { width: 100%; padding: 12px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 8px; font-size: 1em; box-sizing: border-box; }
+        .input:focus { border-color: #58a6ff; outline: none; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1em; cursor: pointer; margin-top: 20px; transition: 0.2s; }
+        .btn-save { background: #238636; color: white; }
+        .btn-save:hover { background: #2ea043; }
+        .btn-toggle { padding: 10px 20px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; font-size: 1em; }
+        .links-box { background: #0d1117; border: 1px dashed #30363d; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 0.9em; }
+        .links-box a { color: #58a6ff; text-decoration: none; display: block; margin: 8px 0; word-break: break-all; padding: 4px 0; border-bottom: 1px solid #161b22; }
+        .links-box a:hover { text-decoration: underline; color: #79c0ff; }
+        .section-box { background: #1c2128; border: 1px solid #30363d; border-radius: 10px; padding: 15px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="main-console">
+        <h1>
+            <span><i class="fa-solid fa-server"></i> SaaS Master Console</span>
+            <div style="display:flex; gap:8px;">
+                <button onclick="creaNuovoRistorante()" style="background:#1f6feb; color:white; border:none; padding:8px 14px; border-radius:6px; font-size:0.6em; cursor:pointer; font-weight:bold;">
+                    + NUOVO CLIENTE
+                </button>
+                <button id="btn-del-tenant" onclick="eliminaRistorante()" style="display:none; background:#da3633; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:0.6em; cursor:pointer; font-weight:bold;" title="Elimina questo cliente dalla lista">
+                    <i class="fa fa-trash"></i>
+                </button>
+            </div>
+        </h1>
+
+        <!-- SELETTORE RISTORANTE -->
+        <div class="tenant-bar">
+            <i class="fa-solid fa-store" style="color:#58a6ff; font-size:1.3em;"></i>
+            <select id="select-tenant" class="input" style="margin:0; flex:1; font-weight:bold;" onchange="cambiaTenant(this.value)">
+                <option value="default">📍 Locale Principale (Da Mimmo)</option>
+            </select>
+        </div>
+
+        <!-- KILL-SWITCH STATO LICENZA -->
+        <div id="status-box" class="status-card status-active">
+            <div>
+                <div style="font-size:0.85em; color:#8b949e;">STATO LICENZA CLIENTE</div>
+                <div id="status-text" style="font-size:1.5em; font-weight:900; color:#3fb950;">🟢 ATTIVO</div>
+            </div>
+            <button id="btn-switch" class="btn-toggle" style="background:#f85149; color:white;" onclick="cambiaStatoLicenza()">
+                SOSPENDI ORA
+            </button>
+        </div>
+
+        <!-- DATI CANONE E SCADENZA -->
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:180px;">
+                <label class="label">Scadenza Canone</label>
+                <input type="date" id="lic-scadenza" class="input">
+            </div>
+            <div style="flex:1; min-width:180px;">
+                <label class="label">Canone Mensile (€)</label>
+                <input type="number" id="lic-prezzo" class="input" placeholder="Es. 49.00" step="0.50">
+            </div>
+        </div>
+
+        <!-- MODULO KDS SBLOCCATO -->
+        <div style="display:flex; align-items:center; justify-content:space-between; background:#21262d; padding:12px 15px; border-radius:8px; margin-top:15px; border:1px solid #30363d;">
+            <div>
+                <b style="color:#fff;"><i class="fa-solid fa-tv" style="color:#58a6ff;"></i> Modulo Monitor Cucina (KDS)</b>
+                <div style="font-size:0.8em; color:#8b949e;">Abilita o blocca l'accesso al KDS per questo ristorante</div>
+            </div>
+            <input type="checkbox" id="lic-kds-sbloccato" checked style="width:22px; height:22px; cursor:pointer;">
+        </div>
+
+        <label class="label">Messaggio di Blocco (Mostrato se sospendi la licenza)</label>
+        <input type="text" id="lic-msg-blocco" class="input" placeholder="Abbonamento scaduto. Contatta l'assistenza per il rinnovo.">
+
+        <label class="label">Tuo Contatto Assistenza</label>
+        <input type="text" id="lic-contatto" class="input" placeholder="Es. Assistenza Paolo - 340 1234567">
+
+        <!-- IMPOSTAZIONI WHITE-LABEL RAPIDE -->
+        <div class="section-box">
+            <h3 style="color:#58a6ff; margin:0 0 12px 0; font-size:1.05em;"><i class="fa-solid fa-sliders"></i> Dati White-Label del Ristorante</h3>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <div style="flex:2; min-width:180px;">
+                    <label class="label" style="margin-top:0;">Nome Ristorante / Pizzeria</label>
+                    <input type="text" id="wl-nome" class="input" placeholder="Es. Da Mimmo">
+                </div>
+                <div style="flex:1; min-width:140px;">
+                    <label class="label" style="margin-top:0;">Telefono Ordini</label>
+                    <input type="text" id="wl-telefono" class="input" placeholder="Es. 0965370013">
+                </div>
+                <div style="flex:1; min-width:100px;">
+                    <label class="label" style="margin-top:0;">Coperto (€)</label>
+                    <input type="number" id="wl-coperto" class="input" step="0.50" placeholder="2.50">
+                </div>
+            </div>
+        </div>
+
+        <!-- AVVISO BROADCAST IN CASSA -->
+        <div class="section-box">
+            <h3 style="color:#d29922; margin:0 0 10px 0; font-size:1.05em;"><i class="fa-solid fa-bell"></i> Avviso in Cassa (Senza Bloccare)</h3>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                <input type="checkbox" id="lic-avviso-attivo" style="width:20px; height:20px; cursor:pointer;">
+                <span>Mostra popup di avviso sulla Cassa del cliente</span>
+            </div>
+            <input type="text" id="lic-testo-avviso" class="input" placeholder="Es. ⚠️ Promemoria: l'abbonamento scade tra 3 giorni.">
+        </div>
+
+        <button class="btn btn-save" onclick="salvaLicenza()"><i class="fa-solid fa-floppy-disk"></i> SALVA CONFIGURAZIONE CLIENTE</button>
+
+        <!-- LINK RAPIDI DA INVIARE AL CLIENTE -->
+        <div class="links-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <b style="color:#8b949e;">🔗 LINK DIRETTI PER QUESTO RISTORANTE:</b>
+                <button onclick="copiaLinkWhatsApp()" style="background:#238636; color:white; border:none; padding:6px 12px; border-radius:6px; font-size:0.8em; font-weight:bold; cursor:pointer;">
+                    <i class="fa-brands fa-whatsapp"></i> Copia tutti i link
+                </button>
+            </div>
+            <div id="client-links"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // --- CONFIGURAZIONE FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
+            authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+            projectId: "gestionale-ristoranti-96c5b",
+            storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+            messagingSenderId: "234695436534",
+            appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Login silenzioso per garantire i permessi di scrittura su Firestore
+        signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {});
+
+        // 🔐 PIN SEGRETO SOLO PER TE (Cambialo come preferisci)
+        const MASTER_PIN = "1988"; 
+
+        let currentTenant = "default";
+        let statoAttuale = true;
+        let unsubLicenza = null;
+        let unsubNegozio = null;
+
+        async function verificaMasterPin() {
+            if (sessionStorage.getItem('saas_master_unlocked') === 'true') {
+                document.getElementById('main-console').style.display = 'block';
+                await caricaListaRistoranti();
+                window.cambiaTenant('default');
+                return;
+            }
+
+            const { value: pin } = await Swal.fire({
+                title: '🔐 Accesso Super-Admin',
+                input: 'password',
+                inputLabel: 'Inserisci il tuo PIN Master di proprietà',
+                inputPlaceholder: '****',
+                allowOutsideClick: false,
+                background: '#161b22',
+                color: '#fff',
+                confirmButtonColor: '#238636'
+            });
+
+            if (pin === MASTER_PIN) {
+                sessionStorage.setItem('saas_master_unlocked', 'true');
+                document.getElementById('main-console').style.display = 'block';
+                await caricaListaRistoranti();
+                window.cambiaTenant('default');
+            } else {
+                Swal.fire({ icon: 'error', title: 'PIN Errato', background: '#161b22', color: '#fff' }).then(() => verificaMasterPin());
+            }
+        }
+
+        async function caricaListaRistoranti() {
+            const sel = document.getElementById('select-tenant');
+            sel.innerHTML = `<option value="default">📍 Locale Principale (Da Mimmo)</option>`;
+            try {
+                const snap = await getDocs(collection(db, "saas_clienti"));
+                snap.forEach(d => {
+                    const info = d.data();
+                    sel.innerHTML += `<option value="${d.id}">🍕 ${info.nome} (${d.id})</option>`;
+                });
+            } catch(e) { console.log(e); }
+        }
+
+        window.creaNuovoRistorante = async () => {
+            const { value: nome } = await Swal.fire({
+                title: 'Nuovo Ristorante Cliente',
+                input: 'text',
+                inputLabel: 'Nome della Pizzeria / Ristorante',
+                inputPlaceholder: 'Es. Pizzeria Vesuvio',
+                showCancelButton: true,
+                background: '#161b22',
+                color: '#fff'
+            });
+
+            if (nome && nome.trim() !== "") {
+                const slug = nome.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
+                await setDoc(doc(db, "saas_clienti", slug), {
+                    nome: nome.trim(),
+                    creato_il: new Date().toISOString()
+                });
+                await setDoc(doc(db, "ristoranti", slug, "impostazioni", "negozio"), {
+                    nome: nome.trim(),
+                    prezzo_coperto: 2.00
+                });
+                await setDoc(doc(db, "ristoranti", slug, "impostazioni", "licenza"), {
+                    attiva: true,
+                    kds_sbloccato: true
+                });
+                await caricaListaRistoranti();
+                document.getElementById('select-tenant').value = slug;
+                window.cambiaTenant(slug);
+                Swal.fire({ icon: 'success', title: 'Cliente Creato!', text: `ID Cliente: ${slug}`, timer: 1500, showConfirmButton: false });
+            }
+        };
+
+        window.eliminaRistorante = async () => {
+            if (currentTenant === 'default') return;
+            const res = await Swal.fire({
+                title: `Eliminare il cliente "${currentTenant}"?`,
+                text: "Verrà rimosso dalla lista dei clienti SaaS.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#da3633',
+                confirmButtonText: 'Sì, elimina',
+                background: '#161b22',
+                color: '#fff'
+            });
+            if (res.isConfirmed) {
+                await deleteDoc(doc(db, "saas_clienti", currentTenant));
+                await caricaListaRistoranti();
+                window.cambiaTenant('default');
+            }
+        };
+
+        window.cambiaTenant = (tenantId) => {
+            currentTenant = tenantId;
+            if (unsubLicenza) unsubLicenza();
+            if (unsubNegozio) unsubNegozio();
+
+            const btnDel = document.getElementById('btn-del-tenant');
+            if (btnDel) btnDel.style.display = tenantId === 'default' ? 'none' : 'inline-block';
+
+            const licRef = (tenantId === 'default') 
+                ? doc(db, "impostazioni", "licenza") 
+                : doc(db, "ristoranti", tenantId, "impostazioni", "licenza");
+
+            const negRef = (tenantId === 'default')
+                ? doc(db, "impostazioni", "negozio")
+                : doc(db, "ristoranti", tenantId, "impostazioni", "negozio");
+
+            unsubLicenza = onSnapshot(licRef, (d) => {
+                if (d.exists()) {
+                    const data = d.data();
+                    statoAttuale = data.attiva !== false;
+                    document.getElementById('lic-scadenza').value = data.scadenza || '';
+                    document.getElementById('lic-prezzo').value = data.prezzo || '';
+                    document.getElementById('lic-kds-sbloccato').checked = data.kds_sbloccato !== false;
+                    document.getElementById('lic-msg-blocco').value = data.messaggio_blocco || '';
+                    document.getElementById('lic-contatto').value = data.contatto_assistenza || '';
+                    document.getElementById('lic-avviso-attivo').checked = data.avviso_attivo === true;
+                    document.getElementById('lic-testo-avviso').value = data.testo_avviso || '';
+                } else {
+                    statoAttuale = true;
+                    document.getElementById('lic-scadenza').value = '';
+                    document.getElementById('lic-prezzo').value = '';
+                    document.getElementById('lic-kds-sbloccato').checked = true;
+                    document.getElementById('lic-avviso-attivo').checked = false;
+                }
+                aggiornaGraficaStato();
+            });
+
+            unsubNegozio = onSnapshot(negRef, (d) => {
+                if (d.exists()) {
+                    const nd = d.data();
+                    document.getElementById('wl-nome').value = nd.nome || '';
+                    document.getElementById('wl-telefono').value = nd.telefono_ordini || '';
+                    document.getElementById('wl-coperto').value = nd.prezzo_coperto !== undefined ? nd.prezzo_coperto : 2.50;
+                } else {
+                    document.getElementById('wl-nome').value = tenantId === 'default' ? 'Da Mimmo' : '';
+                    document.getElementById('wl-telefono').value = '';
+                    document.getElementById('wl-coperto').value = 2.50;
+                }
+            });
+
+            // Genera tutti i link operativi per il ristorante
+            const base = window.location.origin;
+            const param = `?locale=${tenantId}`;
+            document.getElementById('client-links').innerHTML = `
+                <a href="${base}/cassa.html${param}" target="_blank">🖥️ Cassa Principale: ${base}/cassa.html${param}</a>
+                <a href="${base}/ordini.html${param}" target="_blank">📟 Telecomando Asporto/Sala: ${base}/ordini.html${param}</a>
+                <a href="${base}/sala.html${param}" target="_blank">📱 Palmare Sala: ${base}/sala.html${param}</a>
+                <a href="${base}/agenda.html${param}" target="_blank">📅 Agenda Prenotazioni: ${base}/agenda.html${param}</a>
+                <a href="${base}/kds.html${param}" target="_blank">📺 KDS Monitor Cucina: ${base}/kds.html${param}</a>
+                <a href="${base}/index.html${param}" target="_blank">🍕 App Asporto Clienti: ${base}/index.html${param}</a>
+                <a href="${base}/menu.html${param}" target="_blank">📖 Menu QR Tavoli: ${base}/menu.html${param}</a>
+            `;
+        };
+
+        window.copiaLinkWhatsApp = () => {
+            const base = window.location.origin;
+            const param = `?locale=${currentTenant}`;
+            const nomeLoc = document.getElementById('wl-nome').value.trim() || currentTenant.toUpperCase();
+            const testo = [
+                `🍕 *LINK GESTIONALE - ${nomeLoc}*`,
+                `🖥️ *Cassa:* ${base}/cassa.html${param}`,
+                `📟 *Telecomando:* ${base}/ordini.html${param}`,
+                `📱 *Palmare Sala:* ${base}/sala.html${param}`,
+                `📅 *Agenda Prenotazioni:* ${base}/agenda.html${param}`,
+                `📺 *Monitor Cucina KDS:* ${base}/kds.html${param}`,
+                `🛵 *App Clienti Asporto:* ${base}/index.html${param}`,
+                `📖 *Menu Digitale QR:* ${base}/menu.html${param}`
+            ].join('\n');
+
+            navigator.clipboard.writeText(testo).then(() => {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Link copiati negli appunti!', showConfirmButton: false, timer: 1800, background: '#161b22', color: '#fff' });
+            });
+        };
+
+        function aggiornaGraficaStato() {
+            const box = document.getElementById('status-box');
+            const txt = document.getElementById('status-text');
+            const btn = document.getElementById('btn-switch');
+
+            if (statoAttuale) {
+                box.className = 'status-card status-active';
+                txt.innerText = '🟢 ATTIVO';
+                txt.style.color = '#3fb950';
+                btn.innerText = 'SOSPENDI ORA';
+                btn.style.background = '#f85149';
+            } else {
+                box.className = 'status-card status-suspended';
+                txt.innerText = '🔴 SOSPESO (BLOCCATO)';
+                txt.style.color = '#f85149';
+                btn.innerText = 'RIATTIVA ORA';
+                btn.style.background = '#2ea043';
+            }
+        }
+
+        window.cambiaStatoLicenza = async () => {
+            statoAttuale = !statoAttuale;
+            aggiornaGraficaStato();
+            await salvaLicenza();
+        };
+
+        window.salvaLicenza = async () => {
+            const licRef = (currentTenant === 'default') 
+                ? doc(db, "impostazioni", "licenza") 
+                : doc(db, "ristoranti", currentTenant, "impostazioni", "licenza");
+
+            const negRef = (currentTenant === 'default')
+                ? doc(db, "impostazioni", "negozio")
+                : doc(db, "ristoranti", currentTenant, "impostazioni", "negozio");
+
+            try {
+                await setDoc(licRef, {
+                    attiva: statoAttuale,
+                    scadenza: document.getElementById('lic-scadenza').value,
+                    prezzo: document.getElementById('lic-prezzo').value,
+                    kds_sbloccato: document.getElementById('lic-kds-sbloccato').checked,
+                    messaggio_blocco: document.getElementById('lic-msg-blocco').value.trim(),
+                    contatto_assistenza: document.getElementById('lic-contatto').value.trim(),
+                    avviso_attivo: document.getElementById('lic-avviso-attivo').checked,
+                    testo_avviso: document.getElementById('lic-testo-avviso').value.trim()
+                }, { merge: true });
+
+                const nomeWl = document.getElementById('wl-nome').value.trim();
+                const telWl = document.getElementById('wl-telefono').value.trim();
+                const copWl = parseFloat(document.getElementById('wl-coperto').value);
+
+                let negPayload = {};
+                if (nomeWl) negPayload.nome = nomeWl;
+                if (telWl) negPayload.telefono_ordini = telWl;
+                if (!isNaN(copWl)) negPayload.prezzo_coperto = copWl;
+
+                if (Object.keys(negPayload).length > 0) {
+                    await setDoc(negRef, negPayload, { merge: true });
+                }
+
+                Swal.fire({ icon: 'success', title: 'Configurazione Salvata!', timer: 1200, showConfirmButton: false, background: '#161b22', color: '#fff' });
+            } catch (e) {
+                Swal.fire("Errore", e.message, "error");
+            }
+        };
+
+        verificaMasterPin();
+    </script>
+</body>
+</html>

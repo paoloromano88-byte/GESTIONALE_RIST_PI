@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Telecomando PRO v5 - Mobile Optimized</title>
+    <link rel="apple-touch-icon" href="logo.png">
+    
+    <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root { --primary: #2962ff; --bg: #121212; --card: #1e1e1e; --text: #fff; --green: #00c853; --gold: #ffea00; --red: #ff1744; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; overflow: hidden; }
+        
+        /* LAYOUT A 2 COLONNE */
+        .app-container { display: flex; height: 100vh; width: 100vw; position: relative; }
+        
+        /* SIDEBAR SINISTRA (RIEPILOGO) */
+        .sidebar { width: 320px; background: #0a0a0a; border-right: 3px solid var(--primary); display: flex; flex-direction: column; flex-shrink: 0; z-index: 1000; transition: left 0.3s ease; }
+        .sidebar-header { background: #000; padding: 15px; text-align: center; color: var(--gold); font-weight: 900; font-size: 1.3em; border-bottom: 2px solid #333; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 15px; }
+        
+        /* OVERLAY PER MOBILE */
+        .sidebar-overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.7); z-index: 999; }
+        
+        /* CONTENUTO PRINCIPALE DESTRA (TELECOMANDO) */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+
+        /* HEADER */
+        .header { background: #000; padding: 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); }
+        .logo { font-weight: 900; font-size: 1.2em; color: var(--primary); }
+        .mobile-riepilogo-btn { display: none; background: var(--gold); color: black; border: none; padding: 6px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.9em; box-shadow: 0 2px 5px rgba(255,234,0,0.3); }
+        .close-sidebar-btn { display: none; background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; }
+
+        /* CLIENTE FORM */
+        .client-form { background: #222; padding: 10px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #333; }
+        .row { display: flex; gap: 8px; }
+        input, select { background: #333; border: 1px solid #444; color: white; padding: 10px; border-radius: 5px; font-size: 16px; width: 100%; outline: none; }
+        input:focus { border-color: var(--primary); }
+        
+        /* MENU & CATEGORIE */
+        .cat-scroll { display: flex; overflow-x: auto; gap: 5px; padding: 10px; background: #1a1a1a; white-space: nowrap; scrollbar-width: none; }
+        .cat-scroll::-webkit-scrollbar { display: none; } /* Nasconde scrollbar su mobile */
+        .cat-btn { background: #333; padding: 10px 18px; border-radius: 20px; font-size: 0.95em; font-weight: bold; color: #aaa; border: 1px solid #444; cursor: pointer; }
+        .cat-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        .menu-grid { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: 1fr; gap: 8px; align-content: start; }
+        .prod-card { background: var(--card); padding: 12px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; cursor: pointer; }
+        .prod-card:active { background: #333; }
+        .prod-info { flex: 1; }
+        .prod-info b { display: block; font-size: 1.1em; margin-bottom: 2px; }
+        .prod-info small { color: #888; font-size: 0.9em; }
+        
+        /* QUANTITA' MENU */
+        .action-row { display: flex; align-items: center; gap: 5px; }
+        .qty-input { width: 45px; height: 45px; background: #333; border: 1px solid #555; color: white; text-align: center; border-radius: 5px; font-size: 1.2em; font-weight: bold; outline: none; }
+        .qty-input:focus { border-color: var(--primary); }
+        .add-btn { background: var(--bg); border: 2px solid var(--green); color: var(--green); width: 45px; height: 45px; border-radius: 50%; font-size: 24px; display: flex; align-items: center; justify-content: center; margin-left: 8px; cursor: pointer; font-weight: bold;}
+
+        /* EXTRA ACTIONS ROW */
+        .extra-actions { display: flex; gap: 5px; padding: 0 10px 5px 10px; background: #222; }
+        .btn-extra { flex: 1; background: #444; border: none; color: white; padding: 12px; border-radius: 5px; font-size: 0.95em; font-weight: bold; cursor: pointer;}
+        .btn-stirata { background: linear-gradient(45deg, #fbc02d, #f57f17); color: black; }
+
+        /* CARRELLO BARRA */
+        .cart-bar { background: #222; border-top: 1px solid #444; padding: 15px 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .cart-info { font-weight: bold; font-size: 1.2em; }
+        .cart-total { color: var(--gold); }
+        .send-btn { background: var(--green); color: white; border: none; padding: 12px 20px; border-radius: 5px; font-weight: bold; font-size: 1.1em; cursor: pointer; }
+
+        /* MODALI */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; justify-content: flex-end; }
+        .modal-content { background: #1e1e1e; border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border-top: 2px solid var(--primary); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .modal-body { overflow-y: auto; flex: 1; padding-bottom: 20px; }
+        .btn-full { width: 100%; padding: 15px; font-size: 1.2em; font-weight: bold; border-radius: 10px; border: none; margin-top: 10px; cursor: pointer; }
+        
+        /* MODIFICA PRODOTTO */
+        .ing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+        .ing-btn { background: #333; padding: 12px; border-radius: 8px; text-align: center; font-size: 1em; border: 1px solid #444; color: #ccc; cursor: pointer; }
+        .ing-btn.add { background: var(--green); color: white; border-color: var(--green); font-weight: bold; }
+        .ing-btn.rem { background: var(--red); color: white; border-color: var(--red); font-weight: bold; }
+        
+        /* BOX QUANTITA NEL MODALE */
+        .qty-box-modal { display:flex; align-items:center; justify-content: space-between; gap:10px; margin-top:15px; margin-bottom: 10px; background:#2a2a2a; padding:10px; border-radius:8px; border: 1px solid #444; }
+
+        /* STIRATA */
+        .stirata-row { background: #2a2a2a; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #444; }
+        .stirata-header { display: flex; justify-content: space-between; margin-bottom: 5px; color: var(--gold); font-weight: bold; }
+        .manual-toggle { background: none; border: 1px solid #666; color: #888; font-size: 0.9em; padding: 5px 10px; border-radius: 4px; cursor: pointer;}
+        .manual-toggle.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-mod-half { background: #ff9800; color: black; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px; width: 100%; margin-top: 5px; }
+        .half-mods-display { font-size: 14px; color: var(--add-color); min-height: 15px; font-style: italic; margin-top:5px; font-weight:bold; }
+
+        /* CARRELLO LIST */
+        .cart-item { background: #252525; padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary); }
+        .cart-item small { display: block; color: #aaa; font-size: 0.9em; margin-top: 4px; }
+        
+        /* AZIONI CARRELLO */
+        .cart-actions { display: flex; gap: 8px; }
+        .edit-btn { background: #ff9800; color: black; border: none; width: 40px; height: 40px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2em;}
+        .del-btn { background: var(--red); color: white; border: none; width: 40px; height: 40px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2em;}
+
+        .time-btn { background: #444; border: none; color: white; padding: 8px 12px; border-radius: 4px; font-size: 0.9em; margin-top: 5px; cursor: pointer;}
+
+        /* MEDIA QUERY PER SMARTPHONE */
+        @media (max-width: 800px) {
+            .sidebar { 
+                position: absolute; 
+                left: -100%; 
+                top: 0; 
+                height: 100%; 
+                width: 85%; 
+                max-width: 400px;
+                box-shadow: 5px 0 15px rgba(0,0,0,0.8);
+            }
+            .sidebar.open { left: 0; }
+            .sidebar-overlay.active { display: block; }
+            .mobile-riepilogo-btn { display: block; } 
+            .close-sidebar-btn { display: block; } 
+            .menu-grid { grid-template-columns: 1fr; } 
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        <div class="sidebar" id="app-sidebar">
+            <div class="sidebar-header">
+                <span><i class="fa fa-list-check"></i> RIEPILOGO OGGI</span>
+                <button class="close-sidebar-btn" onclick="toggleSidebar()">&times;</button>
+            </div>
+            <div class="sidebar-content" id="riepilogo-body">
+                <div style="text-align:center; color:#888; margin-top: 20px;">Caricamento... ⏳</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <div class="logo"><i class="fa fa-mobile-screen"></i> TELECOMANDO</div>
+                
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button class="mobile-riepilogo-btn" onclick="toggleSidebar()"><i class="fa fa-chart-pie"></i> ORARI</button>
+                    <div style="font-size:0.8em; color:#aaa; display: none;" id="status-conn">Ready</div>
+                </div>
+            </div>
+
+            <div class="client-form">
+                <div class="row">
+                    <input type="text" id="cli-nome" placeholder="Nome Cliente">
+                    <input type="tel" id="cli-tel" placeholder="Telefono" style="width: 140px;">
+                </div>
+                <div class="row">
+                    <input type="date" id="cli-data" style="flex:1;">
+                    <input type="time" id="cli-ora" style="flex:1;">
+                </div>
+                <div class="row" style="margin-bottom: 5px;">
+                    <div style="display:flex; gap:5px; flex-wrap: wrap; width: 100%;">
+                        <button class="time-btn" style="flex:1; background: var(--red); font-weight: bold;" onclick="setAdesso()">ADESSO</button>
+                        <button class="time-btn" style="flex:1;" onclick="addTime(15)">+15m</button>
+                        <button class="time-btn" style="flex:1;" onclick="addTime(30)">+30m</button>
+                        <button class="time-btn" style="flex:1;" onclick="addTime(60)">+1h</button>
+                    </div>
+                </div>
+                <input type="text" id="search-prod" placeholder="🔍 Cerca prodotto..." onkeyup="renderMenu(this.value)">
+            </div>
+
+            <div class="extra-actions">
+                <button class="btn-extra" onclick="openManualModal()">+ MANUALE</button>
+                <button class="btn-extra btn-stirata" onclick="openStirataModal()">★ STIRATA</button>
+            </div>
+
+            <div class="cat-scroll" id="cat-list"></div>
+            <div class="menu-grid" id="menu-list"></div>
+
+            <div class="cart-bar" onclick="toggleCart()">
+                <div class="cart-info">
+                    <span id="cart-count">0</span> prod. - <span id="cart-tot" class="cart-total">€ 0.00</span>
+                </div>
+                <button class="send-btn" onclick="inviaOrdine(event)">INVIA 🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-prod" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="margin:0; color:var(--primary);" id="m-title">Modifica</h3>
+                <span onclick="closeModal('modal-prod')" style="font-size:1.8em; color:white; cursor:pointer;">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="ing-filter" placeholder="Cerca ingrediente..." onkeyup="renderIngs(this.value)" style="margin-bottom:15px;">
+                
+                <div style="color:var(--green); font-weight:bold; margin-bottom:5px;">AGGIUNTE</div>
+                <div id="grid-add" class="ing-grid"></div>
+                
+                <div style="color:var(--red); font-weight:bold; margin-bottom:5px; margin-top:15px;">RIMOZIONI</div>
+                <div id="grid-rem" class="ing-grid"></div>
+
+                <div class="qty-box-modal" id="modal-qty-container">
+                    <b style="color:white; font-size:1.1em;">Quantità:</b>
+                    <input type="number" id="mod-qty" value="1" min="1" style="width:80px; text-align:center; padding:10px; font-size:1.4em; font-weight:bold; border-radius:5px; border:1px solid #555; background:#111; color:white;">
+                </div>
+
+                <input type="text" id="m-notes" placeholder="Note extra..." style="margin-top:15px;">
+            </div>
+            <button class="btn-full" style="background:var(--green); color:white;" onclick="saveModifier()">CONFERMA</button>
+        </div>
+    </div>
+
+    <div id="modal-manual" class="modal">
+        <div class="modal-content" style="height:auto;">
+            <div class="modal-header">
+                <h3 style="margin:0; color:var(--gold);">Prodotto Manuale</h3>
+                <span onclick="closeModal('modal-manual')" style="font-size:1.8em; cursor:pointer;">&times;</span>
+            </div>
+            <input type="text" id="man-name" placeholder="Nome Prodotto" style="margin-bottom:10px;">
+            <div class="row" style="margin-bottom:10px;">
+                <input type="number" id="man-price" placeholder="Prezzo €" step="0.50">
+                <input type="number" id="man-qty" placeholder="Qt" value="1" style="width: 70px; text-align:center;">
+                
+                <select id="man-cat">
+                    <option value="pizza">🍕 Pizzeria</option>
+                    <option value="primo">👨‍🍳 Cucina</option>
+                    <option value="bibita">🍺 Bar</option>
+                     <option value="pescato">🐟 Pescato del Giorno</option>
+                </select>
+            </div>
+            <button class="btn-full" style="background:var(--gold); color:black;" onclick="addManualProduct()">AGGIUNGI</button>
+        </div>
+    </div>
+
+    <div id="modal-stirata" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="margin:0; color:var(--gold);">Stirata Bi-Gusto</h3>
+                <span onclick="closeModal('modal-stirata')" style="font-size:1.8em; cursor:pointer;">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="stirata-row">
+                    <div class="stirata-header">
+                        1° GUSTO <button class="manual-toggle" id="btn-man-1" onclick="toggleStirataManual(1)">Manuale</button>
+                    </div>
+                    <select id="sel-gusto-1" onchange="updateBiGustoHalf(1)"></select>
+                    <div id="div-man-1" style="display:none; gap:5px; margin-top:5px;">
+                        <input type="text" id="man-gusto-1" placeholder="Nome Gusto" oninput="updateBiGustoHalf(1)">
+                        <input type="number" id="price-gusto-1" placeholder="€" style="width:80px;" oninput="updateBiGustoHalf(1)">
+                    </div>
+                    <div id="bg-mods-1" class="half-mods-display"></div>
+                    <button id="btn-mod-1" class="btn-mod-half" onclick="editHalf(1)" disabled>✏️ AGGIUNTE/RIMOZIONI</button>
+                </div>
+
+                <div class="stirata-row">
+                    <div class="stirata-header">
+                        2° GUSTO <button class="manual-toggle" id="btn-man-2" onclick="toggleStirataManual(2)">Manuale</button>
+                    </div>
+                    <select id="sel-gusto-2" onchange="updateBiGustoHalf(2)"></select>
+                    <div id="div-man-2" style="display:none; gap:5px; margin-top:5px;">
+                        <input type="text" id="man-gusto-2" placeholder="Nome Gusto" oninput="updateBiGustoHalf(2)">
+                        <input type="number" id="price-gusto-2" placeholder="€" style="width:80px;" oninput="updateBiGustoHalf(2)">
+                    </div>
+                    <div id="bg-mods-2" class="half-mods-display"></div>
+                    <button id="btn-mod-2" class="btn-mod-half" onclick="editHalf(2)" disabled>✏️ AGGIUNTE/RIMOZIONI</button>
+                </div>
+                
+                <textarea id="stirata-main-note" placeholder="Note generali..." style="width:100%; height:60px; background:#333; color:white; border:1px solid #444; margin-top:5px; padding:10px;"></textarea>
+            </div>
+            <button class="btn-full" id="btn-stirata-ok" style="background:var(--gold); color:black;" onclick="addStirata()" disabled>AGGIUNGI - € <span id="stirata-tot">0.00</span></button>
+        </div>
+    </div>
+
+    <div id="modal-cart" class="modal" style="justify-content: flex-start;">
+        <div class="modal-content" style="height:100%; border-radius:0;">
+            <div class="cart-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h2 style="margin:0; color:white;">Riepilogo</h2>
+                <button onclick="toggleCart()" style="background:none; border:none; color:white; font-size:2em; cursor:pointer;">&times;</button>
+            </div>
+            <div class="cart-items" id="cart-list-items" style="flex:1; overflow-y:auto;"></div>
+            <div style="padding-top:10px;">
+                <textarea id="ord-note" placeholder="Note generali ordine..." style="width:100%; height:70px; background:#222; color:white; border:1px solid #444; margin-bottom:10px; padding:10px;"></textarea>
+                <button class="send-btn" style="width:100%; padding:18px; font-size:1.3em;" onclick="inviaOrdine(event)">CONFERMA E INVIA</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, onSnapshot, serverTimestamp, query, where, doc, updateDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+         const firebaseConfig = {
+  apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
+  authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+  projectId: "gestionale-ristoranti-96c5b",
+  storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+  messagingSenderId: "234695436534",
+  appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 1. BUGFIX: SISTEMATO IL CALCOLO SCORTE ANCHE PER LA STIRATA BI-GUSTO
+        window.scalaScorte = async (prodottiOrdinati) => {
+            if (!prodottiOrdinati || prodottiOrdinati.length === 0) return;
+            try {
+                const batch = writeBatch(db);
+                let ciSonoModifiche = false;
+                
+                prodottiOrdinati.forEach(p => {
+                    let itemsToScale = [];
+                    
+                    // Se il prodotto è una stirata e ha i componenti salvati
+                    if (p.componenti && p.componenti.length > 0) {
+                        p.componenti.forEach(compId => {
+                            const prodOriginale = MENU.find(m => m.id === compId);
+                            if (prodOriginale) itemsToScale.push(prodOriginale);
+                        });
+                    } else {
+                        // Prodotto normale
+                        const prodOriginale = MENU.find(m => m.nome === p.nome);
+                        if (prodOriginale) itemsToScale.push(prodOriginale);
+                    }
+
+                    // Scala dal DB per tutti i prodotti trovati
+                    itemsToScale.forEach(prodOriginale => {
+                        if (prodOriginale.scorta !== null && prodOriginale.scorta !== undefined && prodOriginale.scorta !== "") {
+                            const prodRef = doc(db, "prodotti", prodOriginale.id);
+                            // Se è una mezza stirata, scala 0.5 dal database (oppure 1 intero a seconda delle tue preferenze, qui uso 0.5)
+                            let qtaDaScalare = parseFloat(p.qta) || 1;
+                            if(p.componenti) qtaDaScalare = qtaDaScalare * 0.5; 
+                            
+                            batch.update(prodRef, { scorta: increment(-qtaDaScalare) });
+                            ciSonoModifiche = true;
+                        }
+                    });
+                });
+                
+                if (ciSonoModifiche) {
+                    await batch.commit();
+                }
+            } catch (e) {
+                console.error("Errore aggiornamento scorte:", e);
+            }
+        };
+
+        let MENU = [], INGS = [], RIMS = [], CARRELLO = [];
+        let currentCat = 'pizza';
+        let tempItem = {}, tempAdds = new Set(), tempRems = new Set();
+        let stirataData = { h1: {manual:false, details:[], extraPrice:0}, h2: {manual:false, details:[], extraPrice:0} };
+        let modificationContext = 'CART'; 
+        let editingIndex = null; 
+
+        const CATS = ['pizza', 'stirata', 'speciale', 'gf', 'ant_pizzeria', 'ant_ristorante', 'primo', 'secondo', 'contorno', 'bibita', 'birra'];
+        const LABELS = { pizza: 'Pizze', stirata: 'Stirate', speciale: 'Speciali', gf: 'No Glutine', ant_pizzeria: 'Ant. Pizz.', ant_ristorante: 'Ant. Rist.', primo: 'Primi', secondo: 'Secondi', contorno: 'Contorni', bibita: 'Bibite', birra: 'Birre' };
+
+        window.toggleSidebar = () => {
+            document.getElementById('app-sidebar').classList.toggle('open');
+            document.getElementById('sidebar-overlay').classList.toggle('active');
+        };
+
+        // 3. BUGFIX: RISVEGLIO AUTOMATICO PER EVITARE DATE VECCHIE SE L'APP RESTA APERTA
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === 'visible') {
+                const inputData = document.getElementById('cli-data');
+                const now = new Date();
+                const dataOggi = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+                if (inputData.value < dataOggi) {
+                    inputData.value = dataOggi;
+                }
+            }
+        });
+
+        async function init() {
+            addTime(20);
+            const now = new Date();
+            const dataOggi = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+            document.getElementById('cli-data').value = dataOggi;
+            
+            onSnapshot(collection(db, "prodotti"), (s) => {
+                MENU = s.docs.map(d => ({...d.data(), id: d.id}));
+                
+               if (MENU.length > 0) {
+    if (!window.currentCat) { window.currentCat = MENU[0].cat; }
+    renderCats(); 
+    renderMenu(); // <-- CORRETTO
+}
+            });
+
+            listenRiepilogoOrari();
+
+            const snapIngs = await getDocs(collection(db, "ingredienti"));
+            INGS = snapIngs.docs.map(d => d.data()).sort((a,b)=>a.nome.localeCompare(b.nome));
+            
+            const snapRims = await getDocs(collection(db, "rimozioni"));
+            RIMS = snapRims.docs.map(d => d.data()).sort((a,b)=>a.nome.localeCompare(b.nome));
+        }
+
+        function listenRiepilogoOrari() {
+            // 1. Spostiamo la data qui dentro in modo che sia sempre aggiornata
+            const nowT = new Date();
+            const dataOggi = nowT.getFullYear() + '-' + String(nowT.getMonth()+1).padStart(2,'0') + '-' + String(nowT.getDate()).padStart(2,'0');
+            const q = query(collection(db, "ordini"), where("data_ritiro", "==", dataOggi));
+
+            onSnapshot(q, (snap) => {
+                const body = document.getElementById('riepilogo-body');
+                let orariMap = {};
+                let totPizzeInAttesa = 0;
+                let totPizzeAssolute = 0;
+
+                // FIX FONDAMENTALE: Diciamo al sistema QUALI categorie sono da considerare "Pizze"
+                const categoriePizze = ['pizza', 'stirata', 'speciale', 'gf'];
+
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    const orario = data.orario || "N/D";
+                    
+                    if (data.stato !== "Annullato") {
+                        if (data.prodotti) {
+                            data.prodotti.forEach(p => {
+                                // Usa l'array categoriePizze per non perdere nemmeno una pizza!
+                                if (categoriePizze.includes(p.cat)) {
+                                    totPizzeAssolute += (parseFloat(p.qta) || 1);
+                                }
+                            });
+                        }
+                    }
+
+                    if (data.stato === "Completato" || data.stato === "Annullato" || data.stato === "Consegnato") return; 
+
+                    if (!orariMap[orario]) orariMap[orario] = 0;
+                    
+                    if (data.prodotti) {
+                        data.prodotti.forEach(p => {
+                            // Stesso controllo per le pizze in attesa
+                            if (categoriePizze.includes(p.cat)) {
+                                const qtaPizze = parseFloat(p.qta) || 1;
+                                orariMap[orario] += qtaPizze;
+                                totPizzeInAttesa += qtaPizze;
+                            }
+                        });
+                    }
+                });
+
+                const sortedOrari = Object.keys(orariMap).sort();
+                
+                let html = `
+                <div style="display:flex; gap:10px; margin-bottom:20px;">
+                    <div style="flex:1; text-align:center; background: #222; padding: 10px; border-radius: 10px; border: 2px solid var(--primary);">
+                        <div style="font-size:0.8em; color:#aaa; font-weight:bold;">TOT. OGGI</div>
+                        <div style="font-size:2.2em; font-weight:900; color:white;">${totPizzeAssolute}</div>
+                    </div>
+                    <div style="flex:1; text-align:center; background: var(--gold); padding: 10px; border-radius: 10px; box-shadow: 0 4px 10px rgba(255,234,0,0.2);">
+                        <div style="font-size:0.8em; color:black; font-weight:bold;">DA FARE</div>
+                        <div style="font-size:2.2em; font-weight:900; color:black;">${totPizzeInAttesa}</div>
+                    </div>
+                </div>`;
+
+                if (sortedOrari.length === 0 || totPizzeInAttesa === 0) {
+                    body.innerHTML = html + "<div style='text-align:center; padding: 20px; color: #aaa; font-size: 1.1em;'>Nessuna pizza in attesa.</div>";
+                    return;
+                }
+                
+                sortedOrari.forEach(ora => {
+                    if(orariMap[ora] > 0) {
+                        html += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#1a1a1a; padding:15px; margin-bottom:12px; border-radius:12px; border: 2px solid #333; border-left: 6px solid var(--primary);">
+                            <div style="display:flex; align-items:center; gap: 8px;">
+                                <i class="fa fa-clock" style="color: #666; font-size: 1.2em;"></i>
+                                <span style="font-size:1.8em; font-weight:900; color:var(--gold);">${ora}</span>
+                            </div>
+                            <div style="text-align: right; line-height: 1;">
+                                <span style="font-size:2.2em; font-weight:900; color:var(--green);">${orariMap[ora]}</span>
+                                <div style="font-size:0.8em; font-weight:bold; color:#aaa; text-transform: uppercase;">Pz</div>
+                            </div>
+                        </div>`;
+                    }
+                });
+                
+                body.innerHTML = html;
+            }, (error) => {
+                document.getElementById('riepilogo-body').innerHTML = "<div style='color:var(--red); text-align:center;'>Errore di sync</div>";
+            });
+        }
+
+        window.renderCats = () => {
+            const div = document.getElementById('cat-list');
+            div.innerHTML = CATS.map(c => `<button class="cat-btn ${c === currentCat ? 'active' : ''}" onclick="setCat('${c}')">${LABELS[c] || c.toUpperCase()}</button>`).join('');
+        };
+
+        window.setCat = (c) => { currentCat = c; renderCats(); renderMenu(); };
+
+        window.renderMenu = (search = "") => {
+            const list = document.getElementById('menu-list'); list.innerHTML = "";
+            let items = search ? MENU.filter(p => p.nome.toLowerCase().includes(search.toLowerCase())) : MENU.filter(p => p.cat === currentCat);
+            items.sort((a,b) => a.nome.localeCompare(b.nome));
+
+            items.forEach(p => {
+                const isScortaEsaurita = p.scorta !== null && p.scorta !== undefined && p.scorta !== "" && p.scorta <= 0;
+                const isSoldOut = p.attivo === false || isScortaEsaurita; 
+                const disabledClass = isSoldOut ? 'disabled' : ''; 
+                const soldOutHtml = isSoldOut ? ' <span style="color:#ff5252; font-size:10px; border:1px solid #ff5252; padding:2px 4px; border-radius:4px; vertical-align:middle; font-weight:bold;">ESAURITO</span>' : '';
+                const scortaHtml = (p.scorta !== null && p.scorta !== undefined && p.scorta !== "" && p.scorta > 0) ? ` <span style="color:#ff9800; font-weight:bold; font-size:0.9em;">(Rimasti: ${p.scorta})</span>` : '';
+
+                const div = document.createElement('div'); 
+                div.className = `prod-card ${disabledClass}`;
+                
+                if(isSoldOut) {
+                    div.style.opacity = '0.5';
+                    div.style.pointerEvents = 'none';
+                    div.style.filter = 'grayscale(100%)';
+                }
+
+                div.onclick = (e) => { 
+                    if(isSoldOut) return;
+                    if(!e.target.classList.contains('add-btn') && !e.target.classList.contains('qty-input')) {
+                        openModifier(p.id); 
+                    }
+                };
+                
+                div.innerHTML = `
+                    <div class="prod-info">
+                        <b>${p.nome}${soldOutHtml}</b>
+                        <small>€ ${parseFloat(p.prezzo).toFixed(2)}${scortaHtml}</small>
+                    </div>
+                    <div class="action-row">
+                        <input type="number" id="qty-${p.id}" class="qty-input" value="1" min="1" onclick="event.stopPropagation()">
+                        <div class="add-btn" onclick="addToCartFast('${p.id}', event)">+</div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        };
+
+        window.addToCartFast = (id, e) => {
+            if(e) e.stopPropagation();
+            const p = MENU.find(x => x.id === id);
+            
+            const qtyInput = document.getElementById(`qty-${id}`);
+            let quantita = 1;
+            if (qtyInput) {
+                quantita = parseFloat(qtyInput.value);
+                if (isNaN(quantita) || quantita < 1) quantita = 1;
+            }
+
+            CARRELLO.push({ nome: p.nome, prezzo: parseFloat(p.prezzo), qta: quantita, cat: p.cat, dettagli: 'Normale', turno: 1 });
+            updateCartUI();
+            if(qtyInput) qtyInput.value = "1";
+
+            const t = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 800, background: '#00c853', color: '#fff'});
+            t.fire({ icon: 'success', title: `${quantita}x ${p.nome}` });
+        };
+
+        window.openModifier = (id) => {
+            const p = MENU.find(x => x.id === id);
+            tempItem = { ...p }; tempAdds.clear(); tempRems.clear();
+            modificationContext = 'CART'; editingIndex = null;          
+            document.getElementById('m-title').innerText = p.nome;
+            document.getElementById('m-notes').value = ""; document.getElementById('ing-filter').value = "";
+            if(document.getElementById('mod-qty')) document.getElementById('mod-qty').value = "1";
+            document.getElementById('modal-qty-container').style.display = 'flex';
+            renderIngs();
+            document.getElementById('modal-prod').style.display = 'flex';
+        };
+
+        window.editCartItem = (index) => {
+    const item = CARRELLO[index];
+    let originalItem = MENU.find(m => m.nome === item.nome);
+    tempItem = originalItem ? { ...originalItem } : { ...item };
+    modificationContext = 'CART_EDIT'; editingIndex = index;
+    tempAdds.clear(); tempRems.clear();
+    let notesArray = [];
+
+    if (item.dettagli && item.dettagli !== 'Normale') {
+        const parts = item.dettagli.split(','); // Divide in base alla virgola
+        parts.forEach(part => {
+            let p = part.trim();
+            
+            if (p.startsWith('+')) {
+                // È un'aggiunta
+                tempAdds.add(p.substring(1).trim()); 
+                
+            } else if (p.startsWith('NO ')) {
+                // RICONOSCE LA PAROLA "NO" e preleva solo il nome dell'ingrediente
+                tempRems.add(p.substring(3).trim());
+                
+            } else if (p.startsWith('-')) {
+                // Lasciamo questo per retrocompatibilità (se apri un ordine vecchio)
+                tempRems.add(p.substring(1).trim());
+                
+            } else {
+                // È una nota scritta a mano
+                notesArray.push(p);
+            }
+        });
+    }
+
+    document.getElementById('m-title').innerText = "Modifica: " + item.nome;
+    document.getElementById('m-notes').value = notesArray.join(', ');
+    document.getElementById('ing-filter').value = "";
+    if(document.getElementById('mod-qty')) document.getElementById('mod-qty').value = item.qta;
+    document.getElementById('modal-qty-container').style.display = 'flex';
+    renderIngs();
+    document.getElementById('modal-cart').style.display = 'none';
+    document.getElementById('modal-prod').style.display = 'flex';
+};
+
+        window.renderIngs = (filter = "") => {
+            const addDiv = document.getElementById('grid-add');
+            const remDiv = document.getElementById('grid-rem');
+            
+            const fIngs = INGS.filter(i => i.nome.toLowerCase().includes(filter.toLowerCase()));
+            addDiv.innerHTML = fIngs.map(i => {
+                const active = tempAdds.has(i.nome) ? 'add' : '';
+                return `<div class="ing-btn ${active}" onclick="toggleAdd('${i.nome}')">${i.nome}</div>`;
+            }).join('');
+
+            let baseRims = [...RIMS];
+            if(tempItem.ingredienti) tempItem.ingredienti.forEach(ing => { if(!baseRims.find(r=>r.nome===ing)) baseRims.push({nome:ing, prezzo:0}); });
+            
+            const fRims = baseRims.filter(r => r.nome.toLowerCase().includes(filter.toLowerCase()));
+            remDiv.innerHTML = fRims.map(r => {
+                const active = tempRems.has(r.nome) ? 'rem' : '';
+                return `<div class="ing-btn ${active}" onclick="toggleRem('${r.nome}')">${r.nome}</div>`;
+            }).join('');
+        };
+
+        window.toggleAdd = (name) => { if(tempAdds.has(name)) tempAdds.delete(name); else tempAdds.add(name); renderIngs(document.getElementById('ing-filter').value); };
+        window.toggleRem = (name) => { if(tempRems.has(name)) tempRems.delete(name); else tempRems.add(name); renderIngs(document.getElementById('ing-filter').value); };
+
+       window.saveModifier = () => {
+    let det = [], extra = 0;
+    
+    // Aggiungiamo un comodo spazio dopo il + per renderlo più leggibile
+    tempAdds.forEach(n => { 
+        det.push(`+ ${n}`); 
+        const i = INGS.find(x => x.nome.trim().toLowerCase() === n.trim().toLowerCase()); 
+        if(i) extra += parseFloat(i.prezzo || 0); 
+    });
+    
+    // QUI LA MAGIA: Inserisce automaticamente la parola "NO " davanti all'ingrediente
+    tempRems.forEach(n => { 
+        det.push(`NO ${n}`); 
+        const r = RIMS.find(x => x.nome.trim().toLowerCase() === n.trim().toLowerCase()); 
+        if(r) extra -= Math.abs(parseFloat(r.prezzo || 0)); 
+    });
+    
+    const note = document.getElementById('m-notes').value; 
+    if(note) det.push(note);
+    
+    if (modificationContext.startsWith('BG_')) {
+        const halfNum = modificationContext === 'BG_1' ? 1 : 2;
+        const halfKey = 'h' + halfNum;
+        stirataData[halfKey].details = det; stirataData[halfKey].extraPrice = extra;
+        document.getElementById(`bg-mods-${halfNum}`).innerHTML = det.join(', '); // Unito da virgola
+        updateBiGustoPrice();
+        document.getElementById('modal-prod').style.display = 'none';
+        document.getElementById('modal-stirata').style.display = 'flex';
+        return;
+    }
+
+    let qtyInput = document.getElementById('mod-qty');
+    let finalQta = qtyInput ? parseFloat(qtyInput.value) : 1;
+    if(isNaN(finalQta) || finalQta < 1) finalQta = 1;
+
+    // Unisce tutto con la virgola
+    const finalDet = det.length > 0 ? det.join(', ') : 'Normale';
+    
+    let basePrice = parseFloat(tempItem.prezzo);
+    const finalPrice = basePrice + extra;
+
+    const newItem = { nome: tempItem.nome, prezzo: finalPrice, qta: finalQta, cat: tempItem.cat, dettagli: finalDet, turno: 1 };
+
+    if (modificationContext === 'CART_EDIT' && editingIndex !== null) {
+        CARRELLO[editingIndex] = newItem; editingIndex = null; modificationContext = 'CART'; 
+        document.getElementById('modal-prod').style.display = 'none'; document.getElementById('modal-cart').style.display = 'flex';
+    } else {
+        CARRELLO.push(newItem); closeModal('modal-prod');
+    }
+    updateCartUI();
+};
+
+        window.openManualModal = () => {
+            document.getElementById('man-name').value = ""; document.getElementById('man-price').value = "";
+            if(document.getElementById('man-qty')) document.getElementById('man-qty').value = "1";
+            document.getElementById('modal-manual').style.display = 'flex';
+        };
+
+        window.addManualProduct = () => {
+            const name = document.getElementById('man-name').value;
+            const price = parseFloat(document.getElementById('man-price').value);
+            const cat = document.getElementById('man-cat').value; 
+            const qtyInput = document.getElementById('man-qty');
+            let qta = parseFloat(qtyInput.value);
+            if(isNaN(qta) || qta < 1) qta = 1;
+
+            if(!name || isNaN(price)) return Swal.fire("Dati mancanti");
+
+            CARRELLO.push({ nome: name, prezzo: price, qta: qta, cat: cat, dettagli: 'Normale', turno: 1 });
+            closeModal('modal-manual'); updateCartUI();
+        };
+
+        window.openStirataModal = () => {
+            stirataData.h1 = {manual:false, details:[], extraPrice:0}; stirataData.h2 = {manual:false, details:[], extraPrice:0};
+            window.fillStirataSelects();
+            
+            document.getElementById('sel-gusto-1').value = ""; document.getElementById('sel-gusto-2').value = "";
+            document.getElementById('man-gusto-1').value = ""; document.getElementById('man-gusto-2').value = "";
+            document.getElementById('price-gusto-1').value = ""; document.getElementById('price-gusto-2').value = "";
+            toggleStirataManual(1, false); toggleStirataManual(2, false);
+            document.getElementById('bg-mods-1').innerHTML = ""; document.getElementById('bg-mods-2').innerHTML = "";
+            document.getElementById('stirata-main-note').value = "";
+            document.getElementById('btn-mod-1').disabled = true; document.getElementById('btn-mod-2').disabled = true;
+            document.getElementById('stirata-tot').innerText = "0.00"; document.getElementById('btn-stirata-ok').disabled = true; 
+            document.getElementById('modal-stirata').style.display = 'flex';
+        };
+
+        window.fillStirataSelects = () => {
+            const ps = MENU.filter(p => p.cat === 'stirata').sort((a,b)=>a.nome.localeCompare(b.nome));
+            
+            const opts = `<option value="">-- Scegli Gusto --</option>` + ps.map(p => {
+                const isEsaurito = p.attivo === false || (p.scorta !== null && p.scorta !== undefined && p.scorta !== "" && p.scorta <= 0);
+                const disabledAttr = isEsaurito ? 'disabled' : ''; 
+                const scortaTxt = (p.scorta !== null && p.scorta !== undefined && p.scorta !== "" && p.scorta > 0) ? ` [Rimasti: ${p.scorta}]` : '';
+                const label = p.nome + (isEsaurito ? ' (ESAURITO)' : ` (€${parseFloat(p.prezzo).toFixed(2)})${scortaTxt}`);
+                
+                return `<option value="${p.id}" data-price="${p.prezzo}" data-name="${p.nome}" ${disabledAttr}>${label}</option>`;
+            }).join('');
+            
+            document.getElementById('sel-gusto-1').innerHTML = opts; 
+            document.getElementById('sel-gusto-2').innerHTML = opts;
+        };
+
+        window.toggleStirataManual = (half, force) => {
+            const state = force !== undefined ? force : !stirataData['h'+half].manual;
+            stirataData['h'+half].manual = state;
+            const btn = document.getElementById(`btn-man-${half}`); const sel = document.getElementById(`sel-gusto-${half}`); const divMan = document.getElementById(`div-man-${half}`);
+            if(state) { btn.classList.add('active'); sel.style.display='none'; divMan.style.display='flex'; } else { btn.classList.remove('active'); sel.style.display='block'; divMan.style.display='none'; }
+            stirataData['h'+half].details = []; stirataData['h'+half].extraPrice = 0; document.getElementById(`bg-mods-${half}`).innerHTML = ""; updateBiGustoHalf(half);
+        };
+
+        window.updateBiGustoHalf = (halfNum) => {
+            const isManual = stirataData['h'+halfNum].manual; const btnMod = document.getElementById(`btn-mod-${halfNum}`);
+            if (isManual) {
+                stirataData['h'+halfNum].id = 'MANUAL_TEMP'; stirataData['h'+halfNum].name = document.getElementById(`man-gusto-${halfNum}`).value;
+                stirataData['h'+halfNum].price = parseFloat(document.getElementById(`price-gusto-${halfNum}`).value) || 0;
+                btnMod.disabled = false;
+            } else {
+                const id = document.getElementById(`sel-gusto-${halfNum}`).value;
+                if(id) {
+                    const p = MENU.find(x => x.id === id); stirataData['h'+halfNum].id = p.id; stirataData['h'+halfNum].name = p.nome; stirataData['h'+halfNum].price = parseFloat(p.prezzo); btnMod.disabled = false;
+                } else {
+                    stirataData['h'+halfNum].id = null; stirataData['h'+halfNum].price = 0; btnMod.disabled = true;
+                }
+            }
+            updateBiGustoPrice();
+        };
+
+        window.editHalf = (halfNum) => {
+            const halfData = stirataData['h'+halfNum]; if(!halfData.id) return;
+            let p = halfData.manual ? { id: 'MANUAL_TEMP', nome: halfData.name, cat: 'stirata', prezzo: 0 } : MENU.find(x => x.id === halfData.id);
+            tempItem = { ...p }; modificationContext = 'BG_' + halfNum; tempAdds.clear(); tempRems.clear();
+            document.getElementById('m-title').innerText = "Modifica Metà: " + p.nome; document.getElementById('ing-filter').value = ""; renderIngs(); document.getElementById('m-notes').value = ""; 
+            document.getElementById('modal-qty-container').style.display = 'none';
+            document.getElementById('modal-stirata').style.display = 'none'; document.getElementById('modal-prod').style.display = 'flex';
+        };
+
+        window.updateBiGustoPrice = () => {
+            const d = stirataData;
+            document.getElementById('stirata-tot').innerText = (Math.max(d.h1.price || 0, d.h2.price || 0) + d.h1.extraPrice + d.h2.extraPrice).toFixed(2);
+            const ready = (d.h1.id && d.h2.id) && (d.h1.manual ? (d.h1.name!=='') : true) && (d.h2.manual ? (d.h2.name!=='') : true);
+            const btn = document.getElementById('btn-stirata-ok'); btn.disabled = !ready; btn.style.opacity = ready ? 1 : 0.5;
+        };
+
+        window.addStirata = () => {
+            const price = parseFloat(document.getElementById('stirata-tot').innerText); const d = stirataData;
+            const n1 = d.h1.manual ? document.getElementById('man-gusto-1').value : d.h1.name; 
+            const n2 = d.h2.manual ? document.getElementById('man-gusto-2').value : d.h2.name;
+            const mainNote = document.getElementById('stirata-main-note').value;
+            
+            let desc = `<b>1/2</b> ${n1}`; if(d.h1.details.length > 0) desc += ` <br>${d.h1.details.join(' ')}`;
+            desc += `<br><b>1/2</b> ${n2}`; if(d.h2.details.length > 0) desc += ` <br>${d.h2.details.join(' ')}`;
+            if(mainNote) desc += `<br><b>Note:</b> ${mainNote}`;
+            
+            // Salviamo gli ID reali nel carrello per poter scalare le scorte dopo
+            const componentiScorta = [];
+            if (!d.h1.manual && d.h1.id) componentiScorta.push(d.h1.id);
+            if (!d.h2.manual && d.h2.id) componentiScorta.push(d.h2.id);
+
+            CARRELLO.push({ 
+                nome: "STIRATA BI-GUSTO", 
+                prezzo: price, 
+                qta: 1, 
+                cat: 'stirata', 
+                dettagli: desc, 
+                turno: 1,
+                componenti: componentiScorta // <-- Questo risolve il BUG!
+            });
+            
+            closeModal('modal-stirata'); updateCartUI();
+        };
+
+        window.closeModal = (id) => {
+            document.getElementById(id).style.display = 'none';
+            if(id === 'modal-prod' && modificationContext.startsWith('BG_')) document.getElementById('modal-stirata').style.display = 'flex';
+            if(id === 'modal-prod' && modificationContext === 'CART_EDIT') document.getElementById('modal-cart').style.display = 'flex';
+        };
+        
+        // 2. BUGFIX: OTTIMIZZATA LA VELOCITÀ DEL CARRELLO
+        window.updateCartUI = () => {
+            document.getElementById('cart-count').innerText = CARRELLO.length;
+            document.getElementById('cart-tot').innerText = "€ " + CARRELLO.reduce((a,b) => a + (b.prezzo*b.qta), 0).toFixed(2);
+            
+            const list = document.getElementById('cart-list-items'); 
+            let htmlString = ""; // Usiamo una stringa per velocizzare il rendering
+            
+            CARRELLO.forEach((p, i) => {
+                const detDisplay = (p.dettagli === 'Normale' || p.dettagli === 'Manuale') ? '' : p.dettagli;
+                htmlString += `
+                    <div class="cart-item">
+                        <div style="flex:1;">
+                            <div style="display:flex; justify-content:space-between; width:100%;">
+                                <b>${p.qta}x ${p.nome}</b> <span style="color:var(--gold);">€${(p.prezzo * p.qta).toFixed(2)}</span>
+                            </div>
+                            <small>${detDisplay}</small>
+                        </div>
+                        <div class="cart-actions">
+                            <button class="edit-btn" onclick="editCartItem(${i})"><i class="fa fa-pencil"></i></button>
+                            <button class="del-btn" onclick="remItem(${i})"><i class="fa fa-trash"></i></button>
+                        </div>
+                    </div>`;
+            });
+            list.innerHTML = htmlString;
+        };
+
+        window.remItem = (i) => { CARRELLO.splice(i, 1); updateCartUI(); };
+        window.toggleCart = () => { const m = document.getElementById('modal-cart'); m.style.display = m.style.display==='flex'?'none':'flex'; };
+
+        window.setAdesso = () => { const inputOra = document.getElementById('cli-ora'); inputOra.type = 'text'; inputOra.value = 'Adesso'; };
+        window.addTime = (m) => {
+            const inputOra = document.getElementById('cli-ora'); inputOra.type = 'time'; 
+            const now = new Date(); now.setMinutes(now.getMinutes() + m);
+            inputOra.value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        };
+
+        window.inviaOrdine = async (e) => {
+            if(e) e.stopPropagation();
+            const nome = document.getElementById('cli-nome').value.trim(); 
+            const ora = document.getElementById('cli-ora').value;
+            const dataScelta = document.getElementById('cli-data').value; 
+            const tel = document.getElementById('cli-tel').value; 
+            const note = document.getElementById('ord-note').value;
+
+            if(!nome) return Swal.fire("Inserisci il nome!"); 
+            if(!dataScelta) return Swal.fire("Inserisci la data!");
+            if(CARRELLO.length === 0) return Swal.fire("Carrello vuoto!");
+
+            const tot = CARRELLO.reduce((a,b) => a + (b.prezzo*b.qta), 0); 
+
+            const ordData = {
+                nome: nome, telefono: tel, orario: ora, note_ordine: note, data_ritiro: dataScelta, data_invio: serverTimestamp(),
+                prodotti: CARRELLO, totale: tot, stato: "In attesa", tipo: "ASPORTO", operatore: "Telecomando"
+            };
+
+            Swal.fire({title:'Invio...', didOpen:()=>{Swal.showLoading()}});
+            
+            await addDoc(collection(db, "ordini"), ordData);
+            await window.scalaScorte(CARRELLO);
+            
+            CARRELLO = []; 
+            document.getElementById('cli-nome').value = ""; 
+            document.getElementById('cli-tel').value = ""; 
+            document.getElementById('ord-note').value = "";
+            
+            const now = new Date();
+            document.getElementById('cli-data').value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+            
+            updateCartUI(); closeModal('modal-cart');
+            Swal.fire({icon:'success', title:'Inviato!', timer:1500});
+        };
+
+        init();
+    </script>
+</body>
+</html>

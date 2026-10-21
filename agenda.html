@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="app-title">Agenda Prenotazioni PRO</title>
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary-color: #1e293b; 
+            --accent-color: #3b82f6;  
+            --success-color: #10b981; 
+            --danger-color: #ef4444;  
+            --warning-color: #f59e0b; 
+            --bg-color: #f1f5f9;      
+            --card-bg: #ffffff;
+            --text-main: #334155;
+            --text-muted: #64748b;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; padding: 0; color: var(--text-main); }
+        
+        /* Navbar */
+        .navbar { background: var(--card-bg); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; gap: 10px; }
+        .navbar h1 { margin: 0; font-size: 1.4em; color: var(--primary-color); display: flex; align-items: center; gap: 10px; }
+        .btn-primary { background: var(--accent-color); color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+        .btn-primary:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(59, 130, 246, 0.25); }
+
+        /* Barra Navigazione Data A SCHEDE (Tabs) */
+        .toolbar { max-width: 900px; margin: 15px auto 0 auto; padding: 0 15px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .date-tabs-container { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; }
+        .date-tabs-container::-webkit-scrollbar { height: 8px; }
+        .date-tabs-container::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .date-tabs-container::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        .date-tabs-container::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .date-tab { background: var(--card-bg); border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 15px; min-width: 75px; text-align: center; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.2s; display: flex; flex-direction: column; gap: 2px; user-select: none; }
+        .date-tab.active { background: var(--accent-color); color: white; border-color: var(--accent-color); box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3); transform: scale(1.05); }
+        .date-tab:active { transform: scale(0.95); }
+        
+        .date-tab .day-name { font-size: 0.8em; text-transform: uppercase; font-weight: 700; opacity: 0.8; }
+        .date-tab .day-number { font-size: 1.4em; font-weight: 800; }
+        .date-tab .month-name { font-size: 0.75em; font-weight: 600; }
+        
+        .calendar-tab { justify-content: center; align-items: center; background: #e2e8f0; color: var(--text-muted); border: 1px dashed #cbd5e1; min-width: 75px; }
+        .calendar-tab:hover { background: #cbd5e1; color: var(--primary-color); }
+
+        /* Barra di Ricerca e Statistiche */
+        .search-stats-container { max-width: 900px; margin: 0 auto 15px auto; padding: 0 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        
+        .search-box { flex: 1; min-width: 250px; background: var(--card-bg); padding: 12px 15px; border-radius: 8px; display: flex; align-items: center; gap: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .search-box input { border: none; outline: none; width: 100%; font-size: 1.05em; color: var(--primary-color); font-weight: 500; background: transparent; }
+        .search-box input::placeholder { color: #94a3b8; font-weight: 400; }
+        .search-box i { color: var(--text-muted); font-size: 1.1em; }
+
+        .stats-badges { display: flex; gap: 15px; }
+        .badge { background: var(--card-bg); padding: 8px 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; min-width: 90px;}
+        .badge-value { font-size: 1.3em; font-weight: 700; color: var(--primary-color); }
+        .badge-label { font-size: 0.8em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+
+        /* Griglia Prenotazioni */
+        .container { max-width: 900px; margin: 0 auto; padding: 0 15px 30px 15px; }
+        
+        .card { background: var(--card-bg); border-radius: 10px; padding: 18px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; border-left: 4px solid var(--accent-color); transition: transform 0.1s; }
+        .card:hover { transform: translateX(2px); box-shadow: 0 4px 6px rgba(0,0,0,0.08); }
+        
+        .card-time { font-size: 1.5em; font-weight: 700; color: var(--primary-color); width: 80px; flex-shrink: 0; text-align: center;}
+        .card-time-date { font-size: 0.55em; color: var(--text-muted); display: block; margin-top: 3px; font-weight: 600; text-transform: uppercase; background: #e2e8f0; padding: 2px 5px; border-radius: 4px;}
+        
+        .card-info { flex: 1; padding: 0 15px; }
+        .card-name { font-size: 1.15em; font-weight: 600; color: var(--primary-color); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;}
+        
+        .card-pax { background: #f1f5f9; color: var(--primary-color); padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+        .card-seggioloni { background: #fef3c7; color: #b45309; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+        .card-tavolo { background: var(--success-color); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 700; }
+        
+        .card-details { margin-top: 6px; font-size: 0.9em; color: var(--text-muted); display: flex; flex-direction: column; gap: 3px; }
+        
+        .card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;}
+        .btn-action { border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
+        .btn-success { background: #dcfce7; color: var(--success-color); }
+        .btn-success:hover { background: var(--success-color); color: white; }
+        .btn-info { background: #e0f2fe; color: var(--accent-color); }
+        .btn-info:hover { background: var(--accent-color); color: white; }
+        .btn-danger { background: #fee2e2; color: var(--danger-color); }
+        .btn-danger:hover { background: var(--danger-color); color: white; }
+
+        .empty-state { text-align: center; color: var(--text-muted); padding: 60px 20px; background: var(--card-bg); border-radius: 10px; border: 1px dashed #cbd5e1; }
+        
+        /* SweetAlert styling */
+        .swal2-popup { border-radius: 12px !important; }
+        .swal2-input { border-radius: 8px !important; border: 1px solid #cbd5e1 !important; }
+        .swal2-input:focus { border-color: var(--accent-color) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.1) !important; }
+
+        .swal-radio-group { display: flex; gap: 8px; margin-top: 5px; }
+        .swal-radio-group input[type="radio"] { display: none; }
+        .swal-radio-label { flex: 1; text-align: center; padding: 10px 5px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: 700; color: var(--text-muted); transition: all 0.2s; background: var(--card-bg); text-transform: uppercase; }
+        .swal-radio-group input[type="radio"]:checked + .swal-radio-label { background: var(--accent-color); color: white; border-color: var(--accent-color); box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2); transform: translateY(-1px); }
+        
+        .badge-servizio { background: #e2e8f0; color: #334155; padding: 3px 8px; border-radius: 6px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; border: 1px solid #cbd5e1; }
+
+        /* STILE ETICHETTE PERSONALIZZATE (TAGS) */
+        .tags-selector-grid {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;
+            background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;
+        }
+        .tag-pill-selectable {
+            padding: 6px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 700;
+            cursor: pointer; border: 2px solid transparent; transition: all 0.15s;
+            user-select: none; display: inline-flex; align-items: center; gap: 5px;
+            opacity: 0.55; background: #e2e8f0; color: #334155;
+        }
+        .tag-pill-selectable.selected {
+            opacity: 1; color: white !important; transform: scale(1.04);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.18);
+        }
+        .card-custom-tag {
+            padding: 3px 9px; border-radius: 12px; font-size: 0.75em; font-weight: 700;
+            color: white; display: inline-flex; align-items: center; gap: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .tag-manager-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0;
+            border-radius: 8px; margin-bottom: 8px;
+        }
+
+        .filter-container { max-width: 900px; margin: 0 auto 15px auto; padding: 0 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .filter-btn { background: var(--card-bg); border: 1px solid #e2e8f0; color: var(--text-muted); padding: 8px 15px; border-radius: 20px; font-weight: 600; font-size: 0.85em; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;}
+        .filter-btn:hover { background: #f1f5f9; }
+        .filter-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .btn-whatsapp { background: #dcfce7; color: #16a34a; text-decoration: none; }
+        .btn-whatsapp:hover { background: #16a34a; color: white; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <!-- LIVELLO 1: ACCESSO AZIENDA (SaaS) -->
+    <div id="company-login-overlay" style="position:fixed; inset:0; background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); z-index:10000; display:none; justify-content:center; align-items:center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        <div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 40px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); text-align: center; max-width: 400px; width: 90%;">
+            <i class="fa fa-book-bookmark" style="font-size: 50px; color: #3b82f6; margin-bottom: 20px;"></i>
+            <h2 style="color: #ffffff; margin-top: 0; margin-bottom: 10px; font-weight: 700;">ACCESSO AGENDA</h2>
+            <p style="color: #aaa; font-size: 14px; margin-bottom: 30px;">Inserisci le credenziali dell'abbonamento</p>
+            <div style="margin-bottom: 20px;">
+                <input type="email" id="company-email" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: white; font-size: 16px; outline: none; box-sizing: border-box;" placeholder="Email Proprietario">
+            </div>
+            <div style="margin-bottom: 30px;">
+                <input type="password" id="company-password" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: white; font-size: 16px; outline: none; box-sizing: border-box;" placeholder="Password">
+            </div>
+            <button onclick="window.loginAzienda()" style="width: 100%; padding: 15px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase;">Collega Database</button>
+        </div>
+    </div>
+
+    <!-- LIVELLO BLOCCO: ABBONAMENTO SCADUTO (KILL-SWITCH SAAS) -->
+    <div id="license-blocked-overlay" style="position:fixed; inset:0; background: rgba(15, 23, 42, 0.98); z-index:10001; display:none; justify-content:center; align-items:center; flex-direction:column; color:white; text-align:center; padding:30px;">
+        <i class="fa-solid fa-lock" style="font-size: 4.5em; color: #ef4444; margin-bottom: 20px;"></i>
+        <h1 style="color:#ef4444; margin:0 0 10px 0;">LICENZA SOSPESA O SCADUTA</h1>
+        <p id="license-blocked-msg" style="font-size:1.15em; color:#cbd5e1; max-width:500px; line-height:1.5;">
+            L'accesso a questo modulo è stato temporaneamente disabilitato. Contatta l'amministratore per il rinnovo.
+        </p>
+        <div id="license-blocked-contact" style="margin-top:20px; padding:12px 24px; background:#1e293b; border:1px solid #475569; border-radius:10px; color:#f59e0b; font-weight:bold;"></div>
+    </div>
+
+    <!-- LIVELLO 2: PIN OPERATORE -->
+    <div id="pin-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column;">
+        <div style="background: var(--card-bg); padding: 40px; border-radius: 15px; border: 1px solid #e2e8f0; text-align: center; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+            <h2 style="color: var(--primary-color); margin-top: 0; margin-bottom: 10px; font-size: 1.8em;">
+                <i class="fa-solid fa-lock" style="color: var(--accent-color);"></i> Sblocco Agenda
+            </h2>
+            <p style="color: var(--text-muted); margin-bottom: 30px;">Inserisci il tuo PIN operatore</p>
+            <input type="password" id="pin-input-sala" placeholder="••••" inputmode="numeric" pattern="[0-9]*" 
+                style="width: 100%; padding: 15px; margin-bottom: 25px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: var(--primary-color); outline: none; font-size: 2em; text-align: center; letter-spacing: 15px; box-sizing: border-box;" autocomplete="off">
+            <button onclick="window.verificaPinSala()" 
+                style="width: 100%; padding: 15px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1.1em; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);">
+                SBLOCCA
+            </button>
+        </div>
+    </div>
+
+    <!-- NAVBAR DINAMICA -->
+    <div class="navbar">
+        <h1 id="nav-title"><i class="fa-solid fa-book-bookmark"></i> Agenda</h1>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <button class="btn-primary" onclick="window.apriGestioneEtichette()" style="background:#8b5cf6; padding:10px 14px;" title="Crea o modifica Etichette">
+                <i class="fa-solid fa-tags"></i> <span style="display:inline-block;">Etichette</span>
+            </button>
+            <button class="btn-primary" onclick="nuovaPrenotazione()">
+                <i class="fa fa-plus"></i> <span style="display:inline-block;">Prenota</span>
+            </button>
+            <button class="btn-primary" onclick="window.esciDaAgenda()" style="background:#ef4444; padding:10px;" title="Disconnetti Operatore">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="date-tabs-container" id="date-tabs"></div>
+        <input type="date" id="data-agenda" style="position: absolute; opacity: 0; width: 0; height: 0; border: none;" onchange="syncTabsAndLoad()">
+    </div>
+
+    <div class="search-stats-container">
+        <div class="search-box">
+            <i class="fa fa-search"></i>
+            <input type="text" id="search-agenda" placeholder="Cerca per nome, telefono o etichetta..." oninput="ritardaRicerca()">
+        </div>
+        
+        <div class="stats-badges">
+            <div class="badge">
+                <span class="badge-label">Tavoli</span>
+                <span class="badge-value" id="stat-prenotazioni">0</span>
+            </div>
+            <div class="badge">
+                <span class="badge-label">Coperti</span>
+                <span class="badge-value" id="stat-coperti" style="color: var(--accent-color);">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-container">
+        <button class="filter-btn active" id="btn-filtro-tutti" onclick="impostaFiltro('TUTTI')">Tutti</button>
+        <button class="filter-btn" id="btn-filtro-attesa" onclick="impostaFiltro('IN_ATTESA')"><i class="fa fa-clock"></i> In Arrivo</button>
+        <button class="filter-btn" id="btn-filtro-seduti" onclick="impostaFiltro('SEDUTI')"><i class="fa fa-chair"></i> Al Tavolo</button>
+    </div>
+
+    <div class="container" id="lista-prenotazioni">
+        <div class="empty-state">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2em;"></i>
+            <p>Caricamento in corso...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, onSnapshot, getDocs, getDoc, setDoc, addDoc, updateDoc, doc, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // --- 1. SISTEMA MULTI-TENANT ---
+        const urlParams = new URLSearchParams(window.location.search);
+        window.TENANT_ID = urlParams.get('locale') || localStorage.getItem('saas_tenant_id') || 'default';
+        if (urlParams.get('locale')) {
+            localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+        }
+
+        // --- CONFIGURAZIONE FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
+            authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+            projectId: "gestionale-ristoranti-96c5b",
+            storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+            messagingSenderId: "234695436534",
+            appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app); 
+
+        window.nomeLocaleWhiteLabel = "Da Mimmo";
+        window.prezzoCopertoAgenda = 2.50;
+        let agendaInizializzata = false;
+        let listenersInizializzati = false;
+        let activeListener = null;
+        window.prenotazioniCache = [];
+        window.bozzaPrenotazione = null;
+        window.modalitaRiaperturaPren = false;
+
+        // DISTANZA MINIMA IN MINUTI TRA PRENOTAZIONI DELLO STESSO TAVOLO
+        const MINUTI_MINIMI_STESSO_TAVOLO = 40;
+
+        // --- ETICHETTE PERSONALIZZATE (Salvate su Firebase in impostazioni/agenda_tags) ---
+        const DEFAULT_AGENDA_TAGS = [
+            { id: 'tag_compleanno', nome: '🎂 Compleanno', colore: '#ec4899' },
+            { id: 'tag_celiaco', nome: '🌾 Senza Glutine', colore: '#eab308' },
+            { id: 'tag_cane', nome: '🐶 Cane', colore: '#8b5cf6' },
+            { id: 'tag_vip', nome: '⭐ Cliente VIP', colore: '#f97316' },
+            { id: 'tag_evento', nome: '🥂 Evento / Torta', colore: '#10b981' },
+            { id: 'tag_passeggino', nome: '👶 Spazio Passeggino', colore: '#06b6d4' }
+        ];
+        window.AGENDA_TAGS = [...DEFAULT_AGENDA_TAGS];
+        window.tempSelectedTags = new Set();
+
+        // =========================================================
+        // MOTORE CONTROLLO CONFLITTI TAVOLO E DISTANZA 40 MINUTI
+        // =========================================================
+        function convertiOrarioInMinuti(oraStr) {
+            if (!oraStr || !oraStr.includes(':')) return null;
+            const [h, m] = oraStr.split(':').map(Number);
+            if (isNaN(h) || isNaN(m)) return null;
+            return (h * 60) + m;
+        }
+
+        function estraiOrarioRiferimento(ord) {
+            if (ord.orario && ord.orario.includes(':')) return ord.orario;
+            if (ord.data_invio) {
+                const dt = ord.data_invio.toDate ? ord.data_invio.toDate() : new Date(ord.data_invio);
+                if (!isNaN(dt.getTime())) {
+                    return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+                }
+            }
+            return null;
+        }
+
+        window.verificaConflittiTavolo = (tavoloRaw, oraScelta, excludeId = null) => {
+            const tavolo = (tavoloRaw || '').trim().toUpperCase();
+            if (!tavolo) return { bloccato: false, conflitti: [], altriTurni: [] };
+
+            const dataSelezionata = document.getElementById('data-agenda').value;
+            const minScelti = convertiOrarioInMinuti(oraScelta);
+
+            const conflitti = [];
+            const altriTurni = [];
+
+            (window.prenotazioniCache || []).forEach(p => {
+                if (excludeId && p.id === excludeId) return;
+                if (p.stato === 'Annullato' || p.stato === 'Consegnato') return;
+                if (p.data_ritiro && p.data_ritiro !== dataSelezionata) return;
+
+                const tavEsistente = (p.tavolo || '').trim().toUpperCase();
+                if (tavEsistente !== tavolo) return;
+
+                const isSeduto = p.stato !== 'Prenotato';
+                const oraEsistente = estraiOrarioRiferimento(p) || '--:--';
+                const minEsistenti = convertiOrarioInMinuti(oraEsistente);
+                const clienteNome = (p.nome || 'Cliente').toUpperCase();
+
+                if (minScelti !== null && minEsistenti !== null) {
+                    const diff = Math.abs(minScelti - minEsistenti);
+                    if (diff < MINUTI_MINIMI_STESSO_TAVOLO) {
+                        conflitti.push({
+                            cliente: clienteNome,
+                            orario: oraEsistente,
+                            diff: diff,
+                            isSeduto: isSeduto
+                        });
+                    } else {
+                        altriTurni.push({
+                            cliente: clienteNome,
+                            orario: oraEsistente,
+                            diff: diff,
+                            isSeduto: isSeduto
+                        });
+                    }
+                } else if (isSeduto) {
+                    // Se il tavolo è stato aperto in Sala senza orario esplicito, lo segnala come occupato
+                    conflitti.push({
+                        cliente: clienteNome,
+                        orario: 'IN CORSO',
+                        diff: 0,
+                        isSeduto: true
+                    });
+                }
+            });
+
+            return {
+                bloccato: conflitti.length > 0,
+                conflitti,
+                altriTurni
+            };
+        };
+
+        window.aggiornaAvvisoTavoloLive = (excludeId = '') => {
+            const box = document.getElementById('swal-table-warning');
+            if (!box) return;
+
+            const tav = document.getElementById('swal-tavolo-pre')?.value || '';
+            const ora = document.getElementById('swal-ora')?.value || '';
+            const check = window.verificaConflittiTavolo(tav, ora, excludeId || null);
+
+            if (check.bloccato) {
+                const c = check.conflitti[0];
+                const statoTxt = c.isSeduto ? 'GIÀ OCCUPATO (AL TAVOLO)' : 'GIÀ PRENOTATO';
+                box.style.display = 'block';
+                box.style.background = '#fee2e2';
+                box.style.border = '2px solid #ef4444';
+                box.style.color = '#991b1b';
+                box.innerHTML = `
+                    <i class="fa-solid fa-triangle-exclamation"></i> <b>ATTENZIONE: TAVOLO ${tav.toUpperCase()} ${statoTxt}!</b><br>
+                    Cliente: <b>${c.cliente}</b> alle ore <b>${c.orario}</b> (distanza: <b>${c.diff} min</b>).<br>
+                    <small>Servono almeno <b>${MINUTI_MINIMI_STESSO_TAVOLO} minuti</b> di differenza tra due prenotazioni dello stesso tavolo.</small>
+                `;
+            } else if (check.altriTurni.length > 0) {
+                const infoList = check.altriTurni.map(a => `${a.isSeduto ? '🪑 Al tavolo' : '📅 Prenotato'} ore <b>${a.orario}</b> (${a.cliente} - distanza ${a.diff} min)`).join('<br>');
+                box.style.display = 'block';
+                box.style.background = '#fef3c7';
+                box.style.border = '1px solid #f59e0b';
+                box.style.color = '#92400e';
+                box.innerHTML = `<i class="fa-solid fa-circle-info"></i> <b>Altre prenotazioni sul Tavolo ${tav.toUpperCase()}:</b><br>${infoList}`;
+            } else {
+                box.style.display = 'none';
+                box.innerHTML = '';
+            }
+        };
+
+        function avviaListenersImpostazioni() {
+            if (listenersInizializzati) return;
+            listenersInizializzati = true;
+
+            // 1. White-Label e Prezzo Coperto in Tempo Reale
+            onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
+                if (docNegozio.exists()) {
+                    const d = docNegozio.data();
+                    if (d.nome) {
+                        window.nomeLocaleWhiteLabel = d.nome;
+                        document.getElementById('nav-title').innerHTML = `<i class="fa-solid fa-book-bookmark"></i> Agenda - ${window.nomeLocaleWhiteLabel}`;
+                        document.getElementById('app-title').innerText = `Agenda - ${window.nomeLocaleWhiteLabel}`;
+                    }
+                    if (d.prezzo_coperto !== undefined) {
+                        window.prezzoCopertoAgenda = parseFloat(d.prezzo_coperto);
+                    }
+                }
+            });
+
+            // 2. Kill-Switch Licenza SaaS in Tempo Reale
+            onSnapshot(doc(db, "impostazioni", "licenza"), (docLicenza) => {
+                const overlay = document.getElementById('license-blocked-overlay');
+                if (docLicenza.exists() && docLicenza.data().attiva === false) {
+                    const lic = docLicenza.data();
+                    document.getElementById('license-blocked-msg').innerText = lic.messaggio_blocco || "L'abbonamento al software gestionale è scaduto. Contatta l'amministratore per il rinnovo.";
+                    document.getElementById('license-blocked-contact').innerText = `📞 Assistenza: ${lic.contatto_assistenza || 'Contatta il fornitore'}`;
+                    overlay.style.display = 'flex';
+                } else {
+                    overlay.style.display = 'none';
+                }
+            });
+
+            // 3. Sincronizzazione Etichette Personalizzate in Tempo Reale
+            onSnapshot(doc(db, "impostazioni", "agenda_tags"), async (docTags) => {
+                if (docTags.exists() && Array.isArray(docTags.data().lista)) {
+                    window.AGENDA_TAGS = docTags.data().lista;
+                } else {
+                    window.AGENDA_TAGS = [...DEFAULT_AGENDA_TAGS];
+                    try { await setDoc(doc(db, "impostazioni", "agenda_tags"), { lista: window.AGENDA_TAGS }); } catch(e) {}
+                }
+                if (agendaInizializzata) window.renderizzaListaDaCache();
+            });
+        }
+
+        function gestisciAccessoOperatore() {
+            document.getElementById('company-login-overlay').style.display = 'none';
+            avviaListenersImpostazioni();
+
+            const operatore = sessionStorage.getItem('operatore_corrente') || sessionStorage.getItem('sala_waiter_name');
+            if (operatore) {
+                sessionStorage.setItem('operatore_corrente', operatore);
+                document.getElementById('pin-overlay').style.display = 'none';
+                if (!agendaInizializzata) avviaAgenda();
+            } else {
+                document.getElementById('pin-overlay').style.display = 'flex';
+                const pinInput = document.getElementById('pin-input-sala');
+                if (pinInput) {
+                    pinInput.focus();
+                    pinInput.onkeypress = (e) => { if (e.key === 'Enter') window.verificaPinSala(); };
+                }
+            }
+        }
+
+        // === GESTIONE LOGIN SAAS E AUTO-CONNESSIONE ===
+        window.loginAzienda = async () => {
+            const email = document.getElementById('company-email').value.trim();
+            const password = document.getElementById('company-password').value.trim();
+            if(!email || !password) return Swal.fire("Attenzione", "Inserisci email e password dell'abbonamento", "warning");
+
+            try {
+                Swal.fire({ title: 'Collegamento in corso...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                await signInWithEmailAndPassword(auth, email, password);
+                Swal.close();
+            } catch (error) {
+                console.error(error);
+                Swal.fire("Accesso Negato", "Credenziali azienda non valide.", "error");
+            }
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                gestisciAccessoOperatore();
+            } else {
+                signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026")
+                    .then(() => {
+                        gestisciAccessoOperatore();
+                    })
+                    .catch(() => {
+                        gestisciAccessoOperatore();
+                    });
+            }
+        });
+
+        // === MOTORE DI LOGIN TRAMITE PIN ===
+        window.verificaPinSala = async () => {
+            const pinInserito = document.getElementById('pin-input-sala').value.trim();
+            if(!pinInserito) return Swal.fire("Attenzione", "Inserisci il PIN", "warning");
+
+            if (document.activeElement) document.activeElement.blur(); 
+
+            if (pinInserito === "0000") {
+                sessionStorage.setItem('operatore_corrente', 'ADMIN');
+                sessionStorage.setItem('sala_waiter_name', 'ADMIN');
+                document.getElementById('pin-overlay').style.display = 'none';
+                Swal.fire({icon: 'success', title: `Benvenuto ADMIN!`, timer: 1000, showConfirmButton: false});
+                if (!agendaInizializzata) avviaAgenda();
+                return;
+            }
+
+            try {
+                Swal.fire({ title: 'Verifica...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                const snap = await getDocs(collection(db, "dipendenti"));
+                let dipendenteTrovato = null;
+
+                snap.forEach(docSnap => {
+                    if (String(docSnap.data().pin).trim() === pinInserito) {
+                        dipendenteTrovato = docSnap.data();
+                    }
+                });
+
+                if(dipendenteTrovato) {
+                    sessionStorage.setItem('operatore_corrente', dipendenteTrovato.nome);
+                    sessionStorage.setItem('sala_waiter_name', dipendenteTrovato.nome);
+                    document.getElementById('pin-overlay').style.display = 'none';
+                    Swal.fire({icon: 'success', title: `Benvenuto ${dipendenteTrovato.nome}!`, timer: 1000, showConfirmButton: false});
+                    if (!agendaInizializzata) avviaAgenda();
+                } else {
+                    Swal.fire("Errore", "PIN errato o non registrato (Usa 0000 per Admin)", "error");
+                    document.getElementById('pin-input-sala').value = "";
+                }
+            } catch (e) {
+                Swal.fire("Errore di connessione", e.message, "error");
+            }
+        };
+
+        window.esciDaAgenda = () => {
+            sessionStorage.removeItem('operatore_corrente');
+            sessionStorage.removeItem('sala_waiter_name');
+            window.location.reload();
+        };
+
+        function avviaAgenda() {
+            agendaInizializzata = true;
+            let now = new Date();
+            let todayStr = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            document.getElementById('data-agenda').value = todayStr;
+            window.generaTabsDate(todayStr);
+            window.caricaPrenotazioni();
+        }
+
+        // =========================================================
+        // SISTEMA GESTIONE ETICHETTE PERSONALIZZATE (CREA / MODIFICA / ELIMINA)
+        // =========================================================
+        window.generaSelettoreEtichetteHTML = (etichetteAttive = []) => {
+            window.tempSelectedTags = new Set(etichetteAttive || []);
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; margin-bottom:5px;">
+                    <span style="font-size:0.9em; font-weight:bold; color:var(--text-muted);"><i class="fa-solid fa-tags"></i> Etichette Rapide (clicca per attivare)</span>
+                    <button type="button" onclick="window.salvaBozzaEApriEtichette()" style="background:#8b5cf6; color:white; border:none; border-radius:6px; padding:4px 10px; font-size:0.75em; font-weight:bold; cursor:pointer;">
+                        <i class="fa fa-gear"></i> Gestisci / Nuova
+                    </button>
+                </div>
+                <div id="swal-tags-container" class="tags-selector-grid">
+                    ${window.renderChipsEtichetteInterno()}
+                </div>
+            `;
+        };
+
+        window.salvaBozzaEApriEtichette = () => {
+            if (document.getElementById('swal-nome')) {
+                window.bozzaPrenotazione = {
+                    nome: document.getElementById('swal-nome')?.value || '',
+                    tavoloPre: document.getElementById('swal-tavolo-pre')?.value || '',
+                    ora: document.getElementById('swal-ora')?.value || '',
+                    tel: document.getElementById('swal-tel')?.value || '',
+                    adulti: document.getElementById('swal-adulti')?.value || 2,
+                    bambini: document.getElementById('swal-bambini')?.value || 0,
+                    seggioloni: document.getElementById('swal-seggioloni')?.value || 0,
+                    altro: document.getElementById('swal-altro')?.value || '',
+                    etichette: Array.from(window.tempSelectedTags)
+                };
+            }
+            window.apriGestioneEtichette(true);
+        };
+
+        window.renderChipsEtichetteInterno = () => {
+            if (!window.AGENDA_TAGS || window.AGENDA_TAGS.length === 0) {
+                return `<small style="color:#94a3b8;">Nessuna etichetta salvata. Clicca su "Gestisci / Nuova".</small>`;
+            }
+            return window.AGENDA_TAGS.map(t => {
+                const isSel = window.tempSelectedTags.has(t.nome);
+                const bgStyle = isSel ? `background:${t.colore}; border-color:${t.colore};` : `border-color:${t.colore}55;`;
+                const safeNome = t.nome.replace(/'/g, "\\'");
+                return `
+                    <div class="tag-pill-selectable ${isSel ? 'selected' : ''}" 
+                         style="${bgStyle}" 
+                         onclick="window.toggleTagSelection('${safeNome}')">
+                        <span style="width:8px; height:8px; border-radius:50%; background:${ isSel ? '#fff' : t.colore };"></span>
+                        ${t.nome}
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.toggleTagSelection = (nomeTag) => {
+            if (window.tempSelectedTags.has(nomeTag)) {
+                window.tempSelectedTags.delete(nomeTag);
+            } else {
+                window.tempSelectedTags.add(nomeTag);
+            }
+            const box = document.getElementById('swal-tags-container');
+            if (box) box.innerHTML = window.renderChipsEtichetteInterno();
+        };
+
+        async function salvaCatalogoEtichetteSuDB() {
+            await setDoc(doc(db, "impostazioni", "agenda_tags"), {
+                lista: window.AGENDA_TAGS,
+                updated_at: serverTimestamp()
+            });
+        }
+
+        window.apriGestioneEtichette = async (riapriNuovaPrenotazione = null) => {
+            if (riapriNuovaPrenotazione !== null) {
+                window.modalitaRiaperturaPren = riapriNuovaPrenotazione;
+            }
+
+            const disegnaListaHtml = () => {
+                if (window.AGENDA_TAGS.length === 0) return `<p style="color:#94a3b8;">Nessuna etichetta presente.</p>`;
+                return window.AGENDA_TAGS.map((t, idx) => `
+                    <div class="tag-manager-row">
+                        <span class="card-custom-tag" style="background:${t.colore}; font-size:0.9em; padding:5px 12px;">
+                            ${t.nome}
+                        </span>
+                        <div style="display:flex; gap:6px;">
+                            <button type="button" onclick="window.preparaModificaEtichetta(${idx})" style="background:#e0f2fe; color:#0288d1; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-weight:bold;" title="Modifica">
+                                <i class="fa fa-pencil"></i>
+                            </button>
+                            <button type="button" onclick="window.eliminaEtichettaCatalogo(${idx})" style="background:#fee2e2; color:#ef4444; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-weight:bold;" title="Elimina">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            };
+
+            await Swal.fire({
+                title: '🏷️ Gestione Etichette',
+                width: 520,
+                html: `
+                    <div style="background:#f1f5f9; padding:12px; border-radius:10px; margin-bottom:15px; text-align:left;">
+                        <div id="tag-form-title" style="font-size:0.85em; font-weight:bold; color:#334155; margin-bottom:8px;">➕ Crea Nuova Etichetta</div>
+                        <input type="hidden" id="edit-tag-index" value="-1">
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input id="new-tag-name" class="swal2-input" style="margin:0; flex:1; height:42px; font-size:0.95em;" placeholder="Es. 🎂 Compleanno, 🐶 Cane...">
+                            <input id="new-tag-color" type="color" value="#8b5cf6" style="width:48px; height:42px; border:none; border-radius:8px; cursor:pointer; background:transparent;">
+                            <button type="button" id="btn-save-tag-cat" onclick="window.salvaEtichettaNelCatalogo()" style="background:#10b981; color:white; border:none; height:42px; padding:0 15px; border-radius:8px; font-weight:bold; cursor:pointer;">
+                                Salva
+                            </button>
+                        </div>
+                    </div>
+                    <div style="text-align:left; font-size:0.85em; font-weight:bold; color:#64748b; margin-bottom:8px;">Etichette Salvate (Tocca ✏️ per modificare):</div>
+                    <div id="tag-manager-list" style="max-height:260px; overflow-y:auto;">
+                        ${disegnaListaHtml()}
+                    </div>
+                `,
+                showConfirmButton: true,
+                confirmButtonText: window.modalitaRiaperturaPren ? '⬅️ Torna alla Prenotazione' : 'Chiudi',
+                confirmButtonColor: '#3b82f6'
+            });
+
+            if (window.modalitaRiaperturaPren) {
+                window.modalitaRiaperturaPren = false;
+                window.nuovaPrenotazione(window.bozzaPrenotazione);
+            }
+        };
+
+        window.salvaEtichettaNelCatalogo = async () => {
+            const nameInput = document.getElementById('new-tag-name');
+            const colorInput = document.getElementById('new-tag-color');
+            const idxInput = document.getElementById('edit-tag-index');
+
+            const nome = nameInput.value.trim();
+            const colore = colorInput.value || '#3b82f6';
+            const editIdx = parseInt(idxInput.value);
+
+            if (!nome) return;
+
+            if (editIdx >= 0 && window.AGENDA_TAGS[editIdx]) {
+                const vecchioNome = window.AGENDA_TAGS[editIdx].nome;
+                window.AGENDA_TAGS[editIdx].nome = nome;
+                window.AGENDA_TAGS[editIdx].colore = colore;
+
+                window.prenotazioniCache.forEach(async (pren) => {
+                    if (Array.isArray(pren.etichette) && pren.etichette.includes(vecchioNome)) {
+                        const nuove = pren.etichette.map(e => e === vecchioNome ? nome : e);
+                        try { await updateDoc(doc(db, "ordini", pren.id), { etichette: nuove }); } catch(e) {}
+                    }
+                });
+            } else {
+                window.AGENDA_TAGS.push({
+                    id: 'tag_' + Date.now(),
+                    nome,
+                    colore
+                });
+            }
+
+            await salvaCatalogoEtichetteSuDB();
+            window.apriGestioneEtichette();
+        };
+
+        window.preparaModificaEtichetta = (idx) => {
+            const tag = window.AGENDA_TAGS[idx];
+            if (!tag) return;
+            document.getElementById('new-tag-name').value = tag.nome;
+            document.getElementById('new-tag-color').value = tag.colore;
+            document.getElementById('edit-tag-index').value = idx;
+            document.getElementById('tag-form-title').innerHTML = `✏️ Modifica Etichetta: <b>${tag.nome}</b>`;
+            document.getElementById('btn-save-tag-cat').innerText = "Aggiorna";
+            document.getElementById('btn-save-tag-cat').style.background = "#3b82f6";
+        };
+
+        window.eliminaEtichettaCatalogo = async (idx) => {
+            window.AGENDA_TAGS.splice(idx, 1);
+            await salvaCatalogoEtichetteSuDB();
+            window.apriGestioneEtichette();
+        };
+
+        // === MOTORE DELLE SCHEDE (TABS) ===
+        window.generaTabsDate = (selectedDateStr) => {
+            const container = document.getElementById('date-tabs');
+            container.innerHTML = "";
+            
+            let today = new Date();
+            today.setHours(0,0,0,0);
+            
+            let dataTrovataNeiTabs = false;
+            
+            for(let i = 0; i < 15; i++) {
+                let d = new Date(today);
+                d.setDate(today.getDate() + i);
+                
+                let isOggi = i === 0;
+                let isDomani = i === 1;
+                
+                let dayName = isOggi ? 'Oggi' : isDomani ? 'Domani' : d.toLocaleDateString('it-IT', {weekday: 'short'});
+                let dayNum = d.getDate();
+                let monthName = d.toLocaleDateString('it-IT', {month: 'short'}).replace('.', '');
+                
+                let localDateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                let isActive = localDateStr === selectedDateStr ? 'active' : '';
+                
+                if (isActive) dataTrovataNeiTabs = true;
+                
+                container.innerHTML += `
+                    <div class="date-tab ${isActive}" onclick="selezionaDataTab('${localDateStr}')">
+                        <span class="day-name">${dayName}</span>
+                        <span class="day-number">${dayNum}</span>
+                        <span class="month-name">${monthName}</span>
+                    </div>
+                `;
+            }
+            
+            if (!dataTrovataNeiTabs && selectedDateStr) {
+                let dDataScelta = new Date(selectedDateStr);
+                let scDayNum = dDataScelta.getDate();
+                let scMonthName = dDataScelta.toLocaleDateString('it-IT', {month: 'short'}).replace('.', '');
+                
+                container.innerHTML += `
+                    <div class="date-tab active" onclick="apriCalendarioNativo()" title="Cambia di nuovo data">
+                        <span class="day-name">Scelta</span>
+                        <span class="day-number">${scDayNum}</span>
+                        <span class="month-name">${scMonthName}</span>
+                    </div>
+                `;
+            } else {
+                container.innerHTML += `
+                    <div class="date-tab calendar-tab" onclick="apriCalendarioNativo()">
+                        <i class="fa fa-calendar-alt" style="font-size:1.5em; margin-bottom: 5px;"></i>
+                        <span class="day-name">Altra</span>
+                    </div>
+                `;
+            }
+        };
+
+        window.selezionaDataTab = (dateStr) => {
+            document.getElementById('search-agenda').value = ""; 
+            document.getElementById('data-agenda').value = dateStr;
+            window.generaTabsDate(dateStr); 
+            window.caricaPrenotazioni();   
+        };
+
+        window.apriCalendarioNativo = () => {
+            const input = document.getElementById('data-agenda');
+            if (input.showPicker) { input.showPicker(); } else { input.focus(); }
+        };
+
+        window.syncTabsAndLoad = () => {
+            document.getElementById('search-agenda').value = ""; 
+            let val = document.getElementById('data-agenda').value;
+            window.generaTabsDate(val);
+            window.caricaPrenotazioni();
+        };
+
+        // === GESTIONE FILTRI RAPIDI ===
+        window.filtroCorrente = 'TUTTI';
+        window.impostaFiltro = (filtro) => {
+            window.filtroCorrente = filtro;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            if(filtro === 'TUTTI') document.getElementById('btn-filtro-tutti').classList.add('active');
+            if(filtro === 'IN_ATTESA') document.getElementById('btn-filtro-attesa').classList.add('active');
+            if(filtro === 'SEDUTI') document.getElementById('btn-filtro-seduti').classList.add('active');
+            window.renderizzaListaDaCache();
+        };
+
+        window.renderizzaListaDaCache = () => {
+            const container = document.getElementById('lista-prenotazioni');
+            container.innerHTML = "";
+            let lista = window.prenotazioniCache || [];
+            
+            if (window.filtroCorrente === 'IN_ATTESA') {
+                lista = lista.filter(p => p.stato === 'Prenotato' || !p.tavolo || p.tavolo.trim() === "");
+            } else if (window.filtroCorrente === 'SEDUTI') {
+                lista = lista.filter(p => p.stato !== 'Prenotato' && p.tavolo && p.tavolo.trim() !== "");
+            }
+            
+            if(lista.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-filter" style="font-size:3em; margin-bottom:15px; color: #cbd5e1;"></i>
+                        <h3 style="margin:0; color: var(--primary-color);">Nessun cliente</h3>
+                        <p style="margin-top:5px;">Non ci sono prenotazioni in questa categoria.</p>
+                    </div>`;
+                return;
+            }
+            
+            let isRicerca = document.getElementById('search-agenda').value.length >= 2;
+            lista.forEach(p => window.renderizzaCard(p, container, isRicerca));
+        };
+
+        // === LETTURA DAL DATABASE ===
+        window.caricaPrenotazioni = () => {
+            const dataSelezionata = document.getElementById('data-agenda').value;
+            if(activeListener) activeListener();
+
+            const q = query(collection(db, "ordini"), where("data_ritiro", "==", dataSelezionata));
+
+            activeListener = onSnapshot(q, (snapshot) => {
+                let prenotazioni = [];
+                let totCoperti = 0;
+                
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const isSala = data.tipo === "SALA" || (data.tavolo && String(data.tavolo).trim() !== "") || data.stato === "Prenotato";
+                    if (isSala && data.stato !== 'Annullato' && data.stato !== 'Consegnato') {
+                        prenotazioni.push({ id: docSnap.id, ...data });
+                        let c = parseInt(data.coperti);
+                        if (isNaN(c)) c = (parseInt(data.adulti) || 0) + (parseInt(data.bambini) || 0);
+                        totCoperti += c;
+                    }
+                });
+
+                document.getElementById('stat-prenotazioni').innerText = prenotazioni.length;
+                document.getElementById('stat-coperti').innerText = totCoperti;
+
+                prenotazioni.sort((a,b) => (a.orario || "23:59").localeCompare(b.orario || "23:59"));
+                window.prenotazioniCache = prenotazioni; 
+                window.renderizzaListaDaCache(); 
+            });
+        };
+
+        // === MOTORE DI RICERCA GLOBALE ===
+        let timeoutRicerca = null;
+
+        window.ritardaRicerca = () => {
+            clearTimeout(timeoutRicerca); 
+            timeoutRicerca = setTimeout(() => { window.cercaPrenotazioniGlobale(); }, 500);
+        };
+
+        window.cercaPrenotazioniGlobale = async () => {
+            const testo = document.getElementById('search-agenda').value.trim().toLowerCase();
+            if (testo.length < 2) { window.caricaPrenotazioni(); return; }
+
+            if(activeListener) { activeListener(); activeListener = null; }
+            document.getElementById('lista-prenotazioni').innerHTML = `<div class="empty-state"><i class="fa-solid fa-circle-notch fa-spin" style="font-size:2em;"></i><p>Ricerca in corso...</p></div>`;
+
+            const q = query(collection(db, "ordini"), where("tipo", "==", "SALA"));
+            try {
+                const snapshot = await getDocs(q);
+                let risultati = [];
+                
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.stato !== 'Annullato' && data.stato !== 'Consegnato') {
+                        let nomeTrovato = data.nome ? data.nome.toLowerCase().includes(testo) : false;
+                        let telTrovato = data.telefono ? data.telefono.includes(testo) : false;
+                        let tagTrovato = Array.isArray(data.etichette) && data.etichette.some(t => t.toLowerCase().includes(testo));
+                        if (nomeTrovato || telTrovato || tagTrovato) risultati.push({ id: docSnap.id, ...data });
+                    }
+                });
+
+                risultati.sort((a,b) => {
+                    let d1 = (a.data_ritiro || "9999-99-99") + (a.orario || "23:59");
+                    let d2 = (b.data_ritiro || "9999-99-99") + (b.orario || "23:59");
+                    return d1.localeCompare(d2);
+                });
+
+                document.getElementById('stat-prenotazioni').innerText = risultati.length;
+                document.getElementById('stat-coperti').innerText = "-"; 
+                
+                window.prenotazioniCache = risultati; 
+                window.renderizzaListaDaCache(); 
+
+            } catch(e) { document.getElementById('lista-prenotazioni').innerHTML = `<div class="empty-state">Errore ricerca: ${e.message}</div>`; }
+        };
+
+        // === FUNZIONE DI DISEGNO SCHEDA ===
+        window.renderizzaCard = (p, container, mostraDataBadge = false) => {
+            let telHtml = p.telefono ? `<span><i class="fa fa-phone" style="width:15px;"></i> <a href="tel:${p.telefono}" style="color:inherit; text-decoration:none;">${p.telefono}</a></span>` : '';
+            let noteHtml = p.note_ordine ? `<span style="color: var(--danger-color); font-weight: 500;"><i class="fa fa-circle-exclamation" style="width:15px;"></i> ALTRO: ${p.note_ordine}</span>` : '';
+            
+            let paxArray = [];
+            let totPax = 0;
+            if (p.adulti !== undefined) {
+                if(p.adulti > 0) paxArray.push(`${p.adulti} Adulti`);
+                if(p.bambini > 0) paxArray.push(`${p.bambini} Bambini`);
+                totPax = parseInt(p.adulti) + parseInt(p.bambini || 0);
+            } else {
+                paxArray.push(`${p.coperti} Persone`);
+                totPax = parseInt(p.coperti || 0);
+            }
+            
+            let stringaPax = paxArray.join(' + ');
+            let seggioloniHtml = (p.seggioloni && p.seggioloni > 0) ? `<span class="card-seggioloni"><i class="fa fa-baby-carriage"></i> ${p.seggioloni} Seggiolon${p.seggioloni > 1 ? 'i' : 'e'}</span>` : '';
+            
+            let isSeduto = (p.stato !== 'Prenotato' && p.tavolo && p.tavolo.trim() !== "");
+            let haTavoloAssegnato = (p.tavolo && p.tavolo.trim() !== "");
+            let tavoloBadgeHtml = haTavoloAssegnato ? `<span class="card-tavolo" style="${!isSeduto ? 'background:#f59e0b;' : ''}"><i class="fa fa-chair"></i> TAVOLO ${p.tavolo}</span>` : '';
+
+            let dataBadgeHtml = "";
+            let dataGiornoTesto = "oggi";
+            if (p.data_ritiro) {
+                let dataObj = new Date(p.data_ritiro);
+                if (mostraDataBadge) {
+                    let giornoMese = dataObj.toLocaleDateString('it-IT', {day: '2-digit', month: 'short'});
+                    dataBadgeHtml = `<span class="card-time-date">${giornoMese}</span>`;
+                }
+                
+                let oggiStr = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                if (p.data_ritiro !== oggiStr) {
+                    dataGiornoTesto = "il " + dataObj.toLocaleDateString('it-IT', {day: 'numeric', month: 'long'});
+                }
+            }
+
+            let preferenzaBadge = p.preferenza_servizio ? `<span class="badge-servizio"><i class="fa fa-bell-concierge"></i> ${p.preferenza_servizio}</span>` : '';
+            let areaBadge = p.area ? `<span class="badge-servizio" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;"><i class="fa fa-map-pin"></i> ${p.area}</span>` : '';
+            let turnoIcon = p.turno === 'Pranzo' ? '<i class="fa-solid fa-sun" style="color:#f59e0b; font-size:0.7em;" title="Pranzo"></i> ' : (p.turno === 'Cena' ? '<i class="fa-solid fa-moon" style="color:#3b82f6; font-size:0.7em;" title="Cena"></i> ' : '');
+
+            let customTagsHtml = "";
+            if (Array.isArray(p.etichette) && p.etichette.length > 0) {
+                customTagsHtml = p.etichette.map(tagName => {
+                    const foundTag = (window.AGENDA_TAGS || []).find(t => t.nome === tagName);
+                    const bgCol = foundTag ? foundTag.colore : '#64748b';
+                    return `<span class="card-custom-tag" style="background:${bgCol};">${tagName}</span>`;
+                }).join('');
+            }
+
+            let btnWhatsAppHtml = "";
+            if (p.telefono && p.telefono.trim() !== "") {
+                let numClean = p.telefono.replace(/[^0-9+]/g, '');
+                if (!numClean.startsWith('+') && !numClean.startsWith('39') && numClean.length >= 9) { numClean = '+39' + numClean; } 
+                else if (numClean.startsWith('39') && numClean.length >= 11) { numClean = '+' + numClean; }
+                
+                let messaggio = encodeURIComponent(`Ciao ${(p.nome || '').trim()}, ti confermiamo la prenotazione presso ${window.nomeLocaleWhiteLabel} per ${dataGiornoTesto} alle ${p.orario} per ${totPax} persone. Ti aspettiamo! 🍕`);
+                
+                btnWhatsAppHtml = `
+                    <a href="whatsapp://send?phone=${numClean.replace('+', '')}&text=${messaggio}" class="btn-action btn-whatsapp" title="Invia Conferma WhatsApp">
+                        <i class="fa-brands fa-whatsapp" style="font-size: 1.3em;"></i>
+                    </a>`;
+            }
+            
+            let btnArrivatoHtml = !isSeduto ? `
+                <button class="btn-action btn-success" title="Cliente Arrivato (Apri Tavolo)" onclick="clienteArrivato('${p.id}', '${(p.nome || 'Cliente').replace(/'/g, "\\'")}')">
+                    <i class="fa fa-check"></i>
+                </button>
+            ` : `<span style="color: var(--success-color); font-weight: bold; font-size: 0.9em; padding-right: 10px;"><i class="fa fa-utensils"></i> Al Tavolo</span>`;
+
+            container.innerHTML += `
+                <div class="card">
+                    <div class="card-time">
+                        ${turnoIcon}${p.orario || '--:--'}
+                        ${dataBadgeHtml}
+                    </div>
+                    <div class="card-info">
+                        <div class="card-name">
+                            ${(p.nome || 'Cliente').toUpperCase()} 
+                            <span class="card-pax"><i class="fa fa-users"></i> ${stringaPax}</span>
+                            ${seggioloniHtml}
+                            ${tavoloBadgeHtml}
+                            ${preferenzaBadge}
+                            ${areaBadge}
+                            ${customTagsHtml}
+                        </div>
+                        <div class="card-details">
+                            ${telHtml}
+                            ${noteHtml}
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        ${btnWhatsAppHtml}
+                        ${btnArrivatoHtml}
+                        <button class="btn-action btn-info" title="Modifica" onclick="modificaPrenotazione('${p.id}')">
+                            <i class="fa fa-pencil"></i>
+                        </button>
+                        <button class="btn-action btn-danger" title="Elimina" onclick="eliminaPrenotazione('${p.id}')">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+
+        // === CREAZIONE E MODIFICA PRENOTAZIONE (Con Controllo 40 Minuti e Tavolo Occupato) ===
+        window.nuovaPrenotazione = async (bozza = null) => {
+            const dataSelezionata = document.getElementById('data-agenda').value;
+            const b = bozza || {};
+            const selettoreTagsHtml = window.generaSelettoreEtichetteHTML(b.etichette || []);
+            window.bozzaPrenotazione = null;
+            
+            const { value: formValues } = await Swal.fire({
+                title: 'Nuova Prenotazione',
+                width: 620, 
+                html: `
+                    <div style="display:flex; gap:10px; margin-top: 15px;">
+                        <div style="flex:2;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Nome Cliente *</div>
+                            <input id="swal-nome" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" placeholder="Es. Mario Rossi" value="${b.nome || ''}">
+                        </div>
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Tavolo (Opz.)</div>
+                            <input id="swal-tavolo-pre" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" placeholder="Es. 12" value="${b.tavoloPre || ''}" oninput="window.aggiornaAvvisoTavoloLive('')">
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap:10px; margin-top: 15px;">
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Orario *</div>
+                            <input id="swal-ora" type="time" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${b.ora || '20:30'}" oninput="window.aggiornaAvvisoTavoloLive('')">
+                        </div>
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Telefono</div>
+                            <input id="swal-tel" type="tel" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" placeholder="Es. 333 1234567" value="${b.tel || ''}">
+                        </div>
+                    </div>
+
+                    <!-- BOX AVVISO CONFLITTO TAVOLO / DISTANZA 40 MIN -->
+                    <div id="swal-table-warning" style="display:none; margin-top:12px; padding:10px 12px; border-radius:8px; font-size:0.85em; text-align:left; line-height:1.4;"></div>
+
+                    <div style="display:flex; gap:10px; margin-top: 15px;">
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Adulti *</div>
+                            <input id="swal-adulti" type="number" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${b.adulti !== undefined ? b.adulti : 2}" min="1">
+                        </div>
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Bambini</div>
+                            <input id="swal-bambini" type="number" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${b.bambini || 0}" min="0">
+                        </div>
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--warning-color); margin-bottom: 5px;">Seggioloni</div>
+                            <input id="swal-seggioloni" type="number" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${b.seggioloni || 0}" min="0">
+                        </div>
+                    </div>
+
+                    <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Turno *</div>
+                    <div class="swal-radio-group">
+                        <input type="radio" id="turno-pranzo" name="swal-turno" value="Pranzo">
+                        <label class="swal-radio-label" for="turno-pranzo"><i class="fa-solid fa-sun"></i> Pranzo</label>
+                        
+                        <input type="radio" id="turno-cena" name="swal-turno" value="Cena" checked>
+                        <label class="swal-radio-label" for="turno-cena"><i class="fa-solid fa-moon"></i> Cena</label>
+                    </div>
+
+                    <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Area Tavolo *</div>
+                    <div class="swal-radio-group">
+                        <input type="radio" id="area-sala" name="swal-area" value="Sala Grande" checked>
+                        <label class="swal-radio-label" for="area-sala">Sala Grande</label>
+                        
+                        <input type="radio" id="area-saletta" name="swal-area" value="Saletta">
+                        <label class="swal-radio-label" for="area-saletta">Saletta</label>
+                        
+                        <input type="radio" id="area-veranda" name="swal-area" value="Veranda">
+                        <label class="swal-radio-label" for="area-veranda">Veranda</label>
+                    </div>
+
+                    <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Servizio Richiesto</div>
+                    <div class="swal-radio-group">
+                        <input type="radio" id="pref-giro" name="swal-pref" value="Giro Pizza">
+                        <label class="swal-radio-label" for="pref-giro">Giro Pizza</label>
+                        
+                        <input type="radio" id="pref-risto" name="swal-pref" value="Ristorante">
+                        <label class="swal-radio-label" for="pref-risto">Ristorante</label>
+                        
+                        <input type="radio" id="pref-pizz" name="swal-pref" value="Pizzeria">
+                        <label class="swal-radio-label" for="pref-pizz">Pizzeria</label>
+                        
+                        <input type="radio" id="pref-misto" name="swal-pref" value="Misto">
+                        <label class="swal-radio-label" for="pref-misto">Misto</label>
+                    </div>
+
+                    ${selettoreTagsHtml}
+                    
+                    <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Altro (Note libere)</div>
+                    <input id="swal-altro" class="swal2-input" style="margin-top:0; width:100%; box-sizing:border-box;" placeholder="Es. Vicino finestra, portano torta da fuori..." value="${b.altro || ''}">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: 'Conferma',
+                cancelButtonText: 'Annulla',
+                didOpen: () => {
+                    window.aggiornaAvvisoTavoloLive('');
+                },
+                preConfirm: () => {
+                    const nome = document.getElementById('swal-nome').value.trim();
+                    const tavoloPre = document.getElementById('swal-tavolo-pre').value.trim().toUpperCase();
+                    const ora = document.getElementById('swal-ora').value;
+                    const adulti = parseInt(document.getElementById('swal-adulti').value) || 0;
+                    const bambini = parseInt(document.getElementById('swal-bambini').value) || 0;
+                    const preferenza = document.querySelector('input[name="swal-pref"]:checked')?.value || "";
+                    const turno = document.querySelector('input[name="swal-turno"]:checked')?.value || "Cena";
+                    const area = document.querySelector('input[name="swal-area"]:checked')?.value || "Sala Grande";
+
+                    if(!nome || !ora) {
+                        Swal.showValidationMessage('Nome e Orario sono obbligatori!'); return false;
+                    }
+                    if(adulti + bambini === 0) {
+                        Swal.showValidationMessage('Inserisci almeno 1 persona!'); return false;
+                    }
+
+                    // CONTROLLO TAVOLO OCCUPATO E DISTANZA MINIMA 40 MINUTI
+                    if (tavoloPre !== "") {
+                        const esito = window.verificaConflittiTavolo(tavoloPre, ora, null);
+                        if (esito.bloccato) {
+                            const c = esito.conflitti[0];
+                            Swal.showValidationMessage(`⛔ Tavolo ${tavoloPre} già ${c.isSeduto ? 'occupato' : 'prenotato'} alle ${c.orario} (${c.cliente}). Servono almeno ${MINUTI_MINIMI_STESSO_TAVOLO} min di distanza!`);
+                            return false;
+                        }
+                    }
+
+                    return {
+                        nome, tavoloPre, ora, tel: document.getElementById('swal-tel').value.trim(),
+                        adulti, bambini, seggioloni: parseInt(document.getElementById('swal-seggioloni').value) || 0,
+                        altro: document.getElementById('swal-altro').value.trim(),
+                        preferenza_servizio: preferenza, turno, area,
+                        etichette: Array.from(window.tempSelectedTags)
+                    };
+                }
+            });
+
+            if (formValues) {
+                try {
+                    let operatore = sessionStorage.getItem('operatore_corrente') || 'Agenda App';
+                    await addDoc(collection(db, "ordini"), {
+                        data_ritiro: dataSelezionata, data_invio: serverTimestamp(),
+                        nome: formValues.nome, telefono: formValues.tel,
+                        adulti: formValues.adulti, bambini: formValues.bambini, seggioloni: formValues.seggioloni,
+                        coperti: formValues.adulti + formValues.bambini, 
+                        orario: formValues.ora, note_ordine: formValues.altro,
+                        preferenza_servizio: formValues.preferenza_servizio, turno: formValues.turno, area: formValues.area,
+                        etichette: formValues.etichette,
+                        stato: 'Prenotato', tipo: 'SALA', tavolo: formValues.tavoloPre || "", prodotti: [], totale: 0, operatore: operatore
+                    });
+
+                    if (formValues.tel) {
+                        const cleanTel = formValues.tel.replace(/\s+/g, '').replace('+39', '');
+                        if (cleanTel.length >= 8) {
+                            setDoc(doc(db, "clienti", cleanTel), {
+                                nome: formValues.nome,
+                                telefono: cleanTel,
+                                ultimaData: dataSelezionata
+                            }, { merge: true }).catch(() => {});
+                        }
+                    }
+
+                    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 }).fire({ icon: 'success', title: 'Prenotazione salvata' });
+                } catch (e) { Swal.fire("Errore", e.message, "error"); }
+            }
+        };
+
+        window.modificaPrenotazione = async (id) => {
+            const p = window.prenotazioniCache.find(x => x.id === id);
+            if(!p) return;
+
+            const fallbackAdulti = p.adulti !== undefined ? p.adulti : (p.coperti || 2);
+            const pref = p.preferenza_servizio || "";
+            const selettoreTagsHtml = window.generaSelettoreEtichetteHTML(p.etichette || []);
+
+            const { value: formValues } = await Swal.fire({
+                title: 'Modifica Prenotazione',
+                width: 620, 
+                html: `
+                    <div style="display:flex; gap:10px; margin-top: 15px;">
+                        <div style="flex:2;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Nome Cliente *</div>
+                            <input id="swal-nome" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${(p.nome || '').replace(/"/g, '&quot;')}">
+                        </div>
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Tavolo</div>
+                            <input id="swal-tavolo-pre" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${p.tavolo || ''}" oninput="window.aggiornaAvvisoTavoloLive('${p.id}')">
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap:10px; margin-top: 15px;">
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Orario *</div>
+                            <input id="swal-ora" type="time" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${p.orario || ''}" oninput="window.aggiornaAvvisoTavoloLive('${p.id}')">
+                        </div>
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Telefono</div>
+                            <input id="swal-tel" type="tel" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${p.telefono || ''}">
+                        </div>
+                    </div>
+
+                    <!-- BOX AVVISO CONFLITTO TAVOLO / DISTANZA 40 MIN -->
+                    <div id="swal-table-warning" style="display:none; margin-top:12px; padding:10px 12px; border-radius:8px; font-size:0.85em; text-align:left; line-height:1.4;"></div>
+
+                    <div style="display:flex; gap:10px; margin-top: 15px;">
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Adulti *</div>
+                            <input id="swal-adulti" type="number" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${fallbackAdulti}" min="1">
+                        </div>
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Bambini</div>
+                            <input id="swal-bambini" type="number" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${p.bambini || 0}" min="0">
+                        </div>
+                        <div style="flex:1;">
+                            <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--warning-color); margin-bottom: 5px;">Seggioloni</div>
+                            <input id="swal-seggioloni" type="number" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${p.seggioloni || 0}" min="0">
+                        </div>
+                    </div>
+
+                    <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Turno *</div>
+                    <div class="swal-radio-group">
+                        <input type="radio" id="turno-pranzo" name="swal-turno" value="Pranzo" ${p.turno === 'Pranzo' ? 'checked' : ''}>
+                        <label class="swal-radio-label" for="turno-pranzo"><i class="fa-solid fa-sun"></i> Pranzo</label>
+                        
+                        <input type="radio" id="turno-cena" name="swal-turno" value="Cena" ${p.turno !== 'Pranzo' ? 'checked' : ''}>
+                        <label class="swal-radio-label" for="turno-cena"><i class="fa-solid fa-moon"></i> Cena</label>
+                    </div>
+
+                    <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Area Tavolo *</div>
+                    <div class="swal-radio-group">
+                        <input type="radio" id="area-sala" name="swal-area" value="Sala Grande" ${p.area !== 'Saletta' && p.area !== 'Veranda' ? 'checked' : ''}>
+                        <label class="swal-radio-label" for="area-sala">Sala Grande</label>
+                        
+                        <input type="radio" id="area-saletta" name="swal-area" value="Saletta" ${p.area === 'Saletta' ? 'checked' : ''}>
+                        <label class="swal-radio-label" for="area-saletta">Saletta</label>
+                        
+                        <input type="radio" id="area-veranda" name="swal-area" value="Veranda" ${p.area === 'Veranda' ? 'checked' : ''}>
+                        <label class="swal-radio-label" for="area-veranda">Veranda</label>
+                    </div>
+
+                    <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Servizio Richiesto</div>
+                    <div class="swal-radio-group">
+                        <input type="radio" id="pref-giro" name="swal-pref" value="Giro Pizza" ${pref === 'Giro Pizza' ? 'checked' : ''}>
+                        <label class="swal-radio-label" for="pref-giro">Giro Pizza</label>
+                        
+                        <input type="radio" id="pref-risto" name="swal-pref" value="Ristorante" ${pref === 'Ristorante' ? 'checked' : ''}>
+                        <label class="swal-radio-label" for="pref-risto">Ristorante</label>
+                        
+                        <input type="radio" id="pref-pizz" name="swal-pref" value="Pizzeria" ${pref === 'Pizzeria' ? 'checked' : ''}>
+                        <label class="swal-radio-label" for="pref-pizz">Pizzeria</label>
+                        
+                        <input type="radio" id="pref-misto" name="swal-pref" value="Misto" ${pref === 'Misto' ? 'checked' : ''}>
+                        <label class="swal-radio-label" for="pref-misto">Misto</label>
+                    </div>
+
+                    ${selettoreTagsHtml}
+                    
+                    <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Altro (Note libere)</div>
+                    <input id="swal-altro" class="swal2-input" style="margin-top:0; width:100%; box-sizing:border-box;" value="${(p.note_ordine || '').replace(/"/g, '&quot;')}">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: 'Salva Modifiche',
+                cancelButtonText: 'Annulla',
+                didOpen: () => {
+                    window.aggiornaAvvisoTavoloLive(p.id);
+                },
+                preConfirm: () => {
+                    const nome = document.getElementById('swal-nome').value.trim();
+                    const tavoloPre = document.getElementById('swal-tavolo-pre').value.trim().toUpperCase();
+                    const ora = document.getElementById('swal-ora').value;
+                    const adulti = parseInt(document.getElementById('swal-adulti').value) || 0;
+                    const bambini = parseInt(document.getElementById('swal-bambini').value) || 0;
+                    const preferenza = document.querySelector('input[name="swal-pref"]:checked')?.value || "";
+                    const turno = document.querySelector('input[name="swal-turno"]:checked')?.value || "Cena";
+                    const area = document.querySelector('input[name="swal-area"]:checked')?.value || "Sala Grande";
+
+                    if(!nome || !ora) { Swal.showValidationMessage('Nome e Orario obbligatori!'); return false; }
+                    if(adulti + bambini === 0) { Swal.showValidationMessage('Inserisci almeno 1 persona!'); return false; }
+
+                    // CONTROLLO TAVOLO OCCUPATO E DISTANZA MINIMA 40 MINUTI
+                    if (tavoloPre !== "") {
+                        const esito = window.verificaConflittiTavolo(tavoloPre, ora, p.id);
+                        if (esito.bloccato) {
+                            const c = esito.conflitti[0];
+                            Swal.showValidationMessage(`⛔ Tavolo ${tavoloPre} già ${c.isSeduto ? 'occupato' : 'prenotato'} alle ${c.orario} (${c.cliente}). Servono almeno ${MINUTI_MINIMI_STESSO_TAVOLO} min di distanza!`);
+                            return false;
+                        }
+                    }
+
+                    return {
+                        nome, tavoloPre, ora, tel: document.getElementById('swal-tel').value.trim(),
+                        adulti, bambini, seggioloni: parseInt(document.getElementById('swal-seggioloni').value) || 0,
+                        altro: document.getElementById('swal-altro').value.trim(),
+                        preferenza_servizio: preferenza, turno, area,
+                        etichette: Array.from(window.tempSelectedTags)
+                    };
+                }
+            });
+
+            if (formValues) {
+                try {
+                    let operatore = sessionStorage.getItem('operatore_corrente') || 'Agenda App';
+                    await updateDoc(doc(db, "ordini", id), {
+                        nome: formValues.nome, tavolo: formValues.tavoloPre, telefono: formValues.tel,
+                        adulti: formValues.adulti, bambini: formValues.bambini, seggioloni: formValues.seggioloni,
+                        coperti: formValues.adulti + formValues.bambini, 
+                        orario: formValues.ora, note_ordine: formValues.altro,
+                        preferenza_servizio: formValues.preferenza_servizio, turno: formValues.turno, area: formValues.area,
+                        etichette: formValues.etichette,
+                        operatore: operatore, ultima_modifica: serverTimestamp()
+                    });
+                    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 }).fire({ icon: 'success', title: 'Modifica salvata' });
+                    if (document.getElementById('search-agenda').value.length >= 2) window.cercaPrenotazioniGlobale();
+                } catch (e) { Swal.fire("Errore", e.message, "error"); }
+            }
+        };
+
+        window.clienteArrivato = async (id, nomeCliente) => {
+            const p = window.prenotazioniCache.find(x => x.id === id) || {};
+            const tavoloDefault = p.tavolo || "";
+
+            const { value: tavoloAssegnato } = await Swal.fire({
+                title: 'Accomoda Cliente',
+                html: `<p>A quale tavolo facciamo accomodare <b>${nomeCliente}</b>?</p>
+                       <input id="swal-tavolo" class="swal2-input" value="${tavoloDefault}" placeholder="Es. 12, Veranda, Esterno" autofocus>`,
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: '<i class="fa fa-play"></i> Apri Tavolo',
+                cancelButtonText: 'Annulla',
+                preConfirm: () => {
+                    const t = document.getElementById('swal-tavolo').value.trim().toUpperCase();
+                    if(!t) { Swal.showValidationMessage('Inserisci il numero o il nome del tavolo!'); return false; }
+
+                    // Controlla se quel tavolo ha già clienti seduti al tavolo in questo momento
+                    const giaOccupato = (window.prenotazioniCache || []).find(altro => 
+                        altro.id !== id && 
+                        altro.stato !== 'Prenotato' && 
+                        altro.stato !== 'Annullato' && 
+                        altro.stato !== 'Consegnato' && 
+                        (altro.tavolo || '').trim().toUpperCase() === t
+                    );
+
+                    if (giaOccupato) {
+                        Swal.showValidationMessage(`⛔ Il Tavolo ${t} è già OCCUPATO in questo momento da ${(giaOccupato.nome || 'un altro cliente').toUpperCase()}!`);
+                        return false;
+                    }
+
+                    // Controlla anche la distanza di 40 minuti da eventuali altre prenotazioni sullo stesso tavolo
+                    const check = window.verificaConflittiTavolo(t, p.orario || '', id);
+                    if (check.bloccato) {
+                        const c = check.conflitti[0];
+                        Swal.showValidationMessage(`⛔ Tavolo ${t} già prenotato alle ${c.orario} da ${c.cliente} (distanza ${c.diff} min)!`);
+                        return false;
+                    }
+
+                    return t;
+                }
+            });
+
+            if (tavoloAssegnato) {
+                const numCoperti = parseInt(p.coperti) || ((parseInt(p.adulti) || 0) + (parseInt(p.bambini) || 0)) || 2;
+                const totIniziale = (p.preferenza_servizio === 'Giro Pizza') ? 0 : (numCoperti * window.prezzoCopertoAgenda);
+
+                await updateDoc(doc(db, "ordini", id), {
+                    stato: 'In forno',
+                    tavolo: tavoloAssegnato.toUpperCase(),
+                    totale: p.totale && p.totale > 0 ? p.totale : totIniziale,
+                    data_invio: serverTimestamp()
+                });
+                Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 }).fire({ icon: 'success', title: `Tavolo ${tavoloAssegnato.toUpperCase()} aperto!` });
+                if (document.getElementById('search-agenda').value.length >= 2) window.cercaPrenotazioniGlobale();
+            }
+        };
+
+        window.eliminaPrenotazione = async (id) => {
+            Swal.fire({
+                title: 'Eliminare prenotazione?',
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#94a3b8',
+                confirmButtonText: 'Sì, elimina', cancelButtonText: 'Annulla'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        await updateDoc(doc(db, "ordini", id), { stato: 'Annullato', data_annullamento: serverTimestamp() });
+                        Swal.fire({ icon: 'success', title: 'Eliminata', timer: 1500, showConfirmButton: false });
+                        if (document.getElementById('search-agenda').value.length >= 2) window.cercaPrenotazioniGlobale();
+                    } catch(e) { Swal.fire('Errore', e.message, 'error'); }
+                }
+            });
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- TITOLO DINAMICO -->
+    <title id="app-window-title">Caricamento Menu...</title>
+    
+    <link rel="icon" href="data:,">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --gold: #d4af37;
+            --text-main: #f5f5f5;
+            --text-muted: #dddddd;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-main);
+            -webkit-tap-highlight-color: transparent;
+            padding-bottom: 80px;
+        }
+
+        /* OVERRIDE GOOGLE TRANSLATE BANNER */
+        .goog-te-banner-frame.skiptranslate, .goog-te-gadget-icon { display: none !important; }
+        body { top: 0px !important; }
+        #google_translate_element { display: none !important; }
+        .goog-tooltip { display: none !important; }
+        .goog-tooltip:hover { display: none !important; }
+        .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
+
+        /* HEADER ELEGANTE */
+        .header {
+            position: relative;
+            text-align: center;
+            padding: 60px 20px 30px 20px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+        }
+        .header-logo {
+            width: 85px;
+            height: 85px;
+            object-fit: contain;
+            border-radius: 50%;
+            border: 2px solid var(--gold);
+            background: rgba(0,0,0,0.6);
+            padding: 5px;
+            margin-bottom: 12px;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.7);
+        }
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            color: var(--gold);
+            margin: 0;
+            font-size: 2.5em;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+        }
+        .header p {
+            color: #fff;
+            font-size: 1em;
+            margin-top: 5px;
+            font-style: italic;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+
+        /* MENU A TENDINA PERSONALIZZATO PER LINGUE E BANDIERE REALI */
+        .custom-lang-selector {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+        }
+        
+        .selected-lang {
+            background-color: rgba(0, 0, 0, 0.6);
+            color: var(--gold);
+            border: 1px solid var(--gold);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+        
+        .selected-lang:hover {
+            background-color: rgba(212, 175, 55, 0.1);
+        }
+        
+        .selected-lang i {
+            font-size: 0.8em;
+            transition: transform 0.3s ease;
+        }
+        
+        .custom-lang-selector.open .selected-lang i {
+            transform: rotate(180deg);
+        }
+        
+        .lang-options {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background-color: rgba(25, 25, 25, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: 150px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        
+        .custom-lang-selector.open .lang-options {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .lang-option {
+            padding: 12px 15px;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background 0.2s;
+            font-size: 1em;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .lang-option:last-child {
+            border-bottom: none;
+        }
+        
+        .lang-option:hover {
+            background-color: rgba(212, 175, 55, 0.2);
+            color: var(--gold);
+        }
+
+        .flag-img {
+            width: 24px;
+            height: auto;
+            border-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes fadeContent {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* BARRA CATEGORIE STICKY */
+        .category-nav {
+            position: sticky;
+            top: 0;
+            background: rgba(18, 18, 18, 0.75);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 15px 10px;
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            white-space: nowrap;
+            z-index: 100;
+            border-bottom: 1px solid var(--border-color);
+            scrollbar-width: none;
+        }
+        .category-nav::-webkit-scrollbar { display: none; }
+        
+        .cat-btn {
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+        .cat-btn.active {
+            background: var(--gold);
+            color: #000;
+            border-color: var(--gold);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
+
+        /* SEZIONI DEL MENU - LOGICA A SCHEDE */
+        .menu-section {
+            padding: 20px 15px;
+            display: none; 
+            animation: fadeContent 0.4s ease; 
+        }
+        .menu-section.active-section {
+            display: block; 
+        }
+
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2em;
+            color: var(--gold);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+            margin-top: 10px;
+            text-shadow: 1px 1px 5px rgba(0,0,0,0.8);
+        }
+
+        /* PRODOTTI */
+        .product-card {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            background: linear-gradient(135deg, rgba(45, 45, 45, 0.85), rgba(20, 20, 20, 0.65));
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.2); 
+            border-left: 4px solid var(--gold);
+        }
+        
+        .product-img {
+            width: 110px;
+            height: 110px;
+            object-fit: contain;
+            background: transparent;
+            flex-shrink: 0;
+            padding: 8px;
+            cursor: pointer;
+            filter: drop-shadow(3px 5px 8px rgba(0,0,0,0.6));
+        }
+
+        .product-content {
+            padding: 15px 15px 15px 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .product-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        .product-name {
+            font-weight: 700;
+            font-size: 1.2em;
+            margin: 0;
+            color: #ffffff;
+            line-height: 1.2;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+            letter-spacing: 0.5px;
+        }
+
+        .product-price {
+            color: var(--gold);
+            font-weight: 800;
+            font-size: 1.2em;
+            white-space: nowrap;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.4);
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .product-desc {
+            font-size: 0.9em;
+            color: #cccccc;
+            line-height: 1.4;
+            margin: 8px 0 0 0;
+            font-weight: 300;
+        }
+
+        .allergens {
+            margin-top: 10px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .allergen-icon {
+            color: #ff5252;
+            font-size: 0.9em;
+            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.8));
+        }
+
+        /* LIGHTBOX */
+        .img-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            z-index: 9999; display: none; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .img-modal-overlay.active { display: flex; opacity: 1; }
+        
+        .img-modal-content {
+            max-width: 90%; max-height: 80vh; border-radius: 15px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+            transform: scale(0.8); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            object-fit: contain;
+        }
+        .img-modal-overlay.active .img-modal-content { transform: scale(1); }
+        
+        .chiudi-foto {
+            position: absolute; top: 20px; right: 25px; color: var(--gold);
+            font-size: 3em; cursor: pointer; text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            font-weight: 300;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SCHERMATA DI CARICAMENTO E SICUREZZA (WHITE LABEL) -->
+    <div id="loader-overlay" style="position:fixed; inset:0; background:#121212; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size:3em; color:var(--gold); margin-bottom:20px;"></i>
+        <h2 style="color:var(--text-main); margin:0; text-align:center;">Connessione al locale...</h2>
+    </div>
+
+    <div class="header">
+        <div class="custom-lang-selector" id="lang-container">
+            <div class="selected-lang" onclick="toggleLangDropdown()">
+                <img id="current-flag" class="flag-img" src="https://flagcdn.com/w40/it.png" alt="IT">
+                <i class="fa-solid fa-chevron-down"></i>
+            </div>
+            <div class="lang-options">
+                <div class="lang-option" onclick="selezionaLingua('it', 'https://flagcdn.com/w40/it.png')">
+                    <img class="flag-img" src="https://flagcdn.com/w40/it.png" alt="IT"> Italiano
+                </div>
+                <div class="lang-option" onclick="selezionaLingua('en', 'https://flagcdn.com/w40/gb.png')">
+                    <img class="flag-img" src="https://flagcdn.com/w40/gb.png" alt="EN"> English
+                </div>
+                <div class="lang-option" onclick="selezionaLingua('fr', 'https://flagcdn.com/w40/fr.png')">
+                    <img class="flag-img" src="https://flagcdn.com/w40/fr.png" alt="FR"> Français
+                </div>
+                <div class="lang-option" onclick="selezionaLingua('de', 'https://flagcdn.com/w40/de.png')">
+                    <img class="flag-img" src="https://flagcdn.com/w40/de.png" alt="DE"> Deutsch
+                </div>
+                <div class="lang-option" onclick="selezionaLingua('es', 'https://flagcdn.com/w40/es.png')">
+                    <img class="flag-img" src="https://flagcdn.com/w40/es.png" alt="ES"> Español
+                </div>
+            </div>
+        </div>
+
+        <img id="restaurant-logo" class="header-logo" src="" alt="Logo">
+        <h1 class="notranslate" id="restaurant-name">...</h1>
+        <p id="restaurant-subtitle">Il Menu Digitale</p>
+        
+        <div style="margin-top: 15px; display: inline-block; background: rgba(212, 175, 55, 0.15); border: 1px solid var(--gold); color: var(--gold); padding: 6px 18px; border-radius: 30px; font-size: 0.9em; font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+            <i class="fa-solid fa-utensils" style="margin-right: 5px;"></i> <span id="restaurant-coperto">Caricamento...</span>
+        </div>
+        
+        <p style="margin-top: 15px; font-size: 0.85em; color: #bbb; max-width: 90%; margin-left: auto; margin-right: auto; line-height: 1.4;">
+            <i class="fa-solid fa-circle-info" style="color: var(--gold); margin-right: 4px;"></i>
+            In caso di allergie o intolleranze alimentari, vi preghiamo di comunicarlo al nostro personale.
+        </p>
+
+        <div id="google_translate_element"></div>
+    </div>
+
+    <div class="category-nav" id="category-nav"></div>
+
+    <div id="menu-container"></div>
+
+    <div id="lightbox" class="img-modal-overlay" onclick="chiudiFoto()">
+        <div class="chiudi-foto">&times;</div>
+        <img id="lightbox-img" class="img-modal-content" src="">
+    </div>
+
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement({
+                pageLanguage: 'it',
+                includedLanguages: 'it,en,fr,de,es', 
+                autoDisplay: false
+            }, 'google_translate_element');
+        }
+
+        function toggleLangDropdown() {
+            document.getElementById('lang-container').classList.toggle('open');
+        }
+
+        function selezionaLingua(lang, flagSrc) {
+            document.getElementById('current-flag').src = flagSrc;
+            document.getElementById('lang-container').classList.remove('open');
+            var selectField = document.querySelector("select.goog-te-combo");
+            if (selectField) {
+                selectField.value = lang;
+                selectField.dispatchEvent(new Event('change'));
+            }
+        }
+
+        window.addEventListener('click', function(e) {
+            var container = document.getElementById('lang-container');
+            if (container && !container.contains(e.target)) {
+                container.classList.remove('open');
+            }
+        });
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, query, where, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+  apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
+  authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+  projectId: "gestionale-ristoranti-96c5b",
+  storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+  messagingSenderId: "234695436534",
+  appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+};
+
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- SISTEMA MULTI-TENANT (Con fallback sicuro per QR esistenti) ---
+        const urlParams = new URLSearchParams(window.location.search);
+        window.TENANT_ID = urlParams.get('locale') || 'default';
+
+        // --- 1. WHITE-LABEL E COPERTO IN TEMPO REALE ---
+        onSnapshot(doc(db, "impostazioni", "negozio"), (docSnap) => {
+            const loader = document.getElementById('loader-overlay');
+            if (docSnap.exists()) {
+                const dati = docSnap.data();
+                const nomeLocale = dati.nome || "IL MIO LOCALE";
+                
+                document.title = `Menu - ${nomeLocale}`;
+                document.getElementById('app-window-title').innerText = `Menu - ${nomeLocale}`;
+                document.getElementById('restaurant-name').innerText = nomeLocale;
+
+                if (dati.slogan) {
+                    document.getElementById('restaurant-subtitle').innerText = dati.slogan;
+                }
+
+                if (dati.logo_url) {
+                    const logoEl = document.getElementById('restaurant-logo');
+                    if (logoEl) {
+                        logoEl.src = dati.logo_url;
+                        logoEl.style.display = 'inline-block';
+                    }
+                }
+
+                const copertoVal = dati.prezzo_coperto !== undefined ? parseFloat(dati.prezzo_coperto).toFixed(2) : "2.50";
+                document.getElementById('restaurant-coperto').innerText = `Coperto: € ${copertoVal}`;
+                
+                if (loader) loader.style.display = 'none';
+            } else {
+                document.getElementById('restaurant-name').innerText = "MENU DIGITALE";
+                document.getElementById('restaurant-coperto').innerText = "Coperto: € 2.50";
+                if (loader) loader.style.display = 'none';
+            }
+        }, (error) => {
+            console.error("Errore lettura dati negozio:", error);
+            const loader = document.getElementById('loader-overlay');
+            if (loader) loader.style.display = 'none';
+        });
+
+        // --- 2. KILL-SWITCH LICENZA (Versione elegante per i Clienti al Tavolo) ---
+        onSnapshot(doc(db, "impostazioni", "licenza"), (docSnap) => {
+            let overlayCli = document.getElementById('servizio-chiuso-overlay');
+            if (docSnap.exists() && docSnap.data().attiva === false) {
+                if (!overlayCli) {
+                    overlayCli = document.createElement('div');
+                    overlayCli.id = 'servizio-chiuso-overlay';
+                    overlayCli.style.cssText = 'position:fixed; inset:0; background:#111; z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; padding:30px; font-family:sans-serif;';
+                    document.body.appendChild(overlayCli);
+                }
+                overlayCli.innerHTML = `
+                    <i class="fa-solid fa-utensils" style="font-size:4em; color:#d4af37; margin-bottom:20px;"></i>
+                    <h2 style="margin:0 0 10px 0; color:#d4af37;">Menu Momentaneamente Non Disponibile</h2>
+                    <p style="color:#aaa; max-width:400px; line-height:1.5;">
+                        Il menu digitale è in fase di aggiornamento. Vi invitiamo a chiedere il menu al nostro personale di sala.
+                    </p>
+                `;
+                overlayCli.style.display = 'flex';
+            } else if (overlayCli) {
+                overlayCli.style.display = 'none';
+            }
+        });
+
+        const ALLERGENI_ICONS = { 
+            "Glutine": "fa-wheat-awn", "Latte": "fa-cow", "Uova": "fa-egg", "Pesce": "fa-fish", 
+            "Crostacei": "fa-shrimp", "Frutta a guscio": "fa-cookie", "Arachidi": "fa-jar", 
+            "Soia": "fa-leaf", "Sedano": "fa-carrot", "Senape": "fa-bottle-droplet", 
+            "Sesamo": "fa-seedling", "Solfiti": "fa-wine-glass", "Lupini": "fa-circle-dot", 
+            "Molluschi": "fa-worm", "Surgelato ❄️": "fa-snowflake", "Congelato 🧊": "fa-icicles" 
+        };
+
+        const CAT_ORDER = ['ant_ristorante', 'ant_pizzeria', 'pizza', 'speciale', 'stirata', 'gf', 'primo', 'secondo', 'contorno', 'pescato', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro'];
+        const CAT_LABELS = {
+            'ant_ristorante': 'Antipasti', 'ant_pizzeria': 'Fritti & Sfizi', 'pizza': 'Le Pizze Classiche', 
+            'speciale': 'Le Pizze Speciali', 'stirata': 'Le Stirate', 'gf': 'Senza Glutine', 
+            'primo': 'Primi Piatti', 'secondo': 'Secondi Piatti', 'contorno': 'Contorni', 
+            'pescato': 'Il Pescato', 'dolce': 'I Dolci', 'bibita': 'Bevande', 
+            'bibita_lattina': 'In Lattina', 'bibita_bottiglia': 'In Bottiglia', 'birra': 'Le Birre', 
+            'vino': 'I Vini', 'amaro': 'Amari e Caffè'
+        };
+
+        // --- 3. CARICAMENTO PRODOTTI IN TEMPO REALE ---
+        const q = query(collection(db, "prodotti"), where("attivo", "==", true));
+        
+        onSnapshot(q, (snapshot) => {
+            const prodotti = [];
+            snapshot.forEach(docSnap => {
+                const p = docSnap.data();
+                if (p.mostra_al_tavolo === true) {
+                    prodotti.push({ id: docSnap.id, ...p });
+                }
+            });
+
+            const grouped = {};
+            prodotti.forEach(p => {
+                if (!grouped[p.cat]) grouped[p.cat] = [];
+                grouped[p.cat].push(p);
+            });
+
+            const navContainer = document.getElementById('category-nav');
+            const menuContainer = document.getElementById('menu-container');
+            navContainer.innerHTML = '';
+            menuContainer.innerHTML = '';
+
+            let isFirst = true;
+
+            CAT_ORDER.forEach(cat => {
+                if (grouped[cat] && grouped[cat].length > 0) {
+                    grouped[cat].sort((a, b) => parseFloat(a.prezzo) - parseFloat(b.prezzo));
+
+                    const catTitle = CAT_LABELS[cat] || cat.toUpperCase();
+                    const btn = document.createElement('div');
+                    btn.className = 'cat-btn' + (isFirst ? ' active' : '');
+                    btn.innerText = catTitle;
+                    
+                    btn.onclick = () => {
+                        document.querySelectorAll('.menu-section').forEach(s => s.classList.remove('active-section'));
+                        document.getElementById('sez-' + cat).classList.add('active-section');
+                        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                        window.scrollTo({ top: navContainer.offsetTop, behavior: 'auto' });
+                    };
+                    
+                    navContainer.appendChild(btn);
+
+                    let htmlSezione = `
+                        <div id="sez-${cat}" class="menu-section ${isFirst ? 'active-section' : ''}">
+                            <h2 class="section-title">${catTitle}</h2>
+                    `;
+
+                    grouped[cat].forEach(p => {
+                        let iconsHtml = p.allergeni ? p.allergeni.map(a => `<i class="fa-solid ${ALLERGENI_ICONS[a] || 'fa-circle-exclamation'} allergen-icon" title="${a}"></i>`).join('') : '';
+                        let imgHtml = p.immagine_url 
+                            ? `<img src="${p.immagine_url}" class="product-img" alt="${p.nome}" loading="lazy" onclick="window.ingrandisciFoto('${p.immagine_url}')">` 
+                            : ``; 
+                        let infoPeso = p.isPeso ? '<span style="font-size:0.7em; color:#ddd;">(all\'etto/kg)</span>' : '';
+
+                        htmlSezione += `
+                            <div class="product-card">
+                                ${imgHtml}
+                                <div class="product-content">
+                                    <div class="product-header">
+                                        <h3 class="product-name">${p.nome}</h3>
+                                        <div class="product-price notranslate">€ ${parseFloat(p.prezzo).toFixed(2)} ${infoPeso}</div>
+                                    </div>
+                                    ${p.desc ? `<p class="product-desc">${p.desc}</p>` : ''}
+                                    ${iconsHtml ? `<div class="allergens">${iconsHtml}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    htmlSezione += `</div>`;
+                    menuContainer.innerHTML += htmlSezione;
+                    isFirst = false; 
+                }
+            });
+        });
+
+        window.ingrandisciFoto = (url) => {
+            document.getElementById('lightbox-img').src = url;
+            const lb = document.getElementById('lightbox');
+            lb.style.display = 'flex';
+            setTimeout(() => lb.classList.add('active'), 10);
+        };
+
+        window.chiudiFoto = () => {
+            const lb = document.getElementById('lightbox');
+            lb.classList.remove('active');
+            setTimeout(() => lb.style.display = 'none', 300);
+        };
+    </script>
+</body>
+</html>

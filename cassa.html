@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#111111">
+    
+    <!-- Titolo White-Label generico per la vendita -->
+    <title id="app-title">Gestionale Cassa PRO</title>
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="cassa.css">
+
+    <!-- SISTEMA MULTI-TENANT (Lettura Ristorante da URL) -->
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        window.TENANT_ID = urlParams.get('locale') || localStorage.getItem('saas_tenant_id') || 'default';
+        if (urlParams.get('locale')) {
+            localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/rsvp@4.8.5/dist/rsvp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.5.24/jsrsasign-all-min.js"></script>
+</head>
+<body>
+
+    <!-- LIVELLO 1 - ACCESSO TITOLARE RISTORANTE (SaaS Multi-Tenant) -->
+    <div id="company-login-overlay" style="position:fixed; inset:0; background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); z-index:10000; display:none; justify-content:center; align-items:center; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 40px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); text-align: center; max-width: 400px; width: 90%;">
+            <i class="fa fa-building" style="font-size: 50px; color: #4caf50; margin-bottom: 20px;"></i>
+            <h2 style="color: #ffffff; margin-top: 0; margin-bottom: 10px; font-weight: 700;">ACCESSO LOCALE</h2>
+            <p style="color: #aaa; font-size: 14px; margin-bottom: 30px;">Inserisci le credenziali del tuo abbonamento</p>
+            <div style="margin-bottom: 20px;">
+                <input type="email" id="company-email" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: white; font-size: 16px; outline: none; box-sizing: border-box;" placeholder="Email Proprietario">
+            </div>
+            <div style="margin-bottom: 30px;">
+                <input type="password" id="company-password" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: white; font-size: 16px; outline: none; box-sizing: border-box;" placeholder="Password">
+            </div>
+            <button onclick="window.loginAzienda()" style="width: 100%; padding: 15px; background: #4caf50; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase;">Collega Database</button>
+        </div>
+    </div>
+
+    <!-- LIVELLO 2 - SBLOCCO CASSA (Operatore/Cameriere) -->
+    <div id="login-overlay" style="position:fixed; inset:0; background: linear-gradient(135deg, #121212 0%, #2a2a2a 100%); z-index:9999; display:none; justify-content:center; align-items:center; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <div style="background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 40px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.05); text-align: center; max-width: 400px; width: 90%;">
+            
+            <div style="background: rgba(211, 47, 47, 0.1); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; border: 1px solid rgba(211, 47, 47, 0.3);">
+                <i class="fa fa-lock" style="font-size: 35px; color: #ff5252;"></i>
+            </div>
+            <h2 style="color: #ffffff; margin-top: 0; margin-bottom: 30px; font-weight: 600; letter-spacing: 1px; font-size: 24px;">SBLOCCO CASSA</h2>
+            
+            <div style="margin-bottom: 20px; text-align: left;">
+                <label style="display: block; color: #aaaaaa; margin-bottom: 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Operatore</label>
+                <div style="position: relative;">
+                    <i class="fa fa-user" style="position: absolute; left: 15px; top: 15px; color: #777;"></i>
+                    <input type="email" id="email-input" style="width: 100%; padding: 12px 15px 12px 45px; border-radius: 10px; border: 1px solid #444; background: rgba(0,0,0,0.2); color: white; font-size: 16px; box-sizing: border-box; outline: none; transition: border 0.3s;" placeholder="Email di accesso" onfocus="this.style.border='1px solid #ff5252'" onblur="this.style.border='1px solid #444'">
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 30px; text-align: left;">
+                <label style="display: block; color: #aaaaaa; margin-bottom: 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Password</label>
+                <div style="position: relative;">
+                    <i class="fa fa-key" style="position: absolute; left: 15px; top: 15px; color: #777;"></i>
+                    <input type="password" id="pin-input" style="width: 100%; padding: 12px 15px 12px 45px; border-radius: 10px; border: 1px solid #444; background: rgba(0,0,0,0.2); color: white; font-size: 16px; box-sizing: border-box; outline: none; transition: border 0.3s;" placeholder="••••••••" onfocus="this.style.border='1px solid #ff5252'" onblur="this.style.border='1px solid #444'" onkeypress="if(event.key === 'Enter') window.checkLogin()">
+                </div>
+            </div>
+            
+            <button onclick="window.checkLogin()" style="width: 100%; padding: 15px; background: #d32f2f; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 1.5px; box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4);" onmouseover="this.style.background='#b71c1c'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#d32f2f'; this.style.transform='translateY(0)'">
+                Accedi al Sistema
+            </button>
+            
+        </div>
+    </div>
+
+    <div id="kds-screen" style="display:none; position:fixed; inset:0; background:black; z-index:9999; overflow:auto; padding:10px;">
+        <div style="display:flex; justify-content:space-between; color:white; margin-bottom:10px; align-items:center;">
+            <h1 style="margin:0;">🔥 MONITOR CUCINA</h1>
+            <button onclick="document.getElementById('kds-screen').style.display='none'" style="font-size:2em; background:none; border:none; color:white; cursor:pointer;">&times;</button>
+        </div>
+        <div id="kds-grid" style="display:flex; flex-wrap:wrap; gap:15px; align-content: flex-start;"></div>
+    </div>
+
+    <div id="debug-toast" style="display:none; position:fixed; bottom:20px; left:20px; background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:5px; z-index:10000;"></div>
+
+    <div class="top-bar">
+        <div class="top-icons">
+            <span id="nome-locale-ui" style="font-weight:bold; font-size:1.5em; text-transform: uppercase;">NOME LOCALE - CASSA</span>
+        </div>
+        <button onclick="esciDalGestionale()" style="background: #d32f2f; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; float: right; margin: 10px;">
+            <i class="fa-solid fa-right-from-bracket"></i> ESCI
+        </button>
+
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <button onclick="apriStatistiche()" style="background:#9c27b0; color:white; border:none; padding:8px 15px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                <i class="fa fa-chart-pie"></i> STATISTICHE / Z
+            </button>
+            
+            <button onclick="apriMappa()" style="background:#4caf50; color:white; border:none; padding:8px 15px; border-radius:30px; font-weight:bold; cursor:pointer;">
+                <i class="fa fa-map"></i> MAPPA SALA
+            </button>
+
+            <button onclick="window.open('/agenda.html?locale=' + (window.TENANT_ID || 'default'), '_blank')" style="background:#0288d1; color:white; border:none; padding:8px 15px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                <i class="fa fa-book"></i> AGENDA
+            </button>
+
+            <button onclick="apriStorico()" style="background:#607d8b; color:white; border:none; padding:8px 15px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                <i class="fa fa-history"></i> STORICO 
+            </button>
+            
+            <button onclick="apriMonitorCucina()" id="btn-top-kds" style="display:none; background:#ff9800; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer; color:black;">
+                <i class="fa fa-tv"></i> KDS <i class="fa fa-lock" id="kds-lock-icon" style="display:none; color:#d32f2f; margin-left:5px;"></i>
+            </button>
+            
+            <div onclick="apriGestionale()" style="display:flex; align-items:center; gap:5px; cursor:pointer; background:#333; padding:8px 20px; border-radius:30px; color:white;">
+                <i class="fa-solid fa-gear icon-settings"></i> <small>GESTIONALE</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-controls">
+        <div class="control-group"><label class="switch"><input type="checkbox" id="switch-audio" checked onchange="toggleAudio(this.checked)"><span class="slider"></span></label><span><i class="fa-solid fa-volume-high"></i> SUONO</span></div>
+        <div class="control-group" style="margin-left:20px;"><label class="switch"><input type="checkbox" id="switch-print" checked onchange="togglePrinter(this.checked)"><span class="slider"></span></label><span><i class="fa-solid fa-print"></i> STAMPANTI</span></div>
+        
+        <div class="control-group" style="margin-left:20px; background:#ffebee; padding:5px 15px; border-radius:8px; border:1px solid #ffcdd2;">
+            <label class="switch">
+                <input type="checkbox" id="switch-print-server" onchange="togglePrintServer(this.checked)">
+                <span class="slider"></span>
+            </label>
+            <span style="color:#c62828;"><i class="fa-solid fa-server"></i> QUESTO PC È LA CASSA</span>
+        </div>
+
+        <div class="control-group" style="margin-left:20px;">
+            <label class="switch"><input type="checkbox" id="switch-cross-sell" checked onchange="toggleCrossSell(this.checked)"><span class="slider"></span></label>
+            <span style="color:#f57c00;"><i class="fa-solid fa-bullhorn"></i> CROSS-SELL APP</span>
+        </div>
+
+        <div class="control-group" style="margin-left:20px; background:#e3f2fd; padding:5px 15px; border-radius:8px; border:1px solid #bbdefb; color:#1565c0;">
+            <i class="fa-solid fa-fire"></i> FORNO:
+            <select id="oven-limit" style="border:1px solid #ccc; padding:5px; border-radius:5px; margin-left:5px; font-weight:bold; color:#d32f2f;" onchange="updateOvenLimit(this.value)">
+                <option value="15">Tranquillo (15/15m)</option>
+                <option value="10" selected>Standard (10/15m)</option>
+                <option value="5">CAOS (5/15m)</option>
+            </select>
+        </div>
+
+        <div class="control-group" style="margin-left:auto; background:#fff3e0; padding:5px 15px; border-radius:8px; border:1px solid #ffe0b2;">
+            <span style="color:#e65100;"><i class="fa-solid fa-store-slash"></i> GIORNO RIPOSO:</span>
+            <select id="day-closed" style="border:1px solid #ccc; padding:5px; border-radius:5px; margin-left:5px; font-weight:bold;" onchange="salvaChiusura(this.value)">
+                <option value="">SEMPRE APERTO</option>
+                <option value="1">Lunedì</option>
+                <option value="2">Martedì</option>
+                <option value="3">Mercoledì</option>
+                <option value="4">Giovedì</option>
+                <option value="5">Venerdì</option>
+                <option value="6">Sabato</option>
+                <option value="0">Domenica</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="timeline-bar">
+        <button class="time-btn" onclick="spostaData(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+        <div class="time-display"><i class="fa-regular fa-calendar"></i><input type="date" id="timeline-date" class="date-picker-dark" onchange="cambiaDataManuale(this.value)"></div>
+        <button class="time-btn" onclick="spostaData(1)"><i class="fa-solid fa-chevron-right"></i></button>
+        <button class="time-btn btn-today" onclick="vaiOggi()">OGGI</button>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="search-bar" class="search-input" placeholder="🔍 Cerca per Cognome o Tavolo..." onkeyup="filtraOrdini(this.value)">
+        <button class="btn-new-order" onclick="apriNuovoOrdine()"><i class="fa fa-plus-circle"></i> NUOVO ORDINE</button>
+    </div>
+
+    <div class="main-tabs-container">
+        <button class="main-tab tab-asporto active" onclick="setMainTab('asporto')">🥡 ASPORTO <span id="cnt-asporto" class="tab-badge">0</span></button>
+        <button class="main-tab tab-tavoli" onclick="setMainTab('tavoli')">🍽️ TAVOLI <span id="cnt-tavoli" class="tab-badge">0</span></button>
+        <button class="main-tab tab-pronti" onclick="setMainTab('pronti')">✅ PRONTI <span id="cnt-pronti" class="tab-badge">0</span></button>
+    </div>
+
+    <div id="grid-asporto" class="orders-grid">
+        <div style="grid-column:1/-1; text-align:center; padding:50px; color:#fff;">Caricamento asporto...</div>
+    </div>
+    
+    <div id="grid-tavoli" class="orders-grid" style="display:none;"></div>
+    
+    <div id="grid-pronti" class="orders-grid" style="display:none;"></div>
+
+    <div id="modal-new-order" class="modal-overlay">
+        <div class="modal-box" style="max-width: 600px;">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="document.getElementById('modal-new-order').style.display='none'">&times;</div>
+            <h2 style="color:#00c853; margin-top:0;">✨ Nuovo Ordine</h2>
+            
+            <div class="order-type-selector">
+                <div class="type-btn active" id="btn-type-asporto" onclick="toggleTipoOrdine('asporto')"><i class="fa fa-bag-shopping"></i> ASPORTO</div>
+                <div class="type-btn" id="btn-type-tavolo" onclick="toggleTipoOrdine('tavolo')"><i class="fa fa-utensils"></i> TAVOLO</div>
+            </div>
+
+            <div class="form-row">
+                <input type="text" id="new-ord-nome" class="input-std" placeholder="Nome" style="flex:1;">
+                <input type="text" id="new-ord-cognome" class="input-std" placeholder="Cognome" style="flex:1;">
+            </div>
+            
+            <div class="form-row">
+                <input type="text" id="new-ord-tel" class="input-std" placeholder="Telefono (Opz.)" style="width:100%;">
+            </div>
+
+            <div id="field-tavolo" class="form-row hidden-field">
+                <input type="text" id="new-ord-tavolo" class="input-std" placeholder="Numero Tavolo">
+                <input type="number" id="new-ord-coperti" class="input-std" placeholder="Coperti" value="2" onchange="renderNewOrderPreview()" oninput="renderNewOrderPreview()">
+            </div>
+
+            <div class="form-row">
+                <div style="flex:1;">
+                    <label>Data:</label>
+                    <input type="date" id="new-ord-date" class="input-std" style="width:100%;">
+                </div>
+                <div style="flex:1;">
+                    <label>Ora:</label>
+                    <input type="time" id="new-ord-ora" class="input-std" style="width:100%;">
+                </div>
+            </div>
+            
+            <div class="quick-time-row">
+                <button class="btn-time" onclick="setQuickTime(0)">Subito</button>
+                <button class="btn-time" onclick="setQuickTime(15)">+15 m</button>
+                <button class="btn-time" onclick="setQuickTime(30)">+30 m</button>
+                <button class="btn-time" onclick="setQuickTime(60)">+1 h</button>
+            </div>
+
+            <div class="form-row" style="margin-top:10px;">
+                <textarea id="new-ord-note" class="input-std" placeholder="Note iniziali..." rows="2"></textarea>
+            </div>
+
+            <div style="background:#e8f5e9; padding:10px; border-radius:8px; margin: 15px 0; border:1px solid #a5d6a7;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="margin:0; color:#2e7d32;">Prodotti</h3>
+                    <button onclick="openStirataForNewOrder()" style="background: linear-gradient(45deg, #ffd700, #ffb300); border:none; padding:5px 10px; border-radius:20px; font-weight:bold; font-size:0.8em; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                        <i class="fa fa-star"></i> STIRATA BI-GUSTO
+                    </button>
+                </div>
+                <div style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap;">
+                    <input type="text" id="quick-prod-search" list="menu-suggestions" class="input-std" placeholder="Cerca..." style="flex:2;" onchange="autoFillPriceCreation(this)">
+                    <input type="number" id="quick-prod-price" class="input-std" placeholder="€" style="width:60px; padding:5px;">
+                    <input type="number" id="quick-prod-qty" class="input-std" value="1" style="width:45px; padding:5px;" step="0.001" title="Quantità">
+                    <select id="quick-prod-turn" class="input-std" style="width:55px; padding:5px; font-weight:bold; color:#d32f2f;" title="Turno">
+                        <option value="1">T1</option>
+                        <option value="2">T2</option>
+                        <option value="3">T3</option>
+                        <option value="4">T4</option>
+                        <option value="5">T5</option>
+                    </select>
+                    <select id="quick-prod-cat" class="input-std" style="font-weight:bold; color:#333;">
+                        <option value="">✨ Reparto (Automatico)</option>
+                        <option value="pizza">🍕 PIZZERIA</option>
+                        <option value="primo">🍳 CUCINA</option>
+                        <option value="pescato">🐟 Pescato del Giorno</option>
+                        <option value="bibita">🍹 BAR</option>
+                    </select>
+                    <button class="btn-save" onclick="addToNewOrderList()" style="background:#00c853; padding:10px;">+</button>
+                </div>
+                
+                <div id="new-order-preview-list" style="max-height:150px; overflow-y:auto; background:white; border:1px solid #ccc; border-radius:5px; padding:5px;">
+                    <div style="text-align:center; color:#888; font-size:0.9em;">Nessun prodotto aggiunto</div>
+                </div>
+                <div style="text-align:right; font-weight:bold; margin-top:5px; font-size:1.1em;">
+                    Totale: <span id="new-ord-totale-preview">€ 0.00</span>
+                </div>
+            </div>
+
+            <button class="btn-save" style="width:100%; font-size:1.2em; background:#1b5e20;" onclick="creaNuovoOrdine()">CONFERMA E CREA ORDINE</button>
+        </div>
+    </div>
+
+    <datalist id="menu-suggestions"></datalist>
+
+    <div id="modal-edit-order" class="modal-overlay">
+        <div class="modal-box" style="max-width: 600px;">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="chiudiModifica()">&times;</div>
+            <h2 style="color:#f57c00; margin-top:0;">✏️ Modifica Ordine</h2>
+            
+            <div class="form-row">
+                <input type="text" id="edit-tavolo" class="input-std" placeholder="Tavolo">
+                <input type="number" id="edit-coperti" class="input-std" placeholder="Cop." style="width:70px;" oninput="ricalcolaTotaleEditLive()">
+                
+                <input type="text" id="edit-nome" class="input-std" placeholder="Nome" style="flex:1;">
+                <input type="text" id="edit-cognome" class="input-std" placeholder="Cognome" style="flex:1;">
+            </div>
+            <div class="form-row">
+                <input type="text" id="edit-tel" class="input-std" placeholder="Tel" style="flex:1;">
+                <input type="time" id="edit-ora" class="input-std" style="flex:1;">
+            </div>
+            <div class="form-row">
+                <textarea id="edit-note" class="input-std" placeholder="Note Ordine" rows="2"></textarea>
+            </div>
+            
+            <div style="background:#eee; padding:10px; border-radius:8px; margin-bottom:10px;">
+                <h3 style="margin:0 0 10px 0;">Prodotti</h3>
+                <div id="edit-list-container" style="max-height:300px; overflow-y:auto; background:white; border:1px solid #ccc; border-radius:5px;"></div>
+                
+                <div style="display:flex; gap:5px; margin-top:10px; align-items:center; background:#fff3e0; padding:5px; border-radius:5px;">
+                    <span style="font-weight:bold; font-size:0.8em;">AGGIUNTA:</span>
+                    <input type="text" id="manual-name" list="menu-suggestions" class="input-std" placeholder="Cerca..." style="flex:2;" onchange="autoFillPrice(this)">
+                    <input type="number" id="manual-price" class="input-std" placeholder="€" step="0.50" style="width:60px; padding:5px;">
+                    <select id="manual-cat" class="input-std" style="width:110px; padding:5px; font-weight:bold; color:#333;" title="Reparto">
+                        <option value="">✨ Auto</option>
+                        <option value="pizza">🍕 Pizzeria</option>
+                        <option value="primo">🍳 Cucina</option>
+                        <option value="pescato">🐟 Pescato del Giorno</option>
+                        <option value="dolce">🍰 Dolci</option>
+                        <option value="bibita">🍹 Bar</option>
+                    </select>
+                    <select id="manual-turn" class="input-std" style="width:55px; padding:5px; font-weight:bold; color:#d32f2f;" title="Turno">
+                        <option value="1">T1</option>
+                        <option value="2">T2</option>
+                        <option value="3">T3</option>
+                        <option value="4">T4</option>
+                        <option value="5">T5</option>
+                    </select>
+                    <button type="button" class="btn-save" onclick="aggiungiVoceManuale()" style="background:#f57c00; padding:10px;">+</button>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.5em; font-weight:bold; margin-bottom:15px;">
+                <span>Nuovo Totale:</span>
+                <span id="edit-total-display">€ 0.00</span>
+            </div>
+
+            <button class="btn-save" style="width:100%; font-size:1.2em;" onclick="salvaModificheOrdine()">SALVA MODIFICHE</button>
+        </div>
+    </div>
+
+    <div id="modal-item" class="modal-overlay" style="z-index: 2500;">
+        <div class="modal-box" style="max-width: 400px;">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="closeItemModal()">&times;</div>
+            <h3 id="m-nome" style="margin-top:0; color:#2962ff; text-align:center;"></h3>
+            
+            <input type="text" id="ing-search" placeholder="🔍 Cerca ingrediente..." onkeyup="filterIngredients(this.value)" 
+            style="width:100%; padding:10px; background:#eee; border:1px solid #ccc; border-radius:8px; margin-bottom:15px;">
+
+            <div class="modal-body">
+                <div style="color:#00c853; font-weight:bold; margin-bottom:8px;">AGGIUNTE</div>
+                <div id="m-ings-add" class="ing-grid"></div>
+                
+                <div style="color:#d32f2f; font-weight:bold; margin-bottom:8px; margin-top:20px;">RIMOZIONI</div>
+                <div id="m-ings-rem" class="ing-grid"></div>
+                
+                <input type="text" id="m-extra" placeholder="Note extra..." style="width:100%; padding:12px; border:1px solid #ccc; border-radius:8px; margin-top:10px;">
+            </div>
+
+            <div class="modal-footer" style="display:flex; gap:10px;">
+                <button onclick="closeItemModal()" class="btn-cancel" style="display:block; flex:1;">ANNULLA</button>
+                <button onclick="saveCustomItem()" class="btn-save" style="flex:1;">CONFERMA</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-stirata" class="modal-overlay" style="z-index: 2400;">
+        <div class="modal-box" style="max-width:400px;">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="document.getElementById('modal-stirata').style.display='none'">&times;</div>
+            <h3 style="margin-top:0; color:#ffea00; text-align:center;">Stirata Bi-Gusto</h3>
+            
+            <div style="margin-bottom:15px; background: #eee; padding: 10px; border-radius: 8px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; align-items:center;">
+                    <label style="font-weight:bold; color:#333;">1° Gusto:</label>
+                    <button id="btn-man-1" onclick="toggleStirataManual(1)" style="background:none; border:1px solid #999; color:#666; border-radius:4px; padding:2px 8px; font-size:0.8em; cursor:pointer;">Manuale</button>
+                </div>
+                <select id="bg-select-1" class="input-std" style="width:100%; margin-bottom:0;" onchange="updateBiGustoHalf(1)"></select>
+                <div id="div-man-1" style="display:none; gap:5px; margin-top:5px;">
+                    <input type="text" id="man-gusto-1" class="input-std" placeholder="Nome Gusto" style="flex:2; margin:0;" oninput="updateBiGustoHalf(1)">
+                    <input type="number" id="price-gusto-1" class="input-std" placeholder="€" style="flex:1; margin:0;" step="0.50" oninput="updateBiGustoHalf(1)">
+                </div>
+                <div id="bg-mods-1" style="font-size:0.8em; color:#00e676; margin-top:5px; font-weight:bold;"></div>
+                <button id="btn-mod-1" style="margin-top:5px; width:100%; padding:8px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;" disabled onclick="editHalf(1)">MODIFICA INGREDIENTI</button>
+            </div>
+            
+            <div style="margin-bottom:15px; background: #eee; padding: 10px; border-radius: 8px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; align-items:center;">
+                    <label style="font-weight:bold; color:#333;">2° Gusto:</label>
+                    <button id="btn-man-2" onclick="toggleStirataManual(2)" style="background:none; border:1px solid #999; color:#666; border-radius:4px; padding:2px 8px; font-size:0.8em; cursor:pointer;">Manuale</button>
+                </div>
+                <select id="bg-select-2" class="input-std" style="width:100%; margin-bottom:0;" onchange="updateBiGustoHalf(2)"></select>
+                <div id="div-man-2" style="display:none; gap:5px; margin-top:5px;">
+                    <input type="text" id="man-gusto-2" class="input-std" placeholder="Nome Gusto" style="flex:2; margin:0;" oninput="updateBiGustoHalf(2)">
+                    <input type="number" id="price-gusto-2" class="input-std" placeholder="€" style="flex:1; margin:0;" step="0.50" oninput="updateBiGustoHalf(2)">
+                </div>
+                <div id="bg-mods-2" style="font-size:0.8em; color:#00e676; margin-top:5px; font-weight:bold;"></div>
+                <button id="btn-mod-2" style="margin-top:5px; width:100%; padding:8px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;" disabled onclick="editHalf(2)">MODIFICA INGREDIENTI</button>
+            </div>
+            
+            <textarea id="bg-main-note" class="input-std" placeholder="Note Generali..." rows="2"></textarea>
+            <button id="btn-confirm-stirata" class="btn-save" style="width:100%; background:#ffea00; color:black; margin-top:10px; font-size:1.1em;" disabled onclick="confirmStirata()">OK - € <span id="bg-tot-price">0.00</span></button>
+        </div>
+    </div>
+
+    <div id="waiter-screen" class="waiter-screen">
+        <div class="screen-header">
+            <button class="btn-close" onclick="closeWaiter()"><i class="fa fa-chevron-left"></i> INDIETRO</button>
+            <b id="screen-title" style="font-size:18px;">TAVOLO --</b>
+            <button onclick="liberaTavolo()" style="background:none; border:1px solid #444; padding:6px 12px; border-radius:6px; color:#aaa; font-size:11px; font-weight:bold; cursor:pointer;">LIBERA</button>
+        </div>
+        
+        <div class="main-layout">
+            <div class="menu-side">
+                <div class="controls-bar">
+                    <div class="coperti-selector">
+                        <button class="btn-round" onclick="changeCoperti(-1)">-</button>
+                        <span style="font-weight:bold; color:white; min-width:20px; text-align:center; font-size:16px;" id="num-coperti">2</span> <i class="fa fa-user" style="color:#aaa"></i>
+                        <button class="btn-round" onclick="changeCoperti(1)">+</button>
+                    </div>
+                    <button onclick="openStirataModal()" class="btn-stirata"><i class="fa fa-star"></i> STIRATA</button>
+                </div>
+                <div class="cat-row" id="cat-list"></div>
+                <div class="search-row">
+                    <input type="text" id="prod-search" placeholder="🔍 Cerca piatto..." onkeyup="renderProds(currentCat, this.value)" 
+                    style="width:100%; padding:10px; background:#222; border:1px solid #333; border-radius:8px; color:white; font-size:16px;">
+                </div>
+                <div id="prod-list" class="prod-list"></div>
+            </div>
+
+            <div id="cart-panel" class="cart-side">
+                <div class="cart-header">
+                    <span>TOTALE</span>
+                    <span id="cart-total-display">€0.00</span>
+                </div>
+                <div id="cart-list-ui" class="cart-list"></div>
+                <div class="cart-footer">
+                    <button class="btn-confirm-order" onclick="saveOrder()">INVIA ORDINE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-mappa" class="modal-overlay" style="z-index: 1500;">
+        <div class="modal-box" style="max-width: 95%; background: #111; min-height: 90vh; padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer; color:white;" onclick="chiudiMappa()">&times;</div>
+            
+            <div class="map-controls">
+                <h2 style="margin:0; color:#4caf50; margin-right:30px;"><i class="fa fa-map"></i> MAPPA TAVOLI</h2>
+                <div class="legend-item"><div class="leg-color" style="background:#4caf50;"></div> Libero</div>
+                <div class="legend-item"><div class="leg-color" style="background:#f44336;"></div> Occupato</div>
+                <div class="legend-item"><div class="leg-color" style="background:#ffb300;"></div> Prenotato</div>
+                
+                <button onclick="chiediTavoloManuale()" style="margin-left:auto; background:#2196f3; color:white; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                    <i class="fa fa-plus"></i> TAVOLO EXTRA
+                </button>
+            </div>
+
+            <div id="mappa-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; padding: 20px; overflow-y: auto; flex: 1;">
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-stats" class="modal-overlay" style="z-index: 1600; display:none;">
+        <div class="modal-box" style="max-width: 95%; width: 1100px; background: #111; min-height: 80vh; padding: 25px; overflow-y: auto; color: white; border: 2px solid #9c27b0;">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer; color:white;" onclick="chiudiStatistiche()">&times;</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:20px; padding-right:40px;">
+                <h2 style="color:#9c27b0; margin:0; font-size:2em;"><i class="fa fa-chart-line"></i> ANDAMENTO SERATA</h2>
+                <button onclick="stampaChiusuraZ('oggi')" style="background:#ff9800; color:black; border:none; padding:12px 20px; border-radius:10px; font-weight:900; font-size:1.1em; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.4);">
+                    <i class="fa fa-print"></i> STAMPA CHIUSURA SERATA (Z)
+                </button>
+            </div>
+            
+            <div style="display:flex; gap:20px; margin-bottom: 30px; flex-wrap:wrap;">
+                <div style="flex:1; background:#1a1a1a; padding:20px; border-radius:15px; text-align:center; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    <h3 style="margin:0; color:#aaa; font-size:1em; letter-spacing:1px;">INCASSO TOTALE</h3>
+                    <div id="stat-incasso" style="font-size:3em; font-weight:900; color:#4caf50; margin-top:10px;">€ 0.00</div>
+                </div>
+                <div style="flex:1; background:#1a1a1a; padding:20px; border-radius:15px; text-align:center; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    <h3 style="margin:0; color:#aaa; font-size:1em; letter-spacing:1px;">TAVOLI / ORDINI CHIUSI</h3>
+                    <div id="stat-ordini" style="font-size:3em; font-weight:900; color:#2196f3; margin-top:10px;">0</div>
+                </div>
+                <div style="flex:1; background:#1a1a1a; padding:20px; border-radius:15px; text-align:center; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    <h3 style="margin:0; color:#aaa; font-size:1em; letter-spacing:1px;">COPERTI TOTALI</h3>
+                    <div id="stat-coperti" style="font-size:3em; font-weight:900; color:#ff9800; margin-top:10px;">0</div>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                <div style="flex:2; min-width:400px; background:#1a1a1a; padding:20px; border-radius:15px; border: 1px solid #333;">
+                    <h3 style="margin-top:0; color:#aaa; text-align:center;">INCASSO PER FASCIA ORARIA</h3>
+                    <canvas id="chartAndamento" height="120"></canvas>
+                </div>
+                <div style="flex:1; min-width:300px; background:#1a1a1a; padding:20px; border-radius:15px; border: 1px solid #333;">
+                    <h3 style="margin-top:0; color:#aaa; text-align:center;">TOP 5 PRODOTTI PIÙ VENDUTI</h3>
+                    <canvas id="chartProdotti" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BACK OFFICE / GESTIONALE -->
+    <div id="modal-gestionale" class="modal-overlay">
+        <div class="modal-box">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="chiudiGestionale()">&times;</div>
+            
+            <h2 style="color:#c62828; margin-top:0;">Back Office Multi-Tenant</h2>
+            <div class="tabs">
+                <div class="tab" onclick="cambiaTab('impostazioni')">⚙️ DATI LOCALE</div>
+                <div class="tab" onclick="cambiaTab('abbonamento')">👑 ABBONAMENTO</div>
+                <div class="tab active" onclick="cambiaTab('prodotti')">🍕 MENU</div>
+                <div class="tab" onclick="cambiaTab('stats')">📊 STATISTICHE</div>
+                <div class="tab" onclick="cambiaTab('ingredienti')">🍄 AGGIUNTE</div>
+                <div class="tab" onclick="cambiaTab('rimozioni')">⛔ RIMOZIONI</div>
+                <div class="tab" onclick="cambiaTab('stampanti')">🖨️ STAMPANTI</div>
+                <div class="tab" onclick="cambiaTab('sconti')">🏷️ SCONTI</div>
+                <div class="tab" onclick="cambiaTab('crm')">👥 CLIENTI (CRM)</div>
+                <div class="tab" onclick="cambiaTab('dipendenti')">👨‍🍳 DIPENDENTI</div>
+                <div class="tab" onclick="cambiaTab('cestino')">🗑️ CESTINO</div>
+                <div class="tab" onclick="cambiaTab('kdsconfig')">📺 SETUP KDS</div>
+            </div>
+            
+            <!-- 1. VIEW IMPOSTAZIONI LOCALE COMPLETA (WHITE-LABEL + QR) -->
+            <div id="view-impostazioni" style="display:none;">
+                <div style="background:#e3f2fd; padding:20px; border-radius:8px; margin-bottom:15px; border:1px solid #bbdefb; color:#333;">
+                    <h3 style="margin-top:0; color:#1565c0;"><i class="fa fa-cogs"></i> Personalizzazione e Dati Attività</h3>
+                    
+                    <div style="display:flex; align-items:center; gap:20px; background:white; padding:15px; border-radius:8px; border:1px solid #ccc; margin-bottom:15px;">
+                        <img id="setting-logo-preview" src="logo.png" alt="Anteprima Logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3132/3132693.png'" style="width:80px; height:80px; object-fit:contain; border-radius:10px; border:2px solid #ffb300; background:#000; padding:5px;">
+                        <div style="flex:1;">
+                            <label style="font-weight:bold; font-size:0.9em; color:#1565c0; display:block; margin-bottom:5px;">Logo del Ristorante (PNG o JPG):</label>
+                            <input type="file" id="setting-logo-file" class="input-std" accept="image/*" style="width:100%; margin:0;" onchange="anteprimaLogoLocale(this)">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <input type="text" id="setting-nome-locale" class="input-std" placeholder="Nome del Locale (es. Pizzeria Bella Napoli)">
+                        <input type="text" id="setting-slogan" class="input-std" placeholder="Sottotitolo App (es. La vera pizza a casa tua)">
+                    </div>
+
+                    <div class="form-row">
+                        <input type="tel" id="setting-tel-ordini" class="input-std" placeholder="Telefono Ordini (per App Clienti)" style="flex:2;">
+                        <div style="flex:1; display:flex; align-items:center; gap:8px; background:white; padding:0 10px; border-radius:5px; border:1px solid #ccc;">
+                            <label style="font-weight:bold; font-size:0.85em; color:#555; white-space:nowrap;">Coperto (€):</label>
+                            <input type="number" id="setting-coperto" class="input-std" step="0.50" min="0" value="2.50" style="border:none; margin:0; font-weight:bold;">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <input type="text" id="setting-piva" class="input-std" placeholder="Partita IVA / C.F.">
+                        <input type="text" id="setting-indirizzo" class="input-std" placeholder="Indirizzo Completo">
+                    </div>
+                    
+                    <button class="btn-save" style="background:#1565c0; width:100%; padding:15px; font-size:1.1em; margin-top:10px;" onclick="salvaImpostazioniLocale()">
+                        💾 SALVA DATI E AGGIORNA TUTTE LE APP
+                    </button>
+                </div>
+
+                <!-- BOX QR CODE PRONTI PER LA STAMPA -->
+                <div style="display:flex; gap:15px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:250px; background:white; padding:20px; border-radius:8px; border:1px solid #ddd; text-align:center; color:#333;">
+                        <h4 style="margin-top:0; color:#1565c0;"><i class="fa fa-qrcode"></i> QR Code Menu al Tavolo</h4>
+                        <img id="qr-menu-img" src="" alt="QR Menu" style="width:150px; height:150px; margin:10px auto; display:block; border:1px solid #eee; padding:5px; border-radius:8px;">
+                        <small id="qr-menu-link" style="display:block; color:#666; margin-bottom:10px; word-break:break-all;"></small>
+                        <button class="btn-save" style="background:#ffb300; color:black; width:100%;" onclick="window.open(document.getElementById('qr-menu-img').src, '_blank')">🖨️ APRI E STAMPA QR MENU</button>
+                    </div>
+
+                    <div style="flex:1; min-width:250px; background:white; padding:20px; border-radius:8px; border:1px solid #ddd; text-align:center; color:#333;">
+                        <h4 style="margin-top:0; color:#2e7d32;"><i class="fa fa-mobile-screen"></i> QR Code App Asporto</h4>
+                        <img id="qr-app-img" src="" alt="QR App" style="width:150px; height:150px; margin:10px auto; display:block; border:1px solid #eee; padding:5px; border-radius:8px;">
+                        <small id="qr-app-link" style="display:block; color:#666; margin-bottom:10px; word-break:break-all;"></small>
+                        <button class="btn-save" style="background:#2e7d32; color:white; width:100%;" onclick="window.open(document.getElementById('qr-app-img').src, '_blank')">🖨️ APRI E STAMPA QR ASPORTO</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. VIEW ABBONAMENTO E PAGAMENTI STRIPE -->
+            <div id="view-abbonamento" style="display:none;">
+                <div style="background:#f5f5f5; padding:20px; border-radius:10px; border:1px solid #e0e0e0; margin-bottom:20px; text-align:center;">
+                    <h2 style="color:#333; margin-top:0;">Stato Licenza Software</h2>
+                    <h1 id="sub-status" style="color:#4caf50; font-size:2.5em; margin: 10px 0;">PIANO ATTIVO</h1>
+                    <p style="color:#666;">Valido fino al: <b id="sub-rinnovo">Automatico (Stripe)</b></p>
+                    <button class="btn-save" style="background:#6772E5; font-size:1.1em; padding:12px 25px; margin-top:10px;" onclick="window.apriPortaleStripe()">
+                        <i class="fa fa-credit-card"></i> Gestisci Pagamenti (Stripe)
+                    </button>
+                </div>
+                
+                <h3 style="color:#c62828; margin-bottom:15px;"><i class="fa fa-puzzle-piece"></i> Moduli Aggiuntivi</h3>
+                
+                <div style="display:flex; gap:15px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:250px; background:#fff3e0; padding:20px; border-radius:10px; border:1px solid #ffe0b2; text-align:center;">
+                        <i class="fa fa-tv" style="font-size:3.5em; color:#ff9800; margin-bottom:15px;"></i>
+                        <h3 style="color:#e65100; margin:0 0 10px 0;">Monitor Cucina (KDS)</h3>
+                        <p style="color:#555; font-size:0.9em; margin-bottom:15px;">Gestione touch per le preparazioni in cucina, senza spreco di carta termica.</p>
+                        
+                        <div id="kds-locked-ui">
+                            <h2 style="color:#333; margin:10px 0;">€ 150 <small style="font-size:0.5em;">Una Tantum</small></h2>
+                            <button class="btn-save" style="background:#ff9800; color:black; width:100%; font-weight:bold;" onclick="compraModuloKDS()">SBLOCCA ORA</button>
+                        </div>
+                        <div id="kds-unlocked-ui" style="display:none; color:#4caf50; font-weight:bold; font-size:1.2em; padding:10px; border:2px dashed #4caf50; border-radius:8px;">
+                            <i class="fa fa-check-circle"></i> MODULO ACQUISTATO
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-prodotti">
+                <div class="form-row" style="flex-wrap: wrap;">
+                    <select id="new-cat" class="input-std" style="flex:0.5;">
+                        <option value="ant_pizzeria">Antipasti Pizzeria</option>
+                        <option value="ant_ristorante">Antipasti Ristorante</option>
+                        <option value="pizza" selected>Pizze</option>
+                        <option value="speciale">Pizze Speciali</option>
+                        <option value="stirata">Stirate</option>
+                        <option value="gf">Gluten Free</option>
+                        <option value="primo">Primi Piatti</option>
+                        <option value="secondo">Secondi Piatti</option>
+                        <option value="contorno">Contorni</option>
+                        <option value="pescato">Pescato del Giorno</option>
+                        <option value="dolce">Dolci</option>
+                        <option value="bibita">Bibite (Gen.)</option>
+                        <option value="bibita_lattina">Bibite Lattina</option>
+                        <option value="bibita_bottiglia">Bibite Bottiglia</option>
+                        <option value="birra">Birre</option>
+                        <option value="vino">Vini</option>
+                        <option value="amaro">Amaro/Caffetteria</option>
+                    </select>
+                    <input type="text" id="new-nome" class="input-std" placeholder="Nome">
+                    <input type="text" id="new-desc" class="input-std" placeholder="Descrizione">
+                    <div style="display: flex; gap: 10px; align-items: center; flex: 0.5;">
+                        <input type="file" id="new-foto" class="input-std" accept="image/*" title="Carica la foto del piatto" style="flex: 1;">
+                        <button id="btn-delete-foto" type="button" class="btn-applica" style="display: none; background: var(--danger); font-size: 0.8em; padding: 12px; margin: 0;" onclick="eliminaFotoProdotto()">🗑️ RIMUOVI</button>
+                    </div>
+                    <input type="number" id="new-prezzo" class="input-std" placeholder="Prezzo" style="flex:0.3;" step="0.50">
+                    <input type="number" id="new-scorta" class="input-std" placeholder="Scorta (vuoto=inf)" style="flex:0.3;">
+                    
+                    <label style="display:flex; align-items:center; gap:8px; padding:5px 10px; background:rgba(212, 175, 55, 0.1); border: 1px solid #d4af37; border-radius:5px; font-weight:bold; color:#d4af37; cursor:pointer;">
+                        <input type="checkbox" id="new-mostra-tavolo" style="width:18px; height:18px; accent-color:#d4af37; cursor:pointer;">
+                        Mostra Menu QR
+                    </label>
+                    <label style="display:flex; align-items:center; background:#eee; padding:0 10px; border-radius:5px; border:1px solid #ccc; margin-right:5px; cursor:pointer;">
+                        <input type="checkbox" id="new-is-peso" style="margin-right:5px;"> Al Kg
+                    </label>
+                    <button class="btn-save" id="btn-save-prod" onclick="salvaProdotto()">AGGIUNGI</button>
+                    <button class="btn-cancel" id="btn-cancel-prod" onclick="resetFormProdotti()">ANNULLA</button>
+                </div>
+                
+                <div style="background:#f0f4c3; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #c0ca33;">
+                    <b style="color:#558b2f;">INGREDIENTI DELLA PIZZA (per le rimozioni):</b>
+                    <div id="grid-ingredienti-pizza" class="pizza-ing-selector">
+                        <small>Caricamento lista rimozioni...</small>
+                    </div>
+                </div>
+                
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <button class="btn-save" style="background:#0288d1; flex:1;" onclick="copiaPizzeSuStirate()">COPIA PIZZE -> STIRATE (+2€)</button>
+                    <button class="btn-save" style="background:#e65100; flex:1;" onclick="copiaPizzeSuGF()">COPIA PIZZE -> GLUTEN FREE (+2€)</button>
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <small style="font-weight:bold; color:#555;">ALLERGENI PRESENTI:</small>
+                    <div class="allergen-grid" id="new-allergeni-box"></div>
+                    <button class="btn-save" style="margin-top:10px; background:#0277bd;" onclick="caricaAllergeniBase()">CARICA ALLERGENI BASE</button>
+                </div>
+
+                <div id="cat-filters-container" class="cat-filters"></div>
+                <div id="lista-prodotti" class="db-list"></div>
+
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button onclick="backupMenu()" style="background:#238636; color:white; padding:12px; border:none; border-radius:8px; flex:1; font-weight:bold; cursor:pointer;">
+                        <i class="fa fa-download"></i> SCARICA BACKUP MENU (JSON)
+                    </button>
+                    <button onclick="ripristinaMenuDaBackup()" style="background:#1f6feb; color:white; padding:12px; border:none; border-radius:8px; flex:1; font-weight:bold; cursor:pointer;">
+                        <i class="fa fa-upload"></i> RIPRISTINA / IMPORTA MENU
+                    </button>
+                </div>
+            </div>
+
+            <div id="view-stats" style="display:none;">
+                <div class="stat-presets">
+                    <button class="btn-preset" onclick="setPeriodo('oggi')">Oggi</button>
+                    <button class="btn-preset" onclick="setPeriodo('settimana')">Questa Settimana</button>
+                    <button class="btn-preset" onclick="setPeriodo('mese')">Questo Mese</button>
+                    <button class="btn-preset" onclick="setPeriodo('anno')">Anno Corrente</button>
+                </div>
+                <div class="form-row">
+                    <label>Dal:</label><input type="date" id="stats-start" class="input-std">
+                    <label>Al:</label><input type="date" id="stats-end" class="input-std">
+                    <button class="btn-save" onclick="calcolaStats()">CALCOLA REPORT</button>
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <button class="btn-save" style="background:#d32f2f; width:100%; font-size:1.1em; padding:12px;" onclick="azzeraStatistiche()">🗑️ ELIMINA ORDINI PERIODO (AZZERA)</button>
+                </div>
+                
+                <div style="display:flex; gap:10px; margin-bottom: 20px; flex-wrap:wrap;">
+                    <button onclick="exportToCSV()" style="flex:1; background:#2e7d32; color:white; padding:15px; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">
+                        📥 SCARICA EXCEL (CSV)
+                    </button>
+                    <button onclick="stampaChiusuraZ('periodo')" style="flex:1; background:#ff9800; color:black; padding:15px; border:none; border-radius:5px; font-weight:900; font-size:1.05em; cursor:pointer;">
+                        🖨️ STAMPA CHIUSURA FISCALE / RIEPILOGO Z DEL PERIODO
+                    </button>
+                </div>
+
+                <div class="stats-dashboard">
+                    <div class="stat-section">
+                        <div class="stat-header">TOTALE GENERALE</div>
+                        <div class="stat-cards-row">
+                            <div class="stat-card-mini">
+                                <span class="stat-val-mini color-tot" id="st-incasso">€ 0.00</span>
+                                <span class="stat-lbl-mini">Incasso</span>
+                            </div>
+                            <div class="stat-card-mini">
+                                <span class="stat-val-mini color-tot" id="st-pizze">0</span>
+                                <span class="stat-lbl-mini">Pizze</span>
+                            </div>
+                            <div class="stat-card-mini">
+                                <span class="stat-val-mini color-tot" id="st-ordini">0</span>
+                                <span class="stat-lbl-mini">Ordini</span>
+                            </div>
+                            <div class="stat-card-mini">
+                                <span class="stat-val-mini color-tot" id="st-coperti">0</span>
+                                <span class="stat-lbl-mini">Coperti</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-split-container">
+                        <div class="stat-section stat-split-box">
+                            <div class="stat-header">🥡 ASPORTO</div>
+                            <div class="stat-cards-row">
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-asp" id="st-incasso-asp">€ 0.00</span>
+                                    <span class="stat-lbl-mini">Incasso</span>
+                                </div>
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-asp" id="st-pizze-asp">0</span>
+                                    <span class="stat-lbl-mini">Pizze</span>
+                                </div>
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-asp" id="st-ordini-asp">0</span>
+                                    <span class="stat-lbl-mini">Ordini</span>
+                                </div>
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-asp" id="st-coperti-asp">0</span>
+                                    <span class="stat-lbl-mini">Coperti</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-section stat-split-box">
+                            <div class="stat-header">🍽️ SALA</div>
+                            <div class="stat-cards-row">
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-sala" id="st-incasso-sala">€ 0.00</span>
+                                    <span class="stat-lbl-mini">Incasso</span>
+                                </div>
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-sala" id="st-pizze-sala">0</span>
+                                    <span class="stat-lbl-mini">Pizze</span>
+                                </div>
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-sala" id="st-ordini-sala">0</span>
+                                    <span class="stat-lbl-mini">Ordini</span>
+                                </div>
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-sala" id="st-coperti-sala">0</span>
+                                    <span class="stat-lbl-mini">Coperti</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Classifica Prodotti (Per Categoria)</h3>
+                <div class="db-list" id="ranking-container"></div>
+            </div>
+
+            <div id="view-ingredienti" style="display:none;">
+                <div class="form-row">
+                    <input type="text" id="ing-nome" class="input-std" placeholder="Nome Aggiunta">
+                    <input type="number" id="ing-prezzo" class="input-std" placeholder="Prezzo">
+                    <button class="btn-save" id="btn-save-ing" onclick="salvaIngrediente()">AGGIUNGI</button>
+                    <button class="btn-cancel" id="btn-cancel-ing" onclick="resetFormIngredienti()">ANNULLA</button>
+                    <button class="btn-save" style="background:#0277bd; margin-left:10px;" onclick="importaDaPizze()">IMPORTA DA MENU</button>
+                </div>
+                <div id="lista-ingredienti" class="db-list"></div>
+            </div>
+            
+            <div id="view-rimozioni" style="display:none;">
+                <div class="form-row">
+                    <input type="text" id="rim-nome" class="input-std" placeholder="Nome Rimozione">
+                    <input type="number" id="rim-prezzo" class="input-std" placeholder="Variaz. € (es: -1.00)" step="0.10">
+                    <button class="btn-save" id="btn-save-rim" onclick="salvaRimozione()">AGGIUNGI</button>
+                    <button class="btn-cancel" id="btn-cancel-rim" onclick="resetFormRimozioni()">ANNULLA</button>
+                    <button class="btn-save" style="background:#0277bd; margin-left:10px;" onclick="generarimozioniAuto()">GENERA DA MENU</button>
+                </div>
+                <div id="lista-rimozioni" class="db-list"></div>
+            </div>
+
+            <div id="view-stampanti" style="display:none;">
+                <div style="background:#e8f5e9; padding:10px; border-radius:5px; margin-bottom:15px; border:1px solid #a5d6a7; color:#2e7d32;">
+                    <i class="fa fa-info-circle"></i> <b>Configurazione Stampanti Termiche di Rete.</b> Inserisci gli indirizzi IP locali delle stampanti (porta 9100). Assicurati che il PC e le stampanti siano sulla stessa rete.
+                </div>
+                <div class="printer-config-box"><strong>🧾 CASSA</strong> <input type="text" id="ip-conto" class="input-std" placeholder="Es. 192.168.1.145"></div>
+                <div class="printer-config-box"><strong>📄 PRECONTO</strong> <input type="text" id="ip-preconto" class="input-std" placeholder="Es. 192.168.1.131"></div>
+                <div class="printer-config-box"><strong>🔥 PIZZERIA</strong> <input type="text" id="ip-pizzeria" class="input-std"><div class="cat-checkboxes" id="cats-pizzeria"></div></div>
+                <div class="printer-config-box"><strong>👨‍🍳 CUCINA</strong> <input type="text" id="ip-cucina" class="input-std"><div class="cat-checkboxes" id="cats-cucina"></div></div>
+                <div class="printer-config-box"><strong>🍺 BAR</strong> <input type="text" id="ip-bar" class="input-std"><div class="cat-checkboxes" id="cats-bar"></div></div>
+                <button class="btn-save" style="width:100%; font-size: 1.1em; padding: 15px;" onclick="salvaConfigStampanti()">💾 SALVA CONFIGURAZIONE RETE</button>
+            </div>
+            
+            <div id="view-kdsconfig" style="display:none;">
+                <div style="background:#e3f2fd; padding:10px; border-radius:5px; margin-bottom:15px; color:#1565c0;">
+                    <i class="fa fa-info-circle"></i> Seleziona quali categorie mostrare sui vari reparti del Monitor Cucina (KDS).
+                </div>
+                <div class="printer-config-box"><strong>🍕 PIZZERIA</strong> <div class="cat-checkboxes" id="kds-cats-pizzeria"></div></div>
+                <div class="printer-config-box"><strong>👨‍🍳 CUCINA & FRITTI</strong> <div class="cat-checkboxes" id="kds-cats-cucina"></div></div>
+                <div class="printer-config-box"><strong>🍰 DOLCI</strong> <div class="cat-checkboxes" id="kds-cats-dolci"></div></div>
+                <div class="printer-config-box"><strong>🍺 BAR / BEVANDE</strong> <div class="cat-checkboxes" id="kds-cats-bar"></div></div>
+                <button class="btn-save" style="width:100%; font-size:1.2em; padding:15px;" onclick="salvaConfigKDS()">💾 SALVA CONFIGURAZIONE KDS</button>
+            </div>
+            
+            <div id="view-sconti" style="display:none;">
+                <div class="form-row">
+                    <input type="text" id="sconto-nome" class="input-std" placeholder="Nome (es. Staff)">
+                    <input type="number" id="sconto-val" class="input-std" placeholder="Valore">
+                    <select id="sconto-tipo" class="input-std">
+                        <option value="percent">% Percentuale</option>
+                        <option value="euro">€ Fisso</option>
+                    </select>
+                    <button class="btn-save" onclick="creaSconto()">CREA</button>
+                </div>
+                <div id="lista-sconti" class="db-list"></div>
+            </div>
+
+            <div id="view-crm" style="display:none;">
+                <div style="background:#fff3e0; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #ffe0b2;">
+                    <h3 style="margin-top:0; color:#e65100;"><i class="fa fa-gift"></i> Impostazioni Fedeltà</h3>
+                    <div class="form-row" style="background:transparent; padding:0; margin:0; align-items:center;">
+                        <label class="switch">
+                            <input type="checkbox" id="fid-attiva" onchange="salvaConfigFidelity()">
+                            <span class="slider"></span>
+                        </label>
+                        <strong style="margin-left:5px; color:#333;">Attiva</strong>
+                        
+                        <input type="number" id="fid-soglia" class="input-std" placeholder="Ordini (es. 10)" style="width:120px; margin-left:15px;" title="Numero di ordini per l'omaggio">
+                        <input type="text" id="fid-premio" class="input-std" placeholder="Cosa vince? (es. 1 Margherita)" style="flex:1;">
+                        
+                        <button class="btn-save" style="background:#e65100;" onclick="salvaConfigFidelity()">SALVA</button>
+                    </div>
+                </div>
+
+                <div class="crm-search-box">
+                    <input type="text" id="crm-search" class="input-std" placeholder="🔍 Cerca Cliente o Telefono..." onkeyup="window.filterCRM(this.value)">
+                    <button class="btn-save" style="background:#4caf50;" onclick="window.apriNuovoCliente()">+ NUOVO</button>
+                    <button class="btn-save" style="background:#0277bd;" onclick="window.analizzaOrdiniEImporta()">🔄 IMPORTA</button>
+                </div>
+                
+                <div style="padding:10px; background:#e1f5fe; border-bottom:1px solid #b3e5fc; font-size:0.9em;">
+                    <i class="fa fa-info-circle"></i> Clicca su "IMPORTA" per creare la rubrica basata sullo storico ordini.
+                </div>
+
+                <div id="crm-list-container" class="crm-list"></div>
+            </div>
+
+            <div id="view-dipendenti" style="display:none;">
+                <div class="form-row">
+                    <input type="text" id="dip-nome" class="input-std" placeholder="Nome Operatore">
+                    <input type="tel" id="dip-pin" class="input-std" placeholder="PIN (es. 1234)" maxlength="4" style="-webkit-text-security: disc;" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    <button class="btn-save" onclick="salvaDipendente()">AGGIUNGI</button>
+                </div>
+                <div id="lista-dipendenti" class="db-list"></div>
+            </div>
+            
+            <div id="view-cestino" style="display:none;">
+                <div style="background:#fff3e0; padding:10px; border-radius:5px; font-size:0.9em; margin-bottom:15px; color:#e65100;">
+                    <i class="fa fa-info-circle"></i> Vengono mostrati gli ordini annullati per la <b>data attualmente selezionata nella schermata principale</b>.
+                </div>
+                <div id="lista-cestino" class="db-list"></div>
+            </div>
+
+        </div> 
+    </div> 
+
+    <div id="modal-payment" class="modal-overlay" style="z-index: 3000;">
+        <div class="modal-box" style="max-width: 500px; text-align:center;">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="chiudiPagamento()">&times;</div>
+            <h2 style="margin-top:0;">💳 INCASSO</h2>
+            
+            <div style="background:#eee; padding:15px; border-radius:10px; margin-bottom:10px; position:relative;">
+                <div style="font-size:1.2em; color:#555;">TOTALE DA PAGARE</div>
+                <div style="font-size:3em; font-weight:900; color:#333;" id="pay-total">€ 0.00</div>
+                
+                <button onclick="modificaTotaleManuale()" style="position:absolute; top:15px; right:15px; background:#ff9800; color:black; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                    <i class="fa fa-pencil"></i> MODIFICA
+                </button>
+            </div>
+
+            <div style="background:#e3f2fd; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #bbdefb; display:flex; align-items:center; justify-content:center; gap:10px;">
+                <b>Dividi per:</b>
+                <button onclick="cambiaDivisione(-1)" style="width:30px; height:30px; font-weight:bold; border-radius:50%; border:none; background:#2196f3; color:white; cursor:pointer;">-</button>
+                <span id="pay-divisore" style="font-size:1.5em; font-weight:bold; width:30px;">1</span><i class="fa fa-user"></i>
+                <button onclick="cambiaDivisione(1)" style="width:30px; height:30px; font-weight:bold; border-radius:50%; border:none; background:#2196f3; color:white; cursor:pointer;">+</button>
+                <div id="quota-singola" style="margin-left:15px; font-size:1.2em; font-weight:bold; color:#d32f2f; display:none;">
+                    Quota: <span id="pay-quota">€ 0.00</span>
+                </div>
+            </div>
+
+            <div style="text-align:left; font-weight:bold; margin-bottom:5px;">APPLICA SCONTO:</div>
+            <div class="discount-bar" id="payment-discount-list"></div>
+
+            <div class="form-row" style="margin-top:15px;">
+                <div style="flex:1">
+                    <label>Contanti Ricevuti:</label>
+                    <input type="number" id="cash-given" class="input-std" style="font-size:1.5em; text-align:center;" placeholder="€" oninput="calcolaResto()">
+                </div>
+                <div style="flex:1; background:#e8f5e9; border-radius:8px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    <span style="font-size:0.8em; color:#2e7d32;">RESTO</span>
+                    <span id="pay-resto" style="font-size:1.5em; font-weight:bold; color:#2e7d32;">€ 0.00</span>
+                </div>
+            </div>
+
+            <div class="payment-grid">
+                <button class="btn-pay pay-cash" onclick="confermaPagamento('CONTANTI')"><i class="fa fa-money-bill-wave"></i> SOLO GESTIONALE (Contanti)</button>
+                <button class="btn-pay pay-card" onclick="confermaPagamento('CARTA')"><i class="fa fa-credit-card"></i> SOLO GESTIONALE (Carta)</button>
+            </div>
+            
+            <hr style="border:0; border-top:1px dashed #ccc; margin: 15px 0;">
+            
+            <div style="display:flex; gap:10px;">
+                <button onclick="emettiScontrinoFiscale('CONTANTI')" style="flex:1; padding:15px; font-size:1.1em; background:#4caf50; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                    <i class="fa fa-receipt"></i> FISCALE CONTANTI
+                </button>
+                <button onclick="emettiScontrinoFiscale('CARTA')" style="flex:1; padding:15px; font-size:1.1em; background:#2196f3; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                    <i class="fa fa-credit-card"></i> FISCALE CARTA
+                </button>
+            </div>
+
+            <button class="btn-pay pay-unpaid" style="width:100%; margin-top:15px; font-size:1em; padding:10px;" onclick="confermaPagamento('NON PAGATO')">CHIUDI SENZA PAGARE (Sospeso)</button>
+        </div>
+    </div>
+
+    <div id="modal-edit-client" class="modal-overlay" style="z-index: 3100;">
+        <div class="modal-box" style="max-width: 400px;">
+            <h3 style="color:#ff9800; text-align:center;">Modifica Cliente</h3>
+            <input type="hidden" id="edit-cli-old-id">
+            <div class="form-row">
+                <label>Nome:</label>
+                <input type="text" id="edit-cli-nome" class="input-std">
+            </div>
+            <div class="form-row">
+                <label>Telefono:</label>
+                <input type="text" id="edit-cli-tel" class="input-std">
+            </div>
+            <div style="background:#fff3e0; padding:10px; border-radius:5px; font-size:0.8em; margin-bottom:15px; color:#e65100;">
+                ⚠️ Attenzione: Modificando il telefono, verrà creato un nuovo record e il vecchio verrà eliminato. Lo storico ordini potrebbe scollegarsi visivamente ma i dati restano.
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-cancel" style="display:block; flex:1;" onclick="document.getElementById('modal-edit-client').style.display='none'">ANNULLA</button>
+                <button class="btn-save" style="flex:1;" onclick="salvaModificaCliente()">SALVA</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-new-client" class="modal-overlay" style="z-index: 3100;">
+        <div class="modal-box" style="max-width: 400px;">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="document.getElementById('modal-new-client').style.display='none'">&times;</div>
+            <h3 style="color:#4caf50; text-align:center; margin-top:0;">👤 Aggiungi Cliente</h3>
+            
+            <div class="form-row">
+                <label style="width:70px;">Nome:</label>
+                <input type="text" id="new-cli-nome" class="input-std" placeholder="Es. Mario Rossi">
+            </div>
+            <div class="form-row">
+                <label style="width:70px;">Telefono:</label>
+                <input type="tel" id="new-cli-tel" class="input-std" placeholder="Es. 3331234567">
+            </div>
+            
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button class="btn-cancel" style="display:block; flex:1;" onclick="document.getElementById('modal-new-client').style.display='none'">ANNULLA</button>
+                <button class="btn-save" style="flex:1; background:#4caf50;" onclick="salvaNuovoCliente()">SALVA CLIENTE</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-bookings" class="modal-overlay">
+        <div class="modal-box" style="max-width: 600px;">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="document.getElementById('modal-bookings').style.display='none'">&times;</div>
+            <h2 style="color:#9c27b0; margin-top:0;">📅 Prenotazioni Tavoli</h2>
+            
+            <div class="form-row" style="background:#f3e5f5; border:1px solid #e1bee7;">
+                <input type="time" id="book-time" class="input-std">
+                <input type="text" id="book-name" class="input-std" placeholder="Cognome Cliente" style="flex:2;">
+                <input type="number" id="book-pax" class="input-std" placeholder="Pax" style="width:60px;">
+                <input type="text" id="book-table" class="input-std" placeholder="Tav" style="width:60px;">
+                <button class="btn-save" style="background:#9c27b0;" onclick="aggiungiPrenotazione()">+</button>
+            </div>
+    
+            <div id="booking-list-container" style="max-height: 400px; overflow-y: auto; margin-top:15px; background:#f9f9f9; padding:10px;">
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-storico" class="modal-overlay" style="z-index: 3500; display:none;">
+        <div class="modal-box" style="max-width: 700px; width: 95%; max-height: 85vh; display: flex; flex-direction: column;">
+            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer; color:#666;" onclick="document.getElementById('modal-storico').style.display='none'">&times;</div>
+            
+            <h2 style="color:#4caf50; margin-top:0;"><i class="fa fa-history"></i> Storico Ordini Chiusi</h2>
+            
+            <div style="display:flex; align-items:center; gap:10px; background:#222; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #444;">
+                <label style="color:#aaa; font-weight:bold;">Scegli Data:</label>
+                <input type="date" id="storico-date" class="input-std" style="margin:0; width:auto; flex:1;" onchange="window.caricaStoricoData()">
+            </div>
+            
+            <div id="lista-storico" style="overflow-y:auto; flex:1; background: #111; border-radius: 8px; padding: 15px; border: 1px solid #333;">
+            </div>
+        </div>
+    </div>
+    
+    <audio id="audio-ding" src="ding.mp3"></audio>
+    <div id="print-area"></div>
+    
+    <script type="module" src="cassa.js"></script>
+</body>
+</html>

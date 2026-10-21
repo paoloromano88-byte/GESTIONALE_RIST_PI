@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#050505">
+    <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon"> 
+
+    <title>SALA V16.9 (Con Etichette Agenda)</title>
+    <link rel="apple-touch-icon" href="logo.png">
+    
+    <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        /* --- CONFIGURAZIONE --- */
+        :root { 
+            --primary: #2962ff; 
+            --occupied: #d32f2f; 
+            --free: #2e7d32; 
+            --reserved: #ffb300;
+            --bg: #050505; 
+            --card-bg: #1e1e1e; 
+            --text: #ffffff; 
+            --gold: #ffea00; 
+            --header-bg: #111111; 
+            --border: #444;
+            --add-color: #00e676; 
+            --rem-color: #ff5252;
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        html, body { 
+            height: 100%; 
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--text); 
+            user-select: none; 
+            overflow: hidden; 
+        }
+
+        .swal2-container { z-index: 10000 !important; }
+
+        /* LOGIN STAFF */
+        #login-overlay { position: fixed; inset: 0; background: #111; z-index: 99999; display: flex; justify-content: center; align-items: center; flex-direction: column; color: white; }
+        .login-box { background: #222; padding: 40px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid var(--primary); }
+        .login-input { padding: 15px; font-size: 1.5em; text-align: center; border-radius: 10px; border: 1px solid #555; background: #333; color: white; width: 200px; margin-bottom: 20px; outline: none; letter-spacing: 5px; }
+        .btn-login { background: var(--primary); color: white; padding: 15px 30px; border: none; border-radius: 10px; font-size: 1.2em; font-weight: bold; cursor: pointer; width: 100%; }
+
+        /* HEADER */
+        header { 
+            background: var(--header-bg); 
+            padding: 8px 10px; 
+            position: absolute; 
+            top: 0; left: 0; right: 0;
+            z-index: 100; 
+            border-bottom: 2px solid var(--primary); 
+            height: 60px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        
+        .app-title { font-size: 16px; font-weight: 900; white-space: nowrap; display: none; } 
+        @media(min-width: 400px) { .app-title { display: block; } }
+        
+        .search-container { display: flex; background: #222; padding: 6px 10px; border-radius: 20px; border: 1px solid var(--border); flex: 1; align-items: center; }
+        .search-container input { border: none; background: transparent; flex: 1; font-size: 14px; outline: none; color: white; margin-left: 5px; }
+        .btn-add-table { background: var(--free); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+
+        #view-map { height: 100%; width: 100%; display: flex; flex-direction: column; }
+        .grid { margin-top: 60px; display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; padding: 10px; padding-bottom: 80px; overflow-y: auto; flex: 1; }
+        
+        .table { background: #1e1e1e; border-radius: 8px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid #333; overflow: hidden; height: 95px; position: relative; transition: transform 0.1s; }
+        .table:active { transform: scale(0.98); }
+        .status-strip { height: 4px; width: 100%; background: var(--free); }
+        .table.occupied .status-strip { background: var(--occupied); }
+        .table.occupied { background: #150505; border-color: #4a1010; }
+        .table.paying { border-color: #ffea00; animation: blink 2s infinite; }
+        .table.paying .status-strip { background: #ffea00; }
+        .table.ready { border-color: #00e676; animation: blink-ready 1.5s infinite; }
+        .table.ready .status-strip { background: #00e676; }
+        .table.reserved { background: #1a1400; border-color: #f57f17; }
+        .table.reserved .status-strip { background: var(--reserved); }
+        @keyframes blink-ready { 0% { box-shadow: 0 0 0px rgba(0, 230, 118, 0.2); } 50% { box-shadow: 0 0 15px rgba(0, 230, 118, 0.8); } 100% { box-shadow: 0 0 0px rgba(0, 230, 118, 0.2); } }
+        .t-info { display: flex; justify-content: space-between; padding: 3px 5px; font-size: 10px; color: #888; font-weight: bold; }
+        .t-main { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; letter-spacing: 1px; color: #eee; margin-top: -5px; }
+        .t-status { font-size: 10px; text-align: center; padding-bottom: 2px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-inline: 3px; }
+        .map-actions { display: flex; height: 30px; border-top: 1px solid #333; }
+        .btn-map-action { flex: 1; border: none; color: white; font-weight: 800; font-size: 12px; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; transition: 0.2s; border-right: 1px solid #222; }
+        .btn-map-t1 { background: #1565c0; } .btn-map-t2 { background: #f9a825; color: black; } .btn-map-t3 { background: #6a1b9a; } .btn-map-t4 { background: #2e7d32; } .btn-map-t5 { background: #ef6c00; }
+        .btn-map-action.sent { background: #333 !important; color: #555 !important; cursor: default !important; pointer-events: none; }
+        .btn-map-action.disabled-turn { background: #2a2a2a !important; color: #444 !important; cursor: not-allowed !important; pointer-events: none; }
+
+        .waiter-screen { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: none; flex-direction: column; }
+        .screen-header { background: #111; padding: 0 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); height: 50px; flex-shrink: 0; }
+        .btn-close { background: none; border: none; color: white; font-size: 14px; display:flex; align-items:center; gap:5px; padding: 5px; cursor: pointer; font-weight: bold; }
+        
+        /* BARRA ETICHETTE AGENDA IN SALA */
+        #waiter-tags-bar {
+            background: #161922;
+            border-bottom: 1px solid #333;
+            padding: 6px 10px;
+            display: none;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .sala-tag-pill {
+            padding: 3px 9px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 800;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        }
+
+        .main-layout { display: flex; flex-direction: row; flex: 1; overflow: hidden; position: relative; height: calc(100vh - 50px); }
+        .menu-side { flex: 1; display: flex; flex-direction: column; min-width: 0; border-right: 2px solid #333; overflow-y: auto; }
+        .controls-bar { display: flex; justify-content: space-between; padding: 8px; background: #1a1a1a; align-items: center; border-bottom: 1px solid var(--border); }
+        .coperti-selector { display: flex; align-items: center; gap: 8px; background: #2a2a2a; padding: 4px 8px; border-radius: 30px; border: 1px solid #444; }
+        .btn-round { width: 30px; height: 30px; border-radius: 50%; background: #444; border: none; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-stirata { background: linear-gradient(45deg, #ffd700, #ffb300); color: black; border: none; padding: 8px 12px; border-radius: 20px; font-weight: 900; font-size: 11px; cursor: pointer; }
+        .cat-row { display: flex; gap: 8px; overflow-x: auto; padding: 10px; scrollbar-width: none; background: var(--bg); flex-shrink: 0; -webkit-overflow-scrolling: touch; }
+        .cat-pill { padding: 8px 16px; background: #222; border: 1px solid #444; border-radius: 20px; font-size: 13px; font-weight: bold; white-space: nowrap; color: #aaa; transition: 0.2s; cursor: pointer; }
+        .cat-pill.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .search-row { padding: 0 10px 5px 10px; flex-shrink: 0; display: flex; gap: 10px; }
+        .btn-manual-prod { background: #ff9800; color: black; border: none; border-radius: 8px; padding: 0 15px; font-weight: bold; cursor: pointer; font-size: 12px; white-space: nowrap; }
+        .prod-list { flex: 1; overflow-y: auto; padding: 10px; -webkit-overflow-scrolling: touch; }
+        .prod-card { background: var(--card-bg); border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; border: 1px solid var(--border); overflow: hidden; cursor: pointer; min-height: 50px; }
+        .prod-info { flex: 1; padding: 8px; display: flex; flex-direction: column; justify-content: center; }
+        .prod-info b { font-size: 14px; display: block; color: white; margin-bottom: 2px; }
+        .prod-add-btn { width: 45px; background: #222; color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 20px; border-left: 1px solid var(--border); }
+        .prod-add-btn:active { background: #333; }
+        .prod-card.disabled { opacity: 0.6; filter: grayscale(100%); pointer-events: none; border-color: #555; background: #111; }
+        .tag-sold-out { color: #ff5252; font-weight: bold; font-size: 10px; background: rgba(255, 82, 82, 0.1); padding: 2px 5px; border-radius: 4px; border: 1px solid #ff5252; margin-top: 3px; display: inline-block; }
+        .cart-side { width: 38%; min-width: 130px; max-width: 400px; background: #111; display: flex; flex-direction: column; z-index: 10; border-left: 2px solid #333; }
+        @media (min-width: 768px) { .cart-side { width: 350px; min-width: 350px; } .prod-info b { font-size: 16px; } }
+        .cart-header { padding: 10px; background: #222; border-bottom: 1px solid #333; text-align: center; font-weight: bold; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: auto; min-height: 50px; }
+        #cart-total-display { font-size: 20px; color: var(--gold); text-shadow: 0 0 5px rgba(255, 215, 0, 0.4); margin-top: 2px; display: block; }
+        .cart-list { flex: 1; overflow-y: auto; padding: 5px; background: #121212; }
+        .cart-item { padding: 8px; border-bottom: 1px solid #333; background: #1e1e1e; margin-bottom: 5px; border-radius: 4px; border-left: 4px solid transparent; }
+        .cart-row-top { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+        .cart-prod-name { font-size: 13px; font-weight: bold; color: #fff; line-height: 1.2; }
+        .cart-controls { display: flex; align-items: center; gap: 5px; width: 100%; justify-content: space-between; margin-top: 2px; }
+        .qty-box { display: flex; align-items: center; background: #333; border-radius: 12px; padding: 1px 3px; border: 1px solid #555; }
+        .btn-qty { width: 22px; height: 22px; border-radius: 50%; border: none; background: #555; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .qty-val { margin: 0 6px; font-weight: bold; font-size: 13px; min-width: 10px; text-align: center; }
+        .btn-trash { color: #ff5252; padding: 4px; cursor: pointer; font-size: 14px; }
+        .btn-edit-cart { color: #ffa000; padding: 4px; cursor: pointer; font-size: 14px; }
+        .tag-add { color: var(--add-color); font-weight: bold; font-size: 10px; }
+        .tag-rem { color: var(--rem-color); font-weight: bold; font-size: 10px; }
+        .turno-row { display: flex; gap: 2px; margin-top: 6px; }
+        .turno-btn { flex: 1; padding: 6px 0; font-size: 10px; border: 1px solid #444; background: #222; border-radius: 3px; color: #888; text-align: center; font-weight: bold; cursor: pointer; }
+        .turno-btn.active { background: var(--gold); color: black; border-color: var(--gold); }
+        .cart-footer { padding: 10px; background: #111; border-top: 2px solid #333; }
+        .btn-confirm-order { background: linear-gradient(135deg, #00c853, #1b5e20); color: white; border: none; font-weight: 900; font-size: 16px; width: 100%; padding: 15px; border-radius: 8px; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 200, 83, 0.4); letter-spacing: 1px; }
+        .btn-confirm-order:active { transform: scale(0.98); }
+        #table-actions { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 400; justify-content: center; align-items: center; flex-direction: column; gap: 12px; padding: 15px; overflow-y: auto; }
+        .action-big-btn { width: 85%; max-width: 380px; padding: 18px; font-size: 1.15em; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .btn-take-order { background: var(--add-color); color: black; }
+        .btn-ask-bill { background: var(--gold); color: black; font-size: 1.2em; border: 2px solid #ffca28; }
+        .btn-move-table { background: #1976d2; color: white; border: 2px solid #0d47a1; }
+        .btn-close-modal { background: #444; color: white; margin-top: 10px; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.96); display: none; align-items: center; justify-content: center; z-index: 4000; padding: 20px; }
+        .modal-content { background: #1e1e1e; width: 100%; max-width: 400px; border-radius: 20px; border: 1px solid #444; display: flex; flex-direction: column; max-height: 90vh; }
+        .modal-body { padding: 20px; overflow-y: auto; }
+        .ing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .ing-btn { padding: 12px; border: 1px solid #444; border-radius: 8px; text-align: center; font-size: 13px; background: #2a2a2a; color: #ccc; cursor: pointer; }
+        .ing-btn.active-add { background: var(--add-color); color: black; border-color: var(--add-color); font-weight: bold; }
+        .ing-btn.active-rem { background: var(--rem-color); color: white; border-color: var(--rem-color); font-weight: bold; }
+        
+        /* Stirata Manuale */
+        .bigusto-row { background:#333; padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #444; }
+        .bigusto-row-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+        .bigusto-select { width:100%; padding:12px; background:#222; border:1px solid #555; color:white; border-radius:5px; font-size:16px; margin-bottom:5px; }
+        .btn-mod-half { background: #ff9800; color: black; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .half-mods-display { font-size: 13px; color: var(--add-color); min-height: 15px; font-style: italic; margin-top:5px; font-weight:bold; }
+        .btn-toggle-manual { background: none; border: 1px solid #777; color: #aaa; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 0.8em; }
+        .btn-toggle-manual.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .manual-fields { display: none; gap: 5px; margin-top: 5px; margin-bottom: 10px; }
+        .manual-input { width: 100%; padding: 12px; margin-bottom: 15px; background: #222; border: 1px solid #444; color: white; border-radius: 8px; font-size: 16px; }
+        
+        .footer-btns { display:flex; gap:10px; padding:15px; border-top:1px solid #333; }
+        .btn-full { flex:1; padding:15px; border-radius:10px; font-weight:bold; border:none; cursor:pointer; font-size:14px; }
+        .weight-row { display: none; background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; margin-bottom: 15px; text-align: center; }
+        .weight-input { width: 100%; padding: 12px; font-size: 22px; font-weight: bold; text-align: center; background: #111; border: 1px solid #555; color: white; border-radius: 6px; }
+        .price-edit-row { padding: 0 20px; margin-bottom: 15px; display:flex; align-items:center; justify-content:center; gap:10px; }
+        .toggle-switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--gold); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        @keyframes blink { 50% { opacity: 0.7; } }
+        .global-turno-row { display: flex; gap: 5px; width: 100%; }
+        .global-turno-btn { flex: 1; padding: 10px 0; border: 1px solid #444; background: #222; border-radius: 6px; color: #888; font-weight: 900; font-size: 14px; cursor: pointer; transition: 0.2s; }
+        .global-turno-btn.active { background: #1e88e5; color: white; border-color: #1e88e5; box-shadow: 0 2px 8px rgba(30, 136, 229, 0.4); }
+        #g-turno-2.active { background: #fdd835; color: black; border-color: #fdd835; box-shadow: 0 2px 8px rgba(253, 216, 53, 0.4); }
+        #g-turno-3.active { background: #8e24aa; color: white; border-color: #8e24aa; box-shadow: 0 2px 8px rgba(142, 36, 170, 0.4); }
+        #g-turno-4.active { background: #43a047; color: white; border-color: #43a047; box-shadow: 0 2px 8px rgba(67, 160, 71, 0.4); }
+        #g-turno-5.active { background: #fb8c00; color: white; border-color: #fb8c00; box-shadow: 0 2px 8px rgba(251, 140, 0, 0.4); }
+    </style>
+</head>
+<body>
+
+    <div id="auth-loading" style="position: fixed; inset: 0; background: #111; z-index: 999999; display: flex; justify-content: center; align-items: center; color: white; flex-direction: column;">
+        <i class="fa fa-spinner fa-spin fa-3x" style="color: var(--primary); margin-bottom: 20px;"></i>
+        <h3>Connessione sicura in corso...</h3>
+    </div>
+
+    <div id="login-overlay" style="display:none;">
+        <div class="login-box">
+            <h2 style="color:var(--primary); margin-top:0;">LOGIN SALA</h2>
+            <p>Inserisci il tuo PIN personale</p>
+            <input type="tel" id="pin-input" class="login-input" placeholder="****" maxlength="4" inputmode="numeric" autocomplete="one-time-code" style="-webkit-text-security: disc;" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+            <button class="btn-login" onclick="checkLogin()">ACCEDI</button>
+        </div>
+    </div>
+
+    <div id="view-map">
+        <header>
+            <div class="app-title"><span id="brand-name-sala">MIMMO</span> <span style="color:var(--primary)">v16.9</span> <span id="waiter-display" style="color:var(--add-color); margin-left:10px;"></span></div>
+            <div class="search-container">
+                <i class="fa fa-search" style="color:#666"></i>
+                <input type="text" id="table-search" placeholder="Cerca..." onkeyup="filterTables(this.value)">
+            </div>
+            
+            <button onclick="window.open('/agenda.html', '_blank')" style="background: var(--primary); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); margin-right: 5px;">
+                <i class="fa-solid fa-book"></i>
+            </button>
+
+            <button onclick="logoutStaff()" style="background:none; border:none; color:var(--rem-color); font-size:20px; padding:0 5px; margin-right:5px;"><i class="fa-solid fa-right-from-bracket"></i></button>
+            <button class="btn-add-table" onclick="createNewTable()">+</button>
+        </header>
+        <div class="grid" id="table-grid"></div>
+    </div>
+
+    <!-- MODALE AZIONI TAVOLO CON RIEPILOGO ETICHETTE AGENDA -->
+    <div id="table-actions">
+        <h1 id="action-title" style="color:white; font-size:2.4em; margin:0; text-align:center;">TAVOLO X</h1>
+        <div id="action-tags-box" style="width:85%; max-width:380px; display:none; flex-direction:column; gap:8px; background:#161922; border:1px solid #333; border-radius:12px; padding:12px; text-align:center;"></div>
+        <button class="action-big-btn btn-take-order" onclick="goToOrder()"><i class="fa fa-pencil-alt"></i> MODIFICA ORDINE</button>
+        <button class="action-big-btn btn-ask-bill" onclick="richiediConto()"><i class="fa fa-money-bill-wave"></i> RICHIEDI CONTO</button>
+        <button class="action-big-btn btn-move-table" onclick="spostaTavolo()"><i class="fa fa-exchange-alt"></i> SPOSTA TAVOLO</button>
+        <button class="action-big-btn" onclick="liberaTavolo()" style="background:#d32f2f; color:white;"><i class="fa fa-trash"></i> LIBERA TAVOLO</button>
+        <button class="action-big-btn btn-close-modal" onclick="closeActions()">CHIUDI</button>
+    </div>
+
+    <div id="waiter-screen" class="waiter-screen">
+        <div class="screen-header">
+            <button class="btn-close" onclick="closeWaiter()"><i class="fa fa-chevron-left"></i> INDIETRO</button>
+            <b id="screen-title" style="font-size:18px;">TAVOLO --</b>
+            <div style="width: 70px;"></div>
+        </div>
+        <!-- BARRA ETICHETTE AGENDA SEMPRE VISIBILE DENTRO IL TAVOLO -->
+        <div id="waiter-tags-bar"></div>
+
+        <div class="main-layout">
+            <div class="menu-side">
+                <div style="background: #1a1a1a; padding: 8px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div class="coperti-selector">
+                            <button class="btn-round" onclick="changeCoperti(-1)">-</button>
+                            <input type="number" id="num-coperti" value="2" min="1" onchange="setCopertiManuale(this.value)" style="width: 45px; background: transparent; border: none; color: white; font-weight: bold; font-size: 18px; text-align: center; outline: none; padding: 0;"> 
+                            <i class="fa fa-user" style="color:#aaa; margin-right: 5px;"></i>
+                            <button class="btn-round" onclick="changeCoperti(1)">+</button>
+                        </div>
+                        <button onclick="aggiungiQuotaGiroPizza()" class="btn-stirata" style="background: linear-gradient(45deg, #4caf50, #8bc34a);"><i class="fa fa-users"></i> QUOTA GIRO</button>
+                        <button onclick="aggiungiPizzaAlGiro()" class="btn-stirata" style="background: linear-gradient(45deg, #e53935, #ff5252);"><i class="fa fa-pizza-slice"></i> SFORNA 0€</button>
+                        <button onclick="openStirataModal()" class="btn-stirata"><i class="fa fa-star"></i> STIRATA</button>
+                    </div>
+                    <div class="global-turno-row">
+                        <button class="global-turno-btn active" id="g-turno-1" onclick="setGlobalTurno(1)">T1</button>
+                        <button class="global-turno-btn" id="g-turno-2" onclick="setGlobalTurno(2)">T2</button>
+                        <button class="global-turno-btn" id="g-turno-3" onclick="setGlobalTurno(3)">T3</button>
+                        <button class="global-turno-btn" id="g-turno-4" onclick="setGlobalTurno(4)">T4</button>
+                        <button class="global-turno-btn" id="g-turno-5" onclick="setGlobalTurno(5)">T5</button>
+                    </div>
+                </div>
+                <div class="cat-row" id="cat-list"></div>
+                <div class="search-row">
+                    <input type="text" id="prod-search" placeholder="🔍 Cerca piatto..." onkeyup="renderProds(window.currentCat, this.value)" 
+                    style="width:100%; padding:10px; background:#222; border:1px solid #333; border-radius:8px; color:white; font-size:16px;">
+                    <button class="btn-manual-prod" onclick="openManualProductModal()">+ MANUALE</button>
+                </div>
+                <div id="prod-list" class="prod-list"></div>
+            </div>
+            <div id="cart-panel" class="cart-side">
+                <div class="cart-header">
+                    <span>TOTALE</span>
+                    <span id="cart-total-display">€0.00</span>
+                </div>
+                <div id="cart-list-ui" class="cart-list"></div>
+                <div class="cart-footer">
+                    <button class="btn-confirm-order" onclick="saveOrder()">INVIA ORDINE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-item" class="modal">
+        <div class="modal-content">
+            <h3 id="m-nome" style="margin:20px; color:var(--primary); text-align:center;"></h3>
+            <div id="weight-container" class="weight-row">
+                <label><i class="fa fa-balance-scale"></i> INSERISCI PESO (Kg)</label>
+                <input type="number" id="m-weight" class="weight-input" step="0.001" placeholder="0.000" oninput="updateLiveWeightPrice()">
+                <div style="margin-top:8px; font-size:18px; color:var(--add-color); font-weight:bold;">= € <span id="live-weight-price">0.00</span></div>
+            </div>
+            <div class="price-edit-row">
+                 <div>
+                     <label style="color:#aaa; font-weight:bold; font-size:10px;">PREZZO BASE €</label>
+                     <input type="number" id="m-price-edit" step="0.10" oninput="updateLiveWeightPrice()" style="width:100px; padding:10px; background:#222; border:1px solid #555; color:var(--gold); border-radius:8px; font-size:18px; font-weight:bold; text-align:center;">
+                 </div>
+                 <div style="display:flex; flex-direction:column; align-items:center;">
+                     <label style="color:#aaa; font-weight:bold; font-size:10px; margin-bottom:5px;">CALCOLA AL KG</label>
+                     <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-weight-check" onchange="toggleWeightInput()">
+                        <span class="slider"></span>
+                     </label>
+                 </div>
+            </div>
+            <div style="padding: 0 20px;">
+                <input type="text" id="ing-search" placeholder="🔍 Cerca ingrediente..." onkeyup="filterIngredients(this.value)" style="width:100%; padding:10px; background:#111; border:1px solid #444; border-radius:8px; color:white; font-size:14px;">
+            </div>
+            <div class="modal-body">
+                <div style="color:var(--add-color); font-weight:bold; margin-bottom:8px;">AGGIUNTE</div>
+                <div id="m-ings-add" class="ing-grid"></div>
+                <div style="color:var(--rem-color); font-weight:bold; margin-bottom:8px; margin-top:20px;">RIMOZIONI</div>
+                <div id="m-ings-rem" class="ing-grid"></div>
+                <input type="text" id="m-extra" placeholder="Note extra..." style="width:100%; padding:12px; background:#222; border:1px solid #444; border-radius:8px; color:white; margin-top:10px;">
+            </div>
+            <div class="footer-btns">
+                <button onclick="closeItemModal()" class="btn-full" style="background:#333; color:white;">ANNULLA</button>
+                <button onclick="saveCustomItem()" class="btn-full" style="background:var(--primary); color:white;">CONFERMA</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-manual-product" class="modal">
+        <div class="modal-content">
+            <h3 style="margin:20px; color:var(--gold); text-align:center;">Prodotto Manuale</h3>
+            <div class="modal-body">
+                <label class="manual-label">NOME PRODOTTO</label>
+                <input type="text" id="man-name" class="manual-input" placeholder="Es. Pasta al sugo">
+                <label class="manual-label">PREZZO (€)</label>
+                <input type="number" id="man-price" class="manual-input" placeholder="0.00" step="0.50">
+                <label class="manual-label">CATEGORIA (per stampa)</label>
+                <select id="man-cat" class="manual-input">
+                    <option value="pizza">🍕 Pizzeria</option>
+                    <option value="primo">👨‍🍳 Cucina</option>
+                    <option value="pescato">🐟 Pescato del Giorno</option>
+                    <option value="bibita">🍺 Bar</option>
+                </select>
+            </div>
+            <div class="footer-btns">
+                <button onclick="document.getElementById('modal-manual-product').style.display='none'" class="btn-full" style="background:#333; color:white;">ANNULLA</button>
+                <button onclick="addManualProduct()" class="btn-full" style="background:var(--gold); color:black;">AGGIUNGI</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-stirata" class="modal">
+        <div class="modal-content">
+            <h3 style="margin:20px; color:var(--gold); text-align:center;">Stirata Bi-Gusto</h3>
+            <div class="modal-body" style="padding-top:0;">
+                <div class="bigusto-row">
+                    <div class="bigusto-row-header">
+                        <span style="color:var(--gold); font-weight:bold;">1° GUSTO</span>
+                        <button class="btn-toggle-manual" onclick="toggleManual(1)" id="btn-man-1"><i class="fa fa-keyboard"></i></button>
+                    </div>
+                    <select id="bg-select-1" class="bigusto-select" onchange="updateBiGustoHalf(1)"></select>
+                    <div id="manual-1" class="manual-fields">
+                        <input type="text" id="bg-man-name-1" class="manual-input" placeholder="Gusto" style="width:70%; padding:10px;">
+                        <input type="number" id="bg-man-price-1" class="manual-input" placeholder="€" style="width:25%; padding:10px;">
+                    </div>
+                    <div id="bg-mods-1" class="half-mods-display"></div>
+                    <button id="btn-mod-1" class="btn-mod-half" onclick="editHalf(1)" disabled>✏️ AGGIUNTE/RIMOZIONI</button>
+                </div>
+                <div class="bigusto-row">
+                    <div class="bigusto-row-header">
+                        <span style="color:var(--gold); font-weight:bold;">2° GUSTO</span>
+                        <button class="btn-toggle-manual" onclick="toggleManual(2)" id="btn-man-2"><i class="fa fa-keyboard"></i></button>
+                    </div>
+                    <select id="bg-select-2" class="bigusto-select" onchange="updateBiGustoHalf(2)"></select>
+                    <div id="manual-2" class="manual-fields">
+                        <input type="text" id="bg-man-name-2" class="manual-input" placeholder="Gusto" style="width:70%; padding:10px;">
+                        <input type="number" id="bg-man-price-2" class="manual-input" placeholder="€" style="width:25%; padding:10px;">
+                    </div>
+                    <div id="bg-mods-2" class="half-mods-display"></div>
+                    <button id="btn-mod-2" class="btn-mod-half" onclick="editHalf(2)" disabled>✏️ AGGIUNTE/RIMOZIONI</button>
+                </div>
+                <textarea id="bg-main-note" placeholder="Note Generali Stirata..." style="width:100%; padding:10px; background:#222; border:1px solid #444; color:white; border-radius:5px; height:60px;"></textarea>
+            </div>
+            <div class="footer-btns">
+                <button onclick="document.getElementById('modal-stirata').style.display='none'" class="btn-full" style="background:#333; color:white;">ANNULLA</button>
+                <button id="btn-confirm-stirata" onclick="confirmStirata()" disabled class="btn-full" style="background:var(--gold); color:black; opacity:0.5;">OK - € <span id="bg-tot-price">0.00</span></button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { initializeFirestore, persistentLocalCache, collection, onSnapshot, doc, updateDoc, addDoc, getDocs, query, where, serverTimestamp, arrayUnion, deleteDoc, writeBatch, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // --- CONFIGURAZIONE NUOVO PROGETTO FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU", 
+            authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+            projectId: "gestionale-ristoranti-96c5b",
+            storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+            messagingSenderId: "234695436534", 
+            appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = initializeFirestore(app, { localCache: persistentLocalCache() });
+        const auth = getAuth(app);
+
+        function sbloccaAccessoSala() {
+            const loader = document.getElementById('auth-loading');
+            if (loader) loader.style.display = 'none';
+            const savedName = sessionStorage.getItem('sala_waiter_name');
+            if(savedName) {
+                document.getElementById('login-overlay').style.display = 'none';
+            } else {
+                document.getElementById('login-overlay').style.display = 'flex';
+            }
+        }
+
+        setTimeout(sbloccaAccessoSala, 2000);
+
+        signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026")
+            .then(() => {
+                sbloccaAccessoSala();
+            })
+            .catch(() => {
+                sbloccaAccessoSala();
+            });
+
+        let MENU=[], INGS=[], RIMS=[]; 
+        window.prezzoCopertoUnitario = 2.50;
+        window.carrello = [];
+        window.currentTurno = 1;
+        window.tavoliOccupati = {}; 
+        window.selT=null; window.currentDocId=null; window.currentCat=''; window.currentCoperti=2; 
+        window.tempItem={}; window.editingCartIndex = null;
+        window.groupedCartView = [];
+        window.currentWaiterName = ""; 
+        window.notifiedMessages = new Set(); 
+        window.prodottiOriginali = []; 
+        window.tempAdds = new Set();
+        window.tempRems = new Set();
+        window.customTables = new Set();
+
+        // Mappa colori etichette sincronizzata con Agenda
+        window.AGENDA_TAGS_MAP = {
+            '🎂 Compleanno': '#ec4899',
+            '🌾 Senza Glutine': '#eab308',
+            '🐶 Cane': '#8b5cf6',
+            '⭐ Cliente VIP': '#f97316',
+            '🥂 Evento / Torta': '#10b981',
+            '👶 Spazio Passeggino': '#06b6d4'
+        };
+        
+        let heartbeatInterval = null; 
+
+        // --- FUNZIONE GENERAZIONE BADGE ETICHETTE E DETTAGLI AGENDA ---
+        window.generaBadgeEtichetteSala = (ord) => {
+            if (!ord) return "";
+            let badges = [];
+
+            let nomeCli = (ord.nome || "").trim();
+            if (nomeCli && !nomeCli.toUpperCase().startsWith("TAVOLO")) {
+                badges.push(`<span class="sala-tag-pill" style="background:#334155;">👤 ${nomeCli.toUpperCase()}</span>`);
+            }
+            if (ord.area) {
+                badges.push(`<span class="sala-tag-pill" style="background:#0288d1;"><i class="fa fa-location-dot"></i> ${ord.area}</span>`);
+            }
+            if (ord.preferenza_servizio) {
+                badges.push(`<span class="sala-tag-pill" style="background:#6a1b9a;"><i class="fa fa-bell-concierge"></i> ${ord.preferenza_servizio}</span>`);
+            }
+            if (ord.bambini && parseInt(ord.bambini) > 0) {
+                badges.push(`<span class="sala-tag-pill" style="background:#00897b;">🧒 ${ord.bambini} Bamb.</span>`);
+            }
+            if (ord.seggioloni && parseInt(ord.seggioloni) > 0) {
+                badges.push(`<span class="sala-tag-pill" style="background:#f59e0b; color:#000;">👶 ${ord.seggioloni} Seggiolon${parseInt(ord.seggioloni) > 1 ? 'i' : 'e'}</span>`);
+            }
+            if (Array.isArray(ord.etichette) && ord.etichette.length > 0) {
+                ord.etichette.forEach(tagName => {
+                    const col = window.AGENDA_TAGS_MAP[tagName] || '#8b5cf6';
+                    badges.push(`<span class="sala-tag-pill" style="background:${col};">${tagName}</span>`);
+                });
+            }
+            if (ord.note_ordine && ord.note_ordine.trim() !== "") {
+                badges.push(`<span class="sala-tag-pill" style="background:#d32f2f; width:100%; justify-content:center; margin-top:2px;">📝 NOTE: ${ord.note_ordine}</span>`);
+            }
+
+            return badges.join('');
+        };
+
+        // --- FUNZIONE SCALA SCORTE INTELLIGENTE ---
+        window.scalaScorte = async (prodottiOrdinati, segno = -1) => {
+            if (!prodottiOrdinati || prodottiOrdinati.length === 0) return;
+            try {
+                const batch = writeBatch(db);
+                let ciSonoModifiche = false;
+                
+                prodottiOrdinati.forEach(p => {
+                    let itemsToScale = [];
+                    
+                    if (p.componenti && p.componenti.length > 0) {
+                        p.componenti.forEach(compId => {
+                            const prodOriginale = MENU.find(m => m.id === compId);
+                            if (prodOriginale) itemsToScale.push(prodOriginale);
+                        });
+                    } else {
+                        const prodOriginale = MENU.find(m => m.nome === p.nome);
+                        if (prodOriginale) itemsToScale.push(prodOriginale);
+                    }
+
+                    itemsToScale.forEach(prodOriginale => {
+                        if (prodOriginale.scorta !== null && prodOriginale.scorta !== undefined && prodOriginale.scorta !== "") {
+                            const prodRef = doc(db, "prodotti", prodOriginale.id);
+                            let qtaDaScalare = parseFloat(p.qta) || 1;
+                            if(p.componenti) qtaDaScalare = qtaDaScalare * 0.5; 
+                            
+                            batch.update(prodRef, { scorta: increment(qtaDaScalare * segno) });
+                            ciSonoModifiche = true;
+                        }
+                    });
+                });
+                
+                if (ciSonoModifiche) {
+                    await batch.commit();
+                }
+            } catch (e) {
+                console.error("Errore aggiornamento scorte:", e);
+            }
+        };
+
+        const baseTables = Array.from({length: 50}, (_, i) => (i + 1).toString());
+
+        window.biGustoData = { 
+            h1: {id:null, name:'', price:0, extraPrice:0, details:[], manual:false}, 
+            h2: {id:null, name:'', price:0, extraPrice:0, details:[], manual:false} 
+        };
+        window.modificationContext = 'CART'; 
+
+        const CATEGORY_ORDER = ['ant_pizzeria', 'ant_ristorante', 'pizza', 'speciale', 'stirata', 'gf', 'primo', 'secondo', 'contorno', 'pescato', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro'];
+        const CATEGORY_LABELS = { 'pizza': 'Pizze', 'stirata': 'Stirate', 'gf': 'Gluten Free', 'speciale': 'Speciali', 'ant_pizzeria': 'Ant. Pizzeria', 'ant_ristorante': 'Ant. Ristorante', 'primo': 'Primi', 'secondo': 'Secondi', 'contorno': 'Contorni', 'pescato': 'Pescato del Giorno', 'dolce': 'Dolci', 'bibita': 'Bibite', 'bibita_lattina': 'Lattine', 'bibita_bottiglia': 'Bottiglie', 'birra': 'Birre', 'vino': 'Vini', 'amaro': 'Amari/Caffè' };
+        
+        function vibrateShort() { if (navigator.vibrate) navigator.vibrate(50); }
+        function vibrateAlert() { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 500]); }
+
+        function requestNotificationPermission() {
+            if ("Notification" in window) {
+                if (Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
+            }
+        }
+
+        function notifyWaiter(title, body) {
+            vibrateAlert();
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(title, { body: body, icon: "https://cdn-icons-png.flaticon.com/512/3132/3132693.png" });
+            } else {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: title, text: body, showConfirmButton: false, timer: 6000, background: '#111', color: '#fff' });
+            }
+        }
+
+        function startHeartbeat(docId) {
+            if (docId === "admin_temp") return; 
+
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            const beat = async () => {
+                try { await updateDoc(doc(db, "dipendenti", docId), { last_active: serverTimestamp() }); } 
+                catch (e) { console.error("Errore heartbeat", e); }
+            };
+            beat(); 
+            heartbeatInterval = setInterval(beat, 15000);
+        }
+
+        window.checkLogin = async () => {
+            const input = document.getElementById('pin-input').value.trim();
+            if(!input || input.length !== 4) return Swal.fire("Inserisci un PIN valido.");
+            
+            if (input === "0000") {
+                forceLogin("ADMIN (Emergenza)", "admin_temp");
+                return;
+            }
+
+            try {
+                Swal.showLoading();
+                const snap = await getDocs(collection(db, "dipendenti"));
+                
+                let userFound = null;
+                let docId = null;
+                let userData = null;
+
+                snap.forEach(docSnap => { 
+                    const data = docSnap.data(); 
+                    if (String(data.pin).trim() === input) {
+                        userFound = data.nome;
+                        docId = docSnap.id;
+                        userData = data;
+                    }
+                });
+
+                if (userFound && docId) {
+                    if (userData.last_active) {
+                        const now = new Date();
+                        const lastSeen = userData.last_active.toDate ? userData.last_active.toDate() : new Date(userData.last_active);
+                        const diffSeconds = (now - lastSeen) / 1000;
+                        if (diffSeconds < 40) {
+                            return Swal.fire({
+                                icon: 'error', title: 'Già Connesso',
+                                text: `Utente ${userFound} attivo ${Math.round(diffSeconds)}s fa.`,
+                                footer: 'Attendi 40 secondi o usa PIN 0000.'
+                            });
+                        }
+                    }
+                    forceLogin(userFound, docId);
+                } else {
+                    Swal.fire({icon: 'error', title: 'PIN non trovato'});
+                    document.getElementById('pin-input').value = "";
+                }
+            } catch(e) { 
+                console.error(e); 
+                Swal.fire("Errore di connessione", "Riprova o usa PIN 0000. " + e.message, "error"); 
+            }
+        };
+
+        function forceLogin(name, id) {
+            window.currentWaiterName = name;
+            sessionStorage.setItem('sala_waiter_name', name);
+            sessionStorage.setItem('sala_waiter_id', id);
+            document.getElementById('waiter-display').innerText = name;
+            document.getElementById('login-overlay').style.display = 'none'; 
+            document.getElementById('pin-input').value = "";
+            Swal.fire({title: `Benvenuto ${name}!`, icon: 'success', timer: 1000, showConfirmButton: false});
+
+            try {
+                if(id !== "admin_temp") startHeartbeat(id);
+                requestNotificationPermission();
+            } catch(err) { console.warn("Heartbeat fallito", err); }
+        }
+
+        window.logoutStaff = async () => {
+            const docId = sessionStorage.getItem('sala_waiter_id');
+            if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+            if(docId && docId !== "admin_temp") {
+                try { await updateDoc(doc(db, "dipendenti", docId), { last_active: new Date(0) }); } catch(e) {}
+            }
+            sessionStorage.removeItem('sala_waiter_name');
+            sessionStorage.removeItem('sala_waiter_id');
+            window.currentWaiterName = "";
+            document.getElementById('pin-input').value = "";
+            document.getElementById('login-overlay').style.display = 'flex';
+        };
+
+        async function init() {
+            const savedName = sessionStorage.getItem('sala_waiter_name');
+            const savedId = sessionStorage.getItem('sala_waiter_id');
+            
+            if(savedName && savedId) {
+                window.currentWaiterName = savedName;
+                document.getElementById('waiter-display').innerText = window.currentWaiterName;
+                document.getElementById('login-overlay').style.display = 'none';
+                
+                if (savedId !== "admin_temp") {
+                    startHeartbeat(savedId); 
+                }
+                requestNotificationPermission();
+            }
+            renderTables();
+            
+            const inputs = ['bg-man-name-1', 'bg-man-price-1', 'bg-man-name-2', 'bg-man-price-2'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) {
+                    el.addEventListener('input', () => {
+                        if(id.includes('1')) updateBiGustoHalf(1);
+                        else updateBiGustoHalf(2);
+                    });
+                }
+            });
+
+            // 1. Impostazioni locale (Nome e Prezzo Coperto)
+            onSnapshot(doc(db, "impostazioni", "negozio"), (snap) => {
+                if (snap.exists()) {
+                    const d = snap.data();
+                    if (d.prezzo_coperto !== undefined) window.prezzoCopertoUnitario = parseFloat(d.prezzo_coperto);
+                    if (d.nome && document.getElementById('brand-name-sala')) {
+                        document.getElementById('brand-name-sala').innerText = d.nome.toUpperCase();
+                    }
+                }
+            });
+
+            // 2. Sincronizzazione Colori Etichette Agenda
+            onSnapshot(doc(db, "impostazioni", "agenda_tags"), (snap) => {
+                if (snap.exists() && Array.isArray(snap.data().lista)) {
+                    snap.data().lista.forEach(t => {
+                        window.AGENDA_TAGS_MAP[t.nome] = t.colore || '#8b5cf6';
+                    });
+                    renderTables();
+                }
+            });
+
+            let isFirstLoad = true;
+            onSnapshot(query(collection(db, "ordini"), where("stato", "in", ["In attesa", "In forno", "Pronto", "Prenotato"])), (snapshot) => {
+                window.tavoliOccupati = {}; 
+                snapshot.forEach(d => { if(d.data().tavolo) window.tavoliOccupati[d.data().tavolo] = { id: d.id, ...d.data() }; });
+                if (!isFirstLoad) {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'modified') {
+                            const data = change.doc.data();
+                            const oid = change.doc.id;
+                            const tavolo = data.tavolo;
+                            if (data.messaggio_cucina && data.messaggio_cucina.includes("✅ PRONTO")) {
+                                const msgKey = oid + "_" + data.messaggio_cucina;
+                                if (!window.notifiedMessages.has(msgKey)) { window.notifiedMessages.add(msgKey); notifyWaiter(`🍽️ Tavolo ${tavolo}`, data.messaggio_cucina); }
+                            } else if (data.stato === "Pronto") {
+                                const msgKey = oid + "_TUTTO_PRONTO";
+                                if (!window.notifiedMessages.has(msgKey)) { window.notifiedMessages.add(msgKey); notifyWaiter(`✅ Tavolo ${tavolo}`, "Tutto l'ordine è PRONTO in cucina!"); }
+                            }
+                        }
+                    });
+                }
+                isFirstLoad = false; renderTables();
+            });
+
+            // 3. Prodotti in Tempo Reale con filtro visibilità Palmare Sala
+            onSnapshot(collection(db, "prodotti"), (s) => {
+                MENU = s.docs
+                    .map(d => ({...d.data(), id: d.id}))
+                    .filter(p => p.disponibile_palmare !== false);
+                
+                if (MENU.length > 0) {
+                    if (!window.currentCat) {
+                        const availableCats = new Set(MENU.map(p => p.cat));
+                        const firstOrdered = CATEGORY_ORDER.find(c => availableCats.has(c));
+                        window.currentCat = firstOrdered || MENU[0].cat;
+                    }
+                    
+                    renderCats(); 
+                    if (window.currentCat) {
+                        renderProds(window.currentCat); 
+                    }
+                }
+            });
+
+            // 4. Ingredienti e Rimozioni in Tempo Reale
+            onSnapshot(collection(db, "ingredienti"), (s) => {
+                INGS = s.docs.map(d => d.data()).sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+            });
+            onSnapshot(collection(db, "rimozioni"), (s) => {
+                RIMS = s.docs.map(d => d.data()).sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+            });
+
+            setInterval(renderTables, 60000);
+        }
+        
+        window.raggruppaProdottiStorni = (prodotti) => {
+            const raggruppati = [];
+            if(!prodotti) return [];
+            prodotti.forEach(p => {
+                let cleanDet = p.dettagli || '';
+                if(cleanDet === 'Normale' || cleanDet === 'Manuale') cleanDet = '';
+                let compareDet = cleanDet.replace(/<[^>]*>?/gm, '').trim();
+                const key = `${p.nome}|${compareDet}|${p.turno || 1}|${p.prezzo}`;
+                
+                const esistente = raggruppati.find(x => x._groupKey === key);
+                if(esistente) { 
+                    esistente.qta += parseFloat(p.qta || 1); 
+                } else { 
+                    raggruppati.push({ ...p, qta: parseFloat(p.qta || 1), dettagli: cleanDet, _groupKey: key, turno: p.turno || 1 }); 
+                }
+            });
+            return raggruppati;
+        };
+
+        window.saveOrder = async () => { 
+            if(!window.carrello.length) return Swal.fire("Carrello vuoto!");
+            
+            const btn = document.querySelector('.btn-confirm-order') || document.querySelector('.send-btn');
+            if(btn) { btn.disabled = true; btn.innerText = "INVIO..."; }
+            
+            try {
+                const now = new Date();
+                const dataLocale = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+                
+                window.carrello.forEach(p => { if(p.cat) p.cat = p.cat.toLowerCase(); });
+                window.carrello.sort((a,b) => (a.turno || 1) - (b.turno || 1));
+
+                const totProdotti = window.carrello.reduce((s,i) => s + (i.prezzo*i.qta), 0);
+                const totCoperti = (window.currentCoperti || 0) * window.prezzoCopertoUnitario;
+                const totaleFinale = totProdotti + totCoperti;
+                const operatore = sessionStorage.getItem('sala_waiter_name') || "Palmare Sala";
+
+                // Mantiene tutti i metadati e le etichette inserite dall'Agenda
+                const occ = window.tavoliOccupati[window.selT] || {};
+                const oldNome = occ.nome || ("TAVOLO " + window.selT);
+                const oldCognome = occ.cognome || "";
+                const oldNote = occ.note_ordine || "";
+                const oldOrario = occ.orario || "";
+                const oldTel = occ.telefono || "";
+                const oldAdulti = occ.adulti || 0;
+                const oldBambini = occ.bambini || 0;
+                const oldSeggioloni = occ.seggioloni || 0;
+                const oldEtichette = Array.isArray(occ.etichette) ? occ.etichette : [];
+                const oldArea = occ.area || "";
+                const oldPrefServizio = occ.preferenza_servizio || "";
+                const oldTurnoAgenda = occ.turno || "";
+
+                const commonData = { 
+                    tavolo: window.selT, 
+                    coperti: window.currentCoperti, 
+                    prodotti: window.carrello, 
+                    tipo: 'SALA', 
+                    totale: totaleFinale, 
+                    stato: "In forno", 
+                    data_ritiro: occ.data_ritiro || dataLocale, 
+                    nome: oldNome,
+                    cognome: oldCognome,
+                    operatore: operatore,
+                    note_ordine: oldNote,
+                    orario: oldOrario,
+                    telefono: oldTel,
+                    adulti: oldAdulti,
+                    bambini: oldBambini,
+                    seggioloni: oldSeggioloni,
+                    etichette: oldEtichette,
+                    area: oldArea,
+                    preferenza_servizio: oldPrefServizio,
+                    turno: oldTurnoAgenda
+                };
+
+                const isFirstOrder = (!window.prodottiOriginali || window.prodottiOriginali.length === 0);
+
+                if (window.currentDocId && !isFirstOrder) {
+                    const docRef = doc(db, "ordini", window.currentDocId);
+                    const oldGrouped = window.raggruppaProdottiStorni(window.prodottiOriginali || []);
+                    const newGrouped = window.raggruppaProdottiStorni(window.carrello);
+                    
+                    let tempRemoves = [];
+                    let tempAdds = [];
+
+                    oldGrouped.forEach(oldItem => {
+                        const newItem = newGrouped.find(n => n._groupKey === oldItem._groupKey);
+                        const newQty = newItem ? newItem.qta : 0;
+                        if (newQty < oldItem.qta) tempRemoves.push({ ...oldItem, qta: oldItem.qta - newQty });
+                    });
+                    newGrouped.forEach(newItem => {
+                        const oldItem = oldGrouped.find(o => o._groupKey === newItem._groupKey);
+                        const oldQty = oldItem ? oldItem.qta : 0;
+                        if (newItem.qta > oldQty) tempAdds.push({ ...newItem, qta: newItem.qta - oldQty });
+                    });
+
+                    let movesObj = [];
+                    let movesStr = [];
+                    for (let r of tempRemoves) {
+                        const match = tempAdds.find(a => a.qta > 0 && a.nome === r.nome && a.dettagli === r.dettagli && a.prezzo === r.prezzo);
+                        if(match) {
+                            const movedQty = Math.min(r.qta, match.qta);
+                            movesObj.push({ ...r, qta: movedQty, oldTurn: r.turno, newTurn: match.turno });
+                            movesStr.push(`${movedQty}x ${r.nome} (T${r.turno}->T${match.turno})`);
+                            r.qta -= movedQty; match.qta -= movedQty;
+                        }
+                    }
+
+                    let storniStr = [], storniObj = [], aggiunteStr = [], aggiunteObj = [];
+                    tempRemoves.forEach(r => { if(r.qta > 0) { storniStr.push(`${r.qta}x ${r.nome}`); storniObj.push(r); } });
+                    tempAdds.forEach(a => { if(a.qta > 0) { aggiunteStr.push(`${a.qta}x ${a.nome}`); aggiunteObj.push(a); } });
+
+                    let finalMsgParts = [];
+                    if (storniStr.length > 0) finalMsgParts.push("STORNO: " + storniStr.join(", "));
+                    if (aggiunteStr.length > 0) finalMsgParts.push("AGGIUNTA: " + aggiunteStr.join(", "));
+                    if (movesStr.length > 0) finalMsgParts.push("CAMBIO TURNO: " + movesStr.join(", "));
+
+                    if (finalMsgParts.length > 0) {
+                        commonData.messaggio_cucina = finalMsgParts.join(" | ");
+                        commonData.timestamp_messaggio = serverTimestamp();
+                        commonData.ultime_aggiunte_real = aggiunteObj;
+                        commonData.ultimi_storni_real = storniObj;
+                        commonData.ultimi_spostamenti_real = movesObj;
+                    }
+
+                    await updateDoc(docRef, commonData);
+
+                    if (tempAdds.length > 0) await window.scalaScorte(tempAdds, -1);
+                    if (tempRemoves.length > 0) await window.scalaScorte(tempRemoves, 1);
+
+                } else {
+                    commonData.data_invio = serverTimestamp();
+                    if (window.currentDocId && isFirstOrder) {
+                        await updateDoc(doc(db, "ordini", window.currentDocId), commonData);
+                    } else {
+                        await addDoc(collection(db, "ordini"), commonData);
+                    }
+                    await window.scalaScorte(window.carrello, -1);
+                }
+
+                if (typeof closeWaiter === "function") closeWaiter(); 
+                Swal.fire({icon:'success', title:'Inviato!', timer:800, showConfirmButton:false});
+
+            } catch(e) {
+                console.error(e);
+                Swal.fire("Errore", e.message, "error");
+            } finally {
+                if(btn) { btn.disabled = false; btn.innerText = "INVIA ORDINE"; }
+            }
+        };
+
+        window.renderTables = () => {
+            const grid = document.getElementById('table-grid');
+            if(!grid) return;
+            
+            let allIds = new Set(baseTables);
+            window.customTables.forEach(t => allIds.add(t));
+            if(window.tavoliOccupati) { Object.keys(window.tavoliOccupati).forEach(k => allIds.add(k)); }
+            
+            let list = Array.from(allIds).map(id => ({ id, data: window.tavoliOccupati ? window.tavoliOccupati[id] : null }));
+            
+            list.sort((a,b) => {
+                return String(a.id).localeCompare(String(b.id), undefined, {numeric: true});
+            });
+            
+            grid.innerHTML = "";
+            list.forEach(it => {
+                const div = document.createElement('div'); 
+                let statusClass = ''; let statusText = 'LIBERO';
+                if(it.data) {
+                    let nomeCliente = (it.data.nome || "").trim().toUpperCase();
+                    if (!nomeCliente || nomeCliente.startsWith("TAVOLO")) {
+                        nomeCliente = "OCCUPATO";
+                    } else {
+                        nomeCliente = nomeCliente.split(" ")[0]; 
+                    }
+
+                    const hasTags = (Array.isArray(it.data.etichette) && it.data.etichette.length > 0) || it.data.preferenza_servizio || (it.data.seggioloni && parseInt(it.data.seggioloni) > 0);
+                    const tagIcon = hasTags ? '🏷️ ' : '';
+
+                    if (it.data.stato === 'Prenotato') { statusClass = 'reserved'; statusText = '📅 ' + tagIcon + nomeCliente; } 
+                    else if (it.data.preconto_stampato === true || it.data.richiesta_conto === true) { statusClass = 'occupied paying'; statusText = '💳 ' + tagIcon + nomeCliente; } 
+                    else if (it.data.stato === 'Pronto') { statusClass = 'occupied ready'; statusText = '🔔 ' + tagIcon + nomeCliente; } 
+                    else { statusClass = 'occupied'; statusText = tagIcon + nomeCliente; }
+                }
+                div.className = `table ${statusClass}`;
+                let content = `<div class="status-strip"></div>`;
+                if(it.data) {
+                    let min = 0;
+                    if(it.data.data_invio) {
+                        const time = it.data.data_invio.toDate ? it.data.data_invio.toDate() : new Date(it.data.data_invio);
+                        min = Math.floor((Date.now() - time) / 60000);
+                    }
+                    const calledTurns = it.data.turni_chiamati || [];
+                    const currentMsg = it.data.messaggio_cucina || "";
+                    let turniAttiviNelTavolo = new Set();
+                    if (it.data.prodotti && Array.isArray(it.data.prodotti)) { it.data.prodotti.forEach(p => turniAttiviNelTavolo.add(parseInt(p.turno || 1))); }
+                    const getBtn = (turn) => {
+                        const isCalled = calledTurns.includes(turn) || currentMsg.includes(`TURNO ${turn}`);
+                        const hasProductsForThisTurn = turniAttiviNelTavolo.has(turn);
+                        const isDisabled = !hasProductsForThisTurn && !isCalled;
+                        let className = `btn-map-action btn-map-t${turn}`;
+                        if (isCalled) className += ' sent';
+                        if (isDisabled) className += ' disabled-turn'; 
+                        const clickAction = isDisabled ? '' : `onclick="callCourseFromMap(event, '${it.data.id}', '${it.id}', 'VIA T${turn}')"`;
+                        return `<button class="${className}" ${clickAction}>${turn}</button>`;
+                    };
+                    if (it.data.stato === 'Prenotato') {
+                        content += `<div class="t-info" onclick="openTableActions('${it.id}')"><span class="timer"><i class="fa fa-clock"></i> ${it.data.orario || '--:--'}</span><span class="coperti-badge">${it.data.coperti} <i class="fa fa-user"></i></span></div><div class="t-main" onclick="openTableActions('${it.id}')">${it.id}</div><div class="t-status" style="margin-bottom:10px; color:#ffb300;">${statusText}</div>`;
+                    } else {
+                        content += `<div class="t-info" onclick="openTableActions('${it.id}')"><span class="timer"><i class="fa fa-clock"></i> ${min}m</span><span class="coperti-badge">${it.data.coperti} <i class="fa fa-user"></i></span></div><div class="t-main" onclick="openTableActions('${it.id}')">${it.id}</div><div class="t-status" style="color:#ccc;">${statusText}</div><div class="map-actions">${getBtn(1)} ${getBtn(2)} ${getBtn(3)} ${getBtn(4)} ${getBtn(5)}</div>`;
+                    }
+                } else { 
+                    content += `<div class="t-info"><span></span></div><div class="t-main">${it.id}</div><div class="t-status">${statusText}</div>`;
+                    div.onclick = () => window.openOrder(it.id); 
+                }
+                div.innerHTML = content; grid.appendChild(div);
+            });
+        };
+
+        window.openTableActions = (tableId) => {
+             const data = window.tavoliOccupati[tableId];
+             if(data) {
+                 window.selT = tableId; window.currentDocId = data.id;
+                 if(data.stato === 'Pronto') { updateDoc(doc(db, "ordini", data.id), { stato: "In forno" }).catch(e=>console.log(e)); }
+                 
+                 const btnTakeOrder = document.querySelector('.btn-take-order');
+                 
+                 if(data.stato === 'Prenotato' || !data.prodotti || data.prodotti.length === 0) { 
+                     document.getElementById('action-title').innerText = `TAVOLO ${tableId} (PRENOTATO)`; 
+                     btnTakeOrder.innerHTML = '<i class="fa fa-plus"></i> APRI E PRENDI ORDINE';
+                     btnTakeOrder.style.background = "var(--add-color)";
+                     btnTakeOrder.style.color = "black";
+                 } else { 
+                     document.getElementById('action-title').innerText = `TAVOLO ${tableId}`; 
+                     btnTakeOrder.innerHTML = '<i class="fa fa-pencil-alt"></i> MODIFICA ORDINE';
+                     btnTakeOrder.style.background = "#ff9800";
+                     btnTakeOrder.style.color = "black";
+                 }
+
+                 // Mostra le etichette e informazioni Agenda nel popup azioni tavolo
+                 const tagsBox = document.getElementById('action-tags-box');
+                 const badgesHtml = window.generaBadgeEtichetteSala(data);
+                 if (tagsBox) {
+                     if (badgesHtml) {
+                         tagsBox.style.display = 'flex';
+                         tagsBox.innerHTML = `
+                             <div style="font-size:11px; color:#94a3b8; font-weight:bold; text-transform:uppercase;">Dettagli ed Etichette Agenda</div>
+                             <div style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center;">${badgesHtml}</div>
+                         `;
+                     } else {
+                         tagsBox.style.display = 'none';
+                     }
+                 }
+                 
+                 document.getElementById('table-actions').style.display = 'flex';
+             } else { window.openOrder(tableId); }
+        };
+
+        window.closeActions = () => { document.getElementById('table-actions').style.display = 'none'; };
+        window.goToOrder = () => { window.closeActions(); window.openOrder(window.selT); };
+
+        window.spostaTavolo = async () => {
+            const oldTavolo = window.selT;
+            const docId = window.currentDocId;
+
+            if (!docId) {
+                return Swal.fire("Attenzione", "Questo tavolo è libero, non puoi spostarlo.", "warning");
+            }
+
+            const { value: newTavolo } = await Swal.fire({
+                title: 'Sposta Tavolo',
+                input: 'text',
+                inputLabel: `Sposta il tavolo ${oldTavolo} al numero/nome:`,
+                inputPlaceholder: 'Es. 15, Veranda...',
+                showCancelButton: true,
+                confirmButtonColor: '#1976d2',
+                confirmButtonText: 'Sposta',
+                cancelButtonText: 'Annulla'
+            });
+
+            if (newTavolo && newTavolo.trim() !== '') {
+                const newTavoloUpper = newTavolo.trim().toUpperCase();
+                
+                if (window.tavoliOccupati[newTavoloUpper]) {
+                    return Swal.fire("Attenzione", `Il tavolo ${newTavoloUpper} è già occupato!`, "error");
+                }
+
+                try {
+                    Swal.fire({title: 'Spostamento in corso...', didOpen: () => Swal.showLoading()});
+                    
+                    const updateData = { 
+                        tavolo: newTavoloUpper,
+                        messaggio_cucina: `⚠️ SPOSTATO DA TAV ${oldTavolo} A TAV ${newTavoloUpper}`,
+                        timestamp_messaggio: serverTimestamp()
+                    };
+
+                    const occ = window.tavoliOccupati[oldTavolo];
+                    if (occ && occ.nome === ("TAVOLO " + oldTavolo)) {
+                        updateData.nome = "TAVOLO " + newTavoloUpper;
+                    }
+
+                    await updateDoc(doc(db, "ordini", docId), updateData);
+                    window.customTables.add(newTavoloUpper);
+                    
+                    Swal.fire({icon: 'success', title: 'Tavolo Spostato!', timer: 1500, showConfirmButton: false});
+                    window.closeActions();
+                    
+                } catch (e) {
+                    console.error(e);
+                    Swal.fire("Errore", e.message, "error");
+                }
+            }
+        };
+
+        window.callCourseFromMap = async (e, docId, tavolo, msg) => { 
+            e.stopPropagation(); 
+            const turnNum = parseInt(msg.replace('VIA T', '')); 
+            const fullMsg = `VIA TURNO ${turnNum}`; 
+            if(confirm(`Dare il ${msg} al TAVOLO ${tavolo}?`)) { vibrateShort(); await updateDoc(doc(db, "ordini", docId), { messaggio_cucina: fullMsg, timestamp_messaggio: serverTimestamp(), turni_chiamati: arrayUnion(turnNum) }); } 
+        };
+
+        window.richiediConto = async () => {
+             if(confirm(`Inviare richiesta CONTO per il tavolo ${window.selT}?`)) {
+                try { await updateDoc(doc(db, "ordini", window.currentDocId), { richiesta_conto: true, messaggio_cucina: "⚠️ TAVOLO " + window.selT + ": RICHIESTA CONTO", timestamp_messaggio: serverTimestamp() }); vibrateShort(); window.closeActions(); } 
+                catch (e) { console.error("Errore:", e); alert("Errore di connessione!"); }
+             }
+        };
+
+        window.openOrder = (n) => {
+            window.selT = n; const occ = window.tavoliOccupati ? window.tavoliOccupati[n] : null; window.currentDocId = occ ? occ.id : null;
+            if (occ && occ.stato === 'Pronto') { updateDoc(doc(db, "ordini", occ.id), { stato: "In forno" }).catch(e=>console.log(e)); }
+            window.carrello = occ && occ.prodotti ? JSON.parse(JSON.stringify(occ.prodotti)) : [];
+            window.prodottiOriginali = occ && occ.prodotti ? JSON.parse(JSON.stringify(occ.prodotti)) : [];
+            window.currentCoperti = occ ? (occ.coperti || 2) : 2;
+            window.setGlobalTurno(1); 
+            document.getElementById('screen-title').innerText = `TAVOLO ${n}`;
+            document.getElementById('num-coperti').value = window.currentCoperti;
+
+            // Mostra la barra con le etichette dell'Agenda in cima alla schermata di presa comanda
+            const waiterTagsBar = document.getElementById('waiter-tags-bar');
+            if (waiterTagsBar) {
+                const badgesHtml = window.generaBadgeEtichetteSala(occ);
+                if (badgesHtml) {
+                    waiterTagsBar.style.display = 'flex';
+                    waiterTagsBar.innerHTML = badgesHtml;
+                } else {
+                    waiterTagsBar.style.display = 'none';
+                    waiterTagsBar.innerHTML = '';
+                }
+            }
+
+            renderCats();
+            document.getElementById('waiter-screen').style.display = 'flex';
+            updateCartUI();
+        };
+
+        window.renderCats = () => {
+            const container = document.getElementById('cat-list');
+            if(!container) return; container.innerHTML = "";
+            const activeCats = CATEGORY_ORDER.filter(c => MENU.some(p => p.cat === c));
+            if(activeCats.length > 0 && !activeCats.includes(window.currentCat)) { window.currentCat = activeCats[0]; }
+            activeCats.forEach(cat => {
+                const btn = document.createElement('div');
+                const label = CATEGORY_LABELS[cat] || cat.toUpperCase();
+                const activeClass = (cat === window.currentCat) ? 'active' : '';
+                btn.className = `cat-pill ${activeClass}`; btn.innerText = label;
+                btn.onclick = () => { window.currentCat = cat; renderCats(); renderProds(cat); vibrateShort(); };
+                container.appendChild(btn);
+            });
+        };
+        
+        window.closeWaiter = () => { document.getElementById('waiter-screen').style.display = 'none'; window.selT = null; window.currentDocId = null; };
+        
+        window.liberaTavolo = async () => {
+            if (!window.currentDocId) { alert("Il tavolo è già vuoto o non ha un ordine attivo."); window.closeActions(); return; }
+            if (confirm("Confermi di voler LIBERARE il tavolo? L'ordine verrà archiviato.")) {
+                try {
+                    await updateDoc(doc(db, "ordini", window.currentDocId), { 
+                        stato: "Consegnato", 
+                        data_chiusura: serverTimestamp(),
+                        messaggio_cucina: null, 
+                        richiesta_conto: false
+                    }); 
+                    vibrateShort(); window.closeActions(); 
+                } catch (error) { console.error("Errore:", error); alert("Errore: " + error.message); }
+            }
+        };
+
+        window.changeCoperti = (v) => { 
+            window.currentCoperti = Math.max(1, window.currentCoperti + v); 
+            document.getElementById('num-coperti').value = window.currentCoperti;
+            vibrateShort(); updateCartUI(); 
+        };
+
+        window.setCopertiManuale = (val) => {
+            let num = parseInt(val);
+            if (isNaN(num) || num < 1) num = 1;
+            window.currentCoperti = num;
+            document.getElementById('num-coperti').value = window.currentCoperti;
+            vibrateShort(); updateCartUI();
+        };
+
+        window.renderProds = (c, search = "") => {
+            const container = document.getElementById('prod-list'); container.innerHTML = "";
+            let items = search ? MENU.filter(p => (p.nome || '').toLowerCase().includes(search.toLowerCase())) : MENU.filter(p => p.cat === c);
+            items.sort((a,b) => parseFloat(a.prezzo) - parseFloat(b.prezzo));
+            
+            items.forEach(p => {
+                const isScortaEsaurita = p.scorta !== null && p.scorta !== undefined && p.scorta !== "" && p.scorta <= 0;
+                const isSoldOut = p.attivo === false || isScortaEsaurita; 
+                
+                const disabledClass = isSoldOut ? 'disabled' : ''; 
+                const soldOutHtml = isSoldOut ? '<br><span class="tag-sold-out">ESAURITO</span>' : '';
+                const scortaHtml = (p.scorta !== null && p.scorta !== undefined && p.scorta !== "" && p.scorta > 0) ? ` <span style="color:#ff9800; font-weight:bold; font-size:0.9em;">(Rimasti: ${p.scorta})</span>` : '';
+
+                const div = document.createElement('div'); div.className = `prod-card ${disabledClass}`;
+                div.innerHTML = `<div class="prod-info" onclick="openItemModal('${p.id}')"><b>${p.nome}</b><small>€${parseFloat(p.prezzo).toFixed(2)} ${p.isPeso?'/Kg':''}${scortaHtml}</small>${soldOutHtml}</div><div class="prod-add-btn" onclick="quickAdd('${p.id}')">+</div>`;
+                container.appendChild(div);
+            });
+        };
+
+        window.quickAdd = (id) => { 
+            const p = MENU.find(x=>x.id===id); 
+            if(p.isPeso === true) { openItemModal(id); return; }
+            let details = 'Normale'; if(p.cat === 'gf') details = '<span class="tag-gf">❌🌾 GLUTEN FREE</span>';
+            window.carrello.push({...p, qta:1, dettagli: details, turno: window.currentTurno, isPeso: false}); 
+            vibrateShort(); updateCartUI(); 
+        };
+
+        window.openManualProductModal = () => { 
+            window.editingCartIndex = null; 
+            document.getElementById('man-name').value = ""; 
+            document.getElementById('man-price').value = ""; 
+            document.getElementById('man-cat').value = "primo";
+            document.getElementById('modal-manual-product').style.display = 'flex'; 
+        };
+
+        window.addManualProduct = () => {
+            const name = document.getElementById('man-name').value; 
+            const price = parseFloat(document.getElementById('man-price').value); 
+            
+            let rawCat = document.getElementById('man-cat').value;
+            let finalCat = 'varie';
+            if (rawCat === 'pizzeria' || rawCat === 'pizza') finalCat = 'pizza';
+            else if (rawCat === 'cucina' || rawCat === 'primo') finalCat = 'primo';
+            else if (rawCat === 'bar' || rawCat === 'bibita') finalCat = 'bibita';
+            else finalCat = rawCat;
+
+            if(!name || isNaN(price)) return alert("Inserisci nome e prezzo validi.");
+            
+            if (window.editingCartIndex !== null && window.editingCartIndex !== undefined) {
+                window.carrello[window.editingCartIndex].nome = name;
+                window.carrello[window.editingCartIndex].prezzo = price;
+                window.carrello[window.editingCartIndex].cat = finalCat;
+                window.editingCartIndex = null; 
+            } else {
+                const newItem = { 
+                    id: 'MANUAL_' + Date.now(), 
+                    nome: name, 
+                    prezzo: price, 
+                    qta: 1, 
+                    cat: finalCat, 
+                    dettagli: 'Manuale', 
+                    turno: window.currentTurno, 
+                    isPeso: false 
+                };
+                window.carrello.push(newItem); 
+            }
+            
+            document.getElementById('modal-manual-product').style.display = 'none'; 
+            window.updateCartUI();
+        };
+
+        window.toggleWeightInput = () => {
+            const isChecked = document.getElementById('toggle-weight-check').checked;
+            document.getElementById('weight-container').style.display = isChecked ? 'block' : 'none';
+            if(isChecked) { setTimeout(() => document.getElementById('m-weight').focus(), 100); window.updateLiveWeightPrice(); }
+        };
+
+        window.updateLiveWeightPrice = () => {
+            const weight = parseFloat(document.getElementById('m-weight').value) || 0; const basePrice = parseFloat(document.getElementById('m-price-edit').value) || 0; const total = weight * basePrice;
+            document.getElementById('live-weight-price').innerText = total.toFixed(2);
+        };
+
+        window.openItemModal = (id) => {
+            const p = MENU.find(x => x.id === id) || { id:'MANUAL_TEMP', nome:'Manuale', cat:'stirata', prezzo:0 }; 
+            window.tempItem = { ...p }; window.modificationContext = 'CART'; window.editingCartIndex = null;
+            window.tempAdds.clear(); window.tempRems.clear();
+            const noIngCats = ['bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro', 'dolce', 'caffe'];
+            const hide = noIngCats.includes(p.cat);
+            document.getElementById('ing-search').parentElement.style.display = hide ? 'none' : 'block';
+            document.getElementById('m-ings-add').style.display = hide ? 'none' : 'grid';
+            document.getElementById('m-ings-add').previousElementSibling.style.display = hide ? 'none' : 'block';
+            document.getElementById('m-ings-rem').style.display = hide ? 'none' : 'grid';
+            document.getElementById('m-ings-rem').previousElementSibling.style.display = hide ? 'none' : 'block';
+            document.getElementById('m-nome').innerText = p.nome;
+            const isAlKg = p.isPeso === true;
+            document.getElementById('toggle-weight-check').checked = isAlKg;
+            document.getElementById('m-weight').value = ""; if (isAlKg) document.getElementById('m-weight').placeholder = "Es. 0.500";
+            document.getElementById('live-weight-price').innerText = "0.00";
+            document.getElementById('m-price-edit').value = parseFloat(p.prezzo).toFixed(2);
+            window.toggleWeightInput(); 
+            document.getElementById('ing-search').value = ""; renderIngredientsModal(); 
+            document.getElementById('m-extra').value = "";
+            document.getElementById('modal-item').style.display = 'flex';
+        };
+
+        window.findCartIndex = (groupItem) => {
+            for (let i = window.carrello.length - 1; i >= 0; i--) {
+                const c = window.carrello[i];
+                
+                let cDet = c.dettagli || ''; 
+                if(cDet === 'Normale' || cDet === 'Manuale') cDet = '';
+                
+                let gDet = groupItem.dettagli || ''; 
+                if(gDet === 'Normale' || gDet === 'Manuale') gDet = '';
+                
+                if (c.nome === groupItem.nome && cDet === gDet && c.turno === groupItem.turno) { 
+                    return i; 
+                }
+            } 
+            return -1;
+        };
+
+        window.editGroupItem = (groupIndex) => { const idx = window.findCartIndex(window.groupedCartView[groupIndex]); if (idx > -1) editCartItem(idx); };
+
+        window.editCartItem = (index) => {
+            const item = window.carrello[index]; 
+            window.editingCartIndex = index; 
+
+            if (item.dettagli === 'Manuale' || (item.id && String(item.id).startsWith('MANUAL_'))) {
+                document.getElementById('man-name').value = item.nome;
+                document.getElementById('man-price').value = item.prezzo;
+                
+                let catSelect = item.cat;
+                if(!['pizza','primo','pescato','bibita'].includes(catSelect)) catSelect = 'primo';
+                document.getElementById('man-cat').value = catSelect;
+                
+                document.getElementById('modal-manual-product').style.display = 'flex';
+                return;
+            }
+
+            if(item.cat === 'stirata' && item.biGustoRaw) {
+                window.biGustoData = JSON.parse(JSON.stringify(item.biGustoRaw));
+                const ps = MENU.filter(p => p.cat === 'stirata'); ps.sort((a,b)=>a.nome.localeCompare(b.nome));
+                const options = `<option value="">-- Seleziona Gusto --</option>` + ps.map(p => {
+                    const disabledAttr = p.attivo === false ? 'disabled' : ''; const label = p.nome + (p.attivo === false ? ' (ESAURITO)' : ` (€${parseFloat(p.prezzo).toFixed(2)})`);
+                    return `<option value="${p.id}" ${disabledAttr}>${label}</option>`;
+                }).join('');
+                document.getElementById('bg-select-1').innerHTML = options; document.getElementById('bg-select-2').innerHTML = options;
+                
+                const h1 = window.biGustoData.h1; const h2 = window.biGustoData.h2;
+                toggleManual(1, h1.manual);
+                if(h1.manual) { document.getElementById('bg-man-name-1').value = h1.name; document.getElementById('bg-man-price-1').value = h1.price; }
+                else { document.getElementById('bg-select-1').value = h1.id || ""; }
+
+                toggleManual(2, h2.manual);
+                if(h2.manual) { document.getElementById('bg-man-name-2').value = h2.name; document.getElementById('bg-man-price-2').value = h2.price; }
+                else { document.getElementById('bg-select-2').value = h2.id || ""; }
+
+                document.getElementById('bg-mods-1').innerHTML = h1.details.join(' ');
+                document.getElementById('bg-mods-2').innerHTML = h2.details.join(' ');
+                document.getElementById('bg-main-note').value = item.biGustoRaw.note || "";
+                document.getElementById('btn-mod-1').disabled = !(h1.id || h1.manual);
+                document.getElementById('btn-mod-2').disabled = !(h2.id || h2.manual);
+                
+                updateBiGustoPrice();
+                document.getElementById('modal-stirata').style.display = 'flex';
+            } 
+            else {
+                let originalProd = MENU.find(p => p.nome === item.nome);
+                window.tempAdds.clear(); window.tempRems.clear();
+                const currentDetails = item.dettagli || "";
+                INGS.forEach(i => { if(currentDetails.includes(`+${i.nome}`)) window.tempAdds.add(i.nome); });
+                
+                const potentialRemovals = [...(originalProd?.ingredienti || []), ...RIMS.map(r=>r.nome)];
+                potentialRemovals.forEach(rName => { if(currentDetails.includes(`-${rName}`)) window.tempRems.add(rName); });
+
+                let basePriceToDisplay = 0;
+                if (originalProd) {
+                    basePriceToDisplay = parseFloat(originalProd.prezzo);
+                    window.tempItem = { ...originalProd };
+                    if(item.cat) window.tempItem.cat = item.cat; 
+                } else {
+                    let currentTotal = parseFloat(item.prezzo);
+                    let extrasTotal = 0;
+                    window.tempAdds.forEach(name => {
+                        const ing = INGS.find(x => x.nome === name);
+                        if(ing) extrasTotal += parseFloat(ing.prezzo || 0);
+                    });
+                    basePriceToDisplay = currentTotal - extrasTotal;
+                    if(basePriceToDisplay < 0) basePriceToDisplay = 0; 
+                    window.tempItem = { ...item }; 
+                }
+
+                window.modificationContext = 'CART_EDIT';
+                
+                const noIngCats = ['bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro', 'dolce', 'caffe'];
+                const hide = noIngCats.includes(window.tempItem.cat);
+                
+                document.getElementById('ing-search').parentElement.style.display = hide ? 'none' : 'block';
+                document.getElementById('m-ings-add').style.display = hide ? 'none' : 'grid';
+                document.getElementById('m-ings-add').previousElementSibling.style.display = hide ? 'none' : 'block';
+                document.getElementById('m-ings-rem').style.display = hide ? 'none' : 'grid';
+                document.getElementById('m-ings-rem').previousElementSibling.style.display = hide ? 'none' : 'block';
+                document.getElementById('m-nome').innerText = "Modifica: " + item.nome;
+                
+                const wasAlKg = (item.isPeso === true);
+                document.getElementById('toggle-weight-check').checked = wasAlKg;
+                
+                if (wasAlKg) { 
+                    document.getElementById('m-weight').value = item.qta || ""; 
+                    document.getElementById('m-price-edit').value = basePriceToDisplay.toFixed(2); 
+                } else { 
+                    document.getElementById('m-weight').value = ""; 
+                    document.getElementById('m-price-edit').value = basePriceToDisplay.toFixed(2); 
+                }
+                
+                window.toggleWeightInput();
+                document.getElementById('ing-search').value = ""; 
+                renderIngredientsModal(); 
+                
+                let cleanNote = currentDetails
+                    .replace(/<span class="tag-add">.*?<\/span>/g, '')
+                    .replace(/<span class="tag-rem">.*?<\/span>/g, '')
+                    .replace(/<span class="tag-gf">.*?<\/span>/g, '')
+                    .replace(/<br>.*?Kg<\/span>/g, '') 
+                    .trim();
+                
+                if (cleanNote === 'Normale' || cleanNote === 'Manuale') {
+                    cleanNote = '';
+                }
+                
+                document.getElementById('m-extra').value = cleanNote;
+                document.getElementById('modal-item').style.display = 'flex';
+            }
+        };
+
+        window.toggleAdd = (name, btn) => {
+            if(window.tempAdds.has(name)) { window.tempAdds.delete(name); btn.classList.remove('active-add'); } 
+            else { window.tempAdds.add(name); btn.classList.add('active-add'); }
+        };
+
+        window.toggleRem = (name, btn) => {
+            if(window.tempRems.has(name)) { window.tempRems.delete(name); btn.classList.remove('active-rem'); } 
+            else { window.tempRems.add(name); btn.classList.add('active-rem'); }
+        };
+
+        window.filterIngredients = (val) => { renderIngredientsModal(val.toLowerCase()); };
+
+        window.renderIngredientsModal = (filter = "") => {
+            const addContainer = document.getElementById('m-ings-add'); 
+            const remContainer = document.getElementById('m-ings-rem');
+            const filteredIngs = INGS.filter(i => (i.nome || '').toLowerCase().includes(filter));
+            addContainer.innerHTML = filteredIngs.map(i => {
+                const isActive = window.tempAdds.has(i.nome) ? 'active-add' : '';
+                return `<div class="ing-btn ${isActive}" onclick="toggleAdd('${i.nome.replace(/'/g, "\\'")}', this)">${i.nome}</div>`;
+            }).join('');
+            let sourceRemovals = [];
+            if (window.tempItem.ingredienti && Array.isArray(window.tempItem.ingredienti) && window.tempItem.ingredienti.length > 0) { sourceRemovals = window.tempItem.ingredienti.map(ingName => ({ nome: ingName })); } else { sourceRemovals = RIMS; }
+            const filteredRims = sourceRemovals.filter(r => (r.nome || '').toLowerCase().includes(filter));
+            remContainer.innerHTML = filteredRims.map(r => {
+                const isActive = window.tempRems.has(r.nome) ? 'active-rem' : '';
+                return `<div class="ing-btn ${isActive}" onclick="toggleRem('${r.nome.replace(/'/g, "\\'")}', this)">${r.nome}</div>`;
+            }).join('');
+        };
+
+        window.closeItemModal = () => {
+            document.getElementById('modal-item').style.display = 'none';
+            if(window.modificationContext.startsWith('BG_')) document.getElementById('modal-stirata').style.display = 'flex';
+        };
+
+        window.saveCustomItem = () => {
+            const isWeightActive = document.getElementById('toggle-weight-check').checked;
+            let pesoMoltiplicatore = 1; let pesoString = "";
+            if (isWeightActive) {
+                const val = document.getElementById('m-weight').value;
+                if (!val || parseFloat(val) <= 0) { alert("Inserisci un peso valido!"); return; }
+                pesoMoltiplicatore = parseFloat(val);
+                pesoString = ` <br><span style="color:var(--gold)">⚖️ Peso: ${pesoMoltiplicatore.toFixed(3)} Kg</span>`;
+            }
+            
+            let det = []; 
+            let extra = 0;
+            
+            if(window.tempItem.cat === 'gf') det.push('<span class="tag-gf">❌🌾 GLUTEN FREE</span>');
+            
+            window.tempAdds.forEach(name => { 
+                det.push(`<span class="tag-add">+${name}</span>`); 
+                const ing = INGS.find(x => x.nome.trim().toLowerCase() === name.trim().toLowerCase()); 
+                if(ing) extra += parseFloat(ing.prezzo || 0); 
+            });
+            
+            window.tempRems.forEach(name => { 
+                det.push(`<span class="tag-rem">-${name}</span>`); 
+                const rim = RIMS.find(r => r.nome.trim().toLowerCase() === name.trim().toLowerCase()); 
+                if(rim) { extra -= Math.abs(parseFloat(rim.prezzo || 0)); } 
+            });
+            
+            const note = document.getElementById('m-extra').value.trim();
+            if(note && note !== 'Normale' && note !== 'Manuale') det.push(note); 
+            if(pesoString) det.push(pesoString);
+            
+            let userBasePrice = parseFloat(document.getElementById('m-price-edit').value);
+            if(isNaN(userBasePrice)) userBasePrice = parseFloat(window.tempItem.prezzo);
+            
+            const finalPrice = isWeightActive ? userBasePrice : (userBasePrice + extra);
+            
+            if (window.modificationContext.startsWith('BG_')) {
+                const halfNum = window.modificationContext === 'BG_1' ? 1 : 2;
+                const halfKey = 'h' + halfNum;
+                window.biGustoData[halfKey].details = det;
+                window.biGustoData[halfKey].extraPrice = extra; 
+                document.getElementById(`bg-mods-${halfNum}`).innerHTML = det.join(' ');
+                updateBiGustoPrice();
+                document.getElementById('modal-item').style.display = 'none'; 
+                document.getElementById('modal-stirata').style.display = 'flex'; 
+            } else if (window.modificationContext === 'CART_EDIT') {
+                window.carrello[window.editingCartIndex] = { nome: window.tempItem.nome, prezzo: finalPrice, qta: isWeightActive ? pesoMoltiplicatore : 1, cat: window.tempItem.cat, turno: window.carrello[window.editingCartIndex].turno, dettagli: det.join(" "), isPeso: isWeightActive };
+                window.editingCartIndex = null; vibrateShort();
+                document.getElementById('modal-item').style.display = 'none'; updateCartUI();
+            } else {
+                window.carrello.push({ nome: window.tempItem.nome, prezzo: finalPrice, qta: isWeightActive ? pesoMoltiplicatore : 1, cat: window.tempItem.cat, turno: window.currentTurno, dettagli: det.join(" "), isPeso: isWeightActive });
+                vibrateShort();
+                document.getElementById('modal-item').style.display = 'none'; updateCartUI();
+            }
+        };
+
+        window.openStirataModal = () => {
+            window.biGustoData = { 
+                h1: {id:null, name:'', price:0, extraPrice:0, details:[], manual:false}, 
+                h2: {id:null, name:'', price:0, extraPrice:0, details:[], manual:false} 
+            };
+            window.editingCartIndex = null;
+            const ps = MENU.filter(p => p.cat === 'stirata'); ps.sort((a,b)=>a.nome.localeCompare(b.nome));
+            const options = `<option value="">-- Seleziona Gusto --</option>` + ps.map(p => {
+                const disabledAttr = p.attivo === false ? 'disabled' : ''; const label = p.nome + (p.attivo === false ? ' (ESAURITO)' : ` (€${parseFloat(p.prezzo).toFixed(2)})`);
+                return `<option value="${p.id}" ${disabledAttr}>${label}</option>`;
+            }).join('');
+            document.getElementById('bg-select-1').innerHTML = options; document.getElementById('bg-select-2').innerHTML = options;
+            
+            toggleManual(1, false); toggleManual(2, false);
+            
+            document.getElementById('bg-mods-1').innerHTML = ""; document.getElementById('bg-mods-2').innerHTML = "";
+            document.getElementById('bg-main-note').value = "";
+            document.getElementById('btn-mod-1').disabled = true; document.getElementById('btn-mod-2').disabled = true;
+            document.getElementById('bg-tot-price').innerText = "0.00";
+            document.getElementById('btn-confirm-stirata').disabled = true; document.getElementById('btn-confirm-stirata').style.opacity = 0.5;
+            document.getElementById('modal-stirata').style.display = 'flex';
+        };
+
+        window.toggleManual = (halfNum, forceState) => {
+            const isManual = forceState !== undefined ? forceState : !window.biGustoData['h'+halfNum].manual;
+            window.biGustoData['h'+halfNum].manual = isManual;
+            const btn = document.getElementById(`btn-man-${halfNum}`);
+            const select = document.getElementById(`bg-select-${halfNum}`);
+            const manualDiv = document.getElementById(`manual-${halfNum}`);
+            if(isManual) { btn.classList.add('active'); select.style.display='none'; manualDiv.style.display='flex'; } 
+            else { btn.classList.remove('active'); select.style.display='block'; manualDiv.style.display='none'; }
+            resetHalf(halfNum);
+        };
+
+        window.resetHalf = (num) => {
+            const halfKey = num === 1 ? 'h1' : 'h2';
+            window.biGustoData[halfKey].details = [];
+            window.biGustoData[halfKey].extraPrice = 0;
+            document.getElementById(`bg-mods-${num}`).innerText = "";
+            updateBiGustoHalf(num);
+        };
+
+        window.updateBiGustoHalf = (halfNum) => {
+            const isManual = window.biGustoData['h'+halfNum].manual;
+            const btnMod = document.getElementById(`btn-mod-${halfNum}`);
+            if (isManual) {
+                const name = document.getElementById(`bg-man-name-${halfNum}`).value;
+                const price = parseFloat(document.getElementById(`bg-man-price-${halfNum}`).value) || 0;
+                window.biGustoData['h'+halfNum].id = 'MANUAL_TEMP';
+                window.biGustoData['h'+halfNum].name = name;
+                window.biGustoData['h'+halfNum].price = price;
+                btnMod.disabled = false;
+            } else {
+                const select = document.getElementById(`bg-select-${halfNum}`);
+                const id = select.value;
+                if(id) {
+                    const p = MENU.find(x => x.id === id);
+                    window.biGustoData['h'+halfNum].id = p.id;
+                    window.biGustoData['h'+halfNum].name = p.nome;
+                    window.biGustoData['h'+halfNum].price = parseFloat(p.prezzo);
+                    btnMod.disabled = false;
+                } else {
+                    window.biGustoData['h'+halfNum].id = null;
+                    window.biGustoData['h'+halfNum].price = 0;
+                    btnMod.disabled = true;
+                }
+            }
+            updateBiGustoPrice();
+        };
+
+        window.editHalf = (halfNum) => {
+            const halfData = window.biGustoData['h'+halfNum]; if(!halfData.id) return;
+            let p;
+            if (halfData.manual) {
+                p = { id: 'MANUAL_TEMP', nome: halfData.name, cat: 'stirata', prezzo: 0 };
+            } else {
+                p = MENU.find(x => x.id === halfData.id);
+            }
+            window.tempItem = { ...p }; window.modificationContext = 'BG_' + halfNum; 
+            document.getElementById('m-price-edit').parentElement.style.display = 'none';
+            document.getElementById('weight-container').style.display = 'none';
+            window.tempAdds.clear(); window.tempRems.clear();
+            document.getElementById('m-nome').innerText = "Modifica Metà: " + p.nome;
+            document.getElementById('ing-search').value = ""; renderIngredientsModal(); 
+            document.getElementById('m-extra').value = ""; 
+            document.getElementById('modal-stirata').style.display = 'none';
+            document.getElementById('modal-item').style.display = 'flex';
+        };
+
+        window.updateBiGustoPrice = () => {
+            const d = window.biGustoData;
+            const basePrice = Math.max(d.h1.price, d.h2.price);
+            const totalExtra = d.h1.extraPrice + d.h2.extraPrice;
+            document.getElementById('bg-tot-price').innerText = (basePrice + totalExtra).toFixed(2);
+            const ready = (d.h1.id && d.h2.id) && (d.h1.manual ? (d.h1.name!=='') : true) && (d.h2.manual ? (d.h2.name!=='') : true);
+            const btn = document.getElementById('btn-confirm-stirata');
+            btn.disabled = !ready; btn.style.opacity = ready ? 1 : 0.5;
+        };
+
+        window.confirmStirata = () => {
+            const d = window.biGustoData;
+            const finalPrice = parseFloat(document.getElementById('bg-tot-price').innerText);
+            const mainNote = document.getElementById('bg-main-note').value;
+            d.note = mainNote; 
+            
+            let desc = `<b>1/2</b> ${d.h1.name}`; if(d.h1.details.length > 0) desc += ` <br>${d.h1.details.join(' ')}`;
+            desc += `<br><b>1/2</b> ${d.h2.name}`; if(d.h2.details.length > 0) desc += ` <br>${d.h2.details.join(' ')}`;
+            
+            if(mainNote) desc += `<br><b>Note:</b> ${mainNote}`;
+            
+            const componentiScorta = [];
+            if (!d.h1.manual && d.h1.id) componentiScorta.push(d.h1.id);
+            if (!d.h2.manual && d.h2.id) componentiScorta.push(d.h2.id);
+
+            const newItem = { 
+                nome: "STIRATA BI-GUSTO", 
+                prezzo: finalPrice, 
+                qta: 1, 
+                cat: 'stirata', 
+                turno: window.currentTurno, 
+                dettagli: desc, 
+                biGustoRaw: JSON.parse(JSON.stringify(d)), 
+                isPeso: false,
+                componenti: componentiScorta
+            };
+            
+            if(window.editingCartIndex !== null) { 
+                newItem.turno = window.carrello[window.editingCartIndex].turno; 
+                window.carrello[window.editingCartIndex] = newItem; 
+                window.editingCartIndex = null; 
+            } else { 
+                window.carrello.push(newItem); 
+            }
+            
+            vibrateShort(); document.getElementById('modal-stirata').style.display = 'none'; updateCartUI();
+        };
+
+        window.setGlobalTurno = (t) => {
+            window.currentTurno = t;
+            vibrateShort();
+            for(let i=1; i<=5; i++) {
+                const btn = document.getElementById(`g-turno-${i}`);
+                if(btn) {
+                    if(i === t) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                }
+            }
+        };
+        
+        window.updateCartUI = () => {
+            const list = document.getElementById('cart-list-ui');
+            let tot = 0;
+            window.carrello.sort((a,b) => (a.turno || 1) - (b.turno || 1));
+            window.groupedCartView = window.raggruppaProdottiStorni(window.carrello);
+            window.groupedCartView.forEach((item) => { tot += (item.prezzo * item.qta); });
+            const copertiCost = (window.currentCoperti || 0) * window.prezzoCopertoUnitario;
+            const totalWithCoperto = tot + copertiCost;
+            document.getElementById('cart-total-display').innerText = `€ ${totalWithCoperto.toFixed(2)}`;
+            const colors = ["", "#1e88e5", "#fdd835", "#8e24aa", "#43a047", "#fb8c00"];
+            
+            let htmlString = `<div class="cart-item" style="border-left:4px solid #aaa; background:#eee;"><div class="cart-row-top"><div class="cart-prod-name" style="color:#000;">COPERTO x ${window.currentCoperti}</div><div class="cart-controls"><b style="color:#333; font-size:13px;">€${copertiCost.toFixed(2)}</b></div></div></div>`;
+            window.groupedCartView.forEach((groupItem, idx) => {
+                const turnoColor = colors[groupItem.turno] || colors[1];
+                const displayQta = groupItem.isPeso ? groupItem.qta.toFixed(3) : groupItem.qta;
+                let detDaMostrare = groupItem.dettagli || ''; if(detDaMostrare === 'Normale') detDaMostrare = '';
+                htmlString += `<div class="cart-item" style="border-left-color:${turnoColor}"><div class="cart-row-top"><div class="cart-prod-name">${groupItem.nome}</div><div class="cart-controls"><div class="qty-box"><button class="btn-qty" onclick="changeGroupQty(${idx}, -1)">-</button><span class="qty-val" style="font-size:11px;">${displayQta}${groupItem.isPeso?'kg':''}</span><button class="btn-qty" onclick="changeGroupQty(${idx}, 1)">+</button></div><b style="color:var(--gold); font-size:13px; margin-right:5px;">€${parseFloat(groupItem.prezzo * groupItem.qta).toFixed(2)}</b><i class="fa fa-pencil btn-edit-cart" onclick="editGroupItem(${idx})"></i><i class="fa fa-trash btn-trash" onclick="removeGroup(${idx})"></i></div></div><div style="font-size:11px; margin-bottom:8px; line-height:1.3; color:#ccc;">${detDaMostrare}</div><div class="turno-row">${[1,2,3,4,5].map(t => `<div class="turno-btn ${groupItem.turno==t?'active':''}" onclick="setGroupTurno(${idx},${t})">${t}</div>`).join('')}</div></div>`;
+            });
+            list.innerHTML = htmlString;
+        };
+
+        window.changeGroupQty = (groupIndex, delta) => {
+            vibrateShort();
+            const groupItem = window.groupedCartView[groupIndex];
+            if(groupItem.isPeso) { alert("Per modificare il peso, usa il tasto rosso per eliminare e reinseriscilo."); return; }
+            if (delta > 0) { const newItem = { ...groupItem, qta: 1 }; delete newItem._groupKey; window.carrello.push(newItem); } 
+            else { const idx = window.findCartIndex(groupItem); if (idx > -1) window.carrello.splice(idx, 1); }
+            updateCartUI();
+        };
+
+        window.removeGroup = (groupIndex) => {
+            const item = window.groupedCartView[groupIndex]; if (!item) return;
+            Swal.fire({ title: 'Eliminare ' + item.nome + '?', text: "Rimuoverà l'intera riga dal carrello", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: 'Sì, elimina', cancelButtonText: 'Annulla' }).then((result) => {
+                if (result.isConfirmed) {
+                    window.carrello = window.carrello.filter(c => {
+                        let cDet = c.dettagli || ''; if(cDet === 'Normale' || cDet === 'Manuale') cDet = ''; 
+                        let gDet = item.dettagli || ''; if(gDet === 'Normale' || gDet === 'Manuale') gDet = '';
+                        return !(c.nome === item.nome && cDet === gDet && c.turno === item.turno);
+                    });
+                    updateCartUI();
+                }
+            });
+        };
+
+        window.aggiungiQuotaGiroPizza = async () => {
+            const { value: formValues } = await Swal.fire({
+                title: '🍕 Avvia Giro Pizza',
+                html:
+                    '<label style="color:#aaa; font-size:12px;">Numero Persone:</label>' +
+                    '<input id="swal-persone" type="number" class="swal2-input" placeholder="Persone" value="' + (window.currentCoperti || 2) + '">' +
+                    '<label style="color:#aaa; font-size:12px; margin-top:10px; display:block;">Prezzo a Persona (€):</label>' +
+                    '<input id="swal-prezzo" type="number" step="0.50" class="swal2-input" placeholder="Es. 15.00">',
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonColor: '#ffb300',
+                confirmButtonText: '<b style="color:black;">Aggiungi Quota</b>',
+                preConfirm: () => {
+                    return {
+                        persone: document.getElementById('swal-persone').value,
+                        prezzo: document.getElementById('swal-prezzo').value
+                    }
+                }
+            });
+
+            if (formValues && formValues.persone && formValues.prezzo) {
+                window.currentCoperti = 0;
+                const inputCoperti = document.getElementById('num-coperti');
+                if (inputCoperti) inputCoperti.value = 0;
+
+                window.carrello.push({
+                    nome: "MENU GIRO PIZZA",
+                    prezzo: parseFloat(formValues.prezzo),
+                    qta: parseInt(formValues.persone),
+                    cat: "varie", 
+                    dettagli: "Quota Giro Pizza (Coperti inclusi)",
+                    turno: window.currentTurno || 1,
+                    isPeso: false
+                });
+                
+                if(typeof window.updateCartUI === 'function') window.updateCartUI();
+                Swal.fire({icon: 'success', title: 'Giro Pizza Attivo', text: 'Quote aggiunte e coperti azzerati!', timer: 1500, showConfirmButton: false});
+            }
+        };
+
+        window.aggiungiPizzaAlGiro = () => {
+            let elementiAzzerati = 0;
+
+            window.carrello.forEach(p => {
+                if (p.nome !== "MENU GIRO PIZZA") {
+                    p.prezzo = 0.00;
+                    if (!p.dettagli.includes('[GIRO PIZZA]')) {
+                        if (p.dettagli === 'Normale' || p.dettagli === 'Manuale' || p.dettagli === '') {
+                            p.dettagli = '<span style="color:#ffb300; font-weight:bold;">[GIRO PIZZA]</span>';
+                        } else {
+                            p.dettagli += ' <span style="color:#ffb300; font-weight:bold;">[GIRO PIZZA]</span>';
+                        }
+                    }
+                    elementiAzzerati++;
+                }
+            });
+
+            window.currentCoperti = 0;
+            const inputCoperti = document.getElementById('num-coperti');
+            if (inputCoperti) {
+                if(inputCoperti.tagName === 'INPUT') inputCoperti.value = 0;
+                else inputCoperti.innerText = "0";
+            }
+
+            if (typeof window.updateCartUI === 'function') window.updateCartUI();
+            if (typeof vibrateShort === 'function') vibrateShort();
+            
+            if (elementiAzzerati > 0) {
+                Swal.fire({
+                    icon: 'success', 
+                    title: `Articoli Azzerati!`, 
+                    text: `Tutto a 0€ tranne le Quote Giro Pizza.`, 
+                    timer: 2000, 
+                    showConfirmButton: false
+                });
+            } else {
+                Swal.fire(
+                    "Carrello vuoto", 
+                    "Aggiungi prima le pizze o le bibite, poi premi Sforna 0€.", 
+                    "info"
+                );
+            }
+        };
+
+        window.setGroupTurno = (groupIndex, newTurno) => {
+            const groupItem = window.groupedCartView[groupIndex];
+            window.carrello.forEach(c => { 
+                let cDet = c.dettagli || ''; if(cDet === 'Normale' || cDet === 'Manuale') cDet = ''; 
+                let gDet = groupItem.dettagli || ''; if(gDet === 'Normale' || gDet === 'Manuale') gDet = '';
+                if (c.nome === groupItem.nome && cDet === gDet && c.turno === groupItem.turno) c.turno = newTurno; 
+            });
+            updateCartUI();
+        };
+
+        window.createNewTable = () => { const n = prompt("Nome/Numero del nuovo tavolo:"); if(n) { const name = n.toUpperCase(); window.customTables.add(name); renderTables(); window.openOrder(name); } };
+        window.filterTables = (v) => { document.querySelectorAll('.table').forEach(t => { const n = t.querySelector('.t-main').innerText; t.style.display = (!v || n.includes(v.toUpperCase())) ? 'flex' : 'none'; }); };
+
+        init();
+        
+        // 🛡️ PROTEZIONE CON URL SEGRETO
+        const params = new URLSearchParams(window.location.search);
+        const isDeveloper = params.get('mod') === 'admin';
+
+        if (!isDeveloper) {
+            document.addEventListener('contextmenu', event => event.preventDefault());
+            document.onkeydown = function(e) {
+                if(e.keyCode == 123) return false; 
+                if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
+                if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
+                if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
+            }
+        } else {
+            console.log("🔓 MODALITÀ SVILUPPATORE ATTIVA: Blocchi disabilitati.");
+        }
+        
+    </script>
+</body>
+</html>

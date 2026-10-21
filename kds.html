@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title id="app-title">KDS Cucina PRO</title>
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body { font-family: 'Roboto', sans-serif; margin: 0; padding: 0; background-color: #121212; color: white; overflow-x: hidden; }
+        
+        /* LIVELLO LOGIN SAAS */
+        #company-login-overlay { position:fixed; inset:0; background: linear-gradient(135deg, #111 0%, #222 100%); z-index:10000; display:none; justify-content:center; align-items:center; flex-direction:column; }
+        .login-box { background: #1e1e1e; padding: 40px; border-radius: 15px; border: 2px solid #ff9800; text-align: center; max-width: 400px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .login-input { width: 100%; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #444; background: #2c2c2c; color: white; font-size: 1.1em; outline: none; box-sizing: border-box; }
+        .login-input:focus { border-color: #ff9800; }
+        .btn-login { width: 100%; padding: 15px; background: #ff9800; color: black; border: none; border-radius: 8px; font-weight: 900; font-size: 1.2em; cursor: pointer; text-transform: uppercase; }
+
+        .top-bar { background: #1f1f1f; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .clock { font-size: 1.5em; font-weight: bold; color: #fff; }
+        .controls { display: flex; gap: 15px; align-items: center; }
+        .btn-top { background: #333; color: white; border: 1px solid #555; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-top.active { background: #00e676; color: black; border-color: #00e676; }
+        .btn-logout { background: #d32f2f; border-color: #b71c1c; }
+        
+        .select-reparto { background: #2c2c2c; color: #ff9800; border: 1px solid #ff9800; padding: 8px 15px; border-radius: 5px; font-weight: 900; font-size: 1em; cursor: pointer; outline: none; }
+
+        #kds-grid { display: flex; flex-wrap: wrap; gap: 15px; padding: 15px; align-content: flex-start; }
+        .kds-card { background: #1e1e1e; color: white; width: 320px; border: 3px solid #4caf50; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: transform 0.2s; }
+        .kds-card.status-forno { border-color: #29b6f6; } 
+        .kds-card.status-alert { border-color: #ff9800; } 
+        .kds-card.status-late { border-color: #f44336; animation: pulse-red 2s infinite; } 
+        .kds-header { padding: 8px 12px; font-weight: 900; font-size: 1.2em; text-align: center; color: black; background: #4caf50; display: flex; justify-content: space-between; align-items: center; }
+        .kds-card.status-forno .kds-header { background: #29b6f6; }
+        .kds-card.status-alert .kds-header { background: #ff9800; }
+        .kds-card.status-late .kds-header { background: #f44336; color: white; }
+        .kds-body { padding: 0; flex: 1; overflow-y: auto; max-height: 500px; }
+        .kds-info { font-size: 1.1em; font-weight: bold; padding: 10px; background: #2c2c2c; color: #fff; text-transform: uppercase; border-bottom: 1px solid #444; }
+        .turn-section { border-bottom: 2px solid #444; padding: 5px; background: #222; }
+        .turn-section.completed { background: #1b5e20; opacity: 0.7; }
+        .turn-header { display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; background: #333; border-radius: 4px; margin-bottom: 5px; }
+        .turn-title { font-weight: bold; color: #aaa; font-size: 0.9em; }
+        .turn-title.highlight { color: #ffea00; animation: blink 1s infinite; }
+        .btn-turn-ready { background: #444; border: 1px solid #555; color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; }
+        .btn-turn-ready:hover { background: #555; }
+        .turn-section.completed .btn-turn-ready { background: #00e676; color: black; border-color: #00e676; cursor: default; }
+        
+        .kds-item { font-size: 1.3em; padding: 8px 10px; line-height: 1.1; border-bottom: 1px dashed #333; cursor: pointer; transition: 0.2s; user-select: none; }
+        .kds-item:hover { background-color: rgba(255,255,255,0.05); }
+        .kds-item:active { transform: scale(0.98); }
+        .kds-item:last-child { border-bottom: none; }
+        .kds-item.item-done { opacity: 0.4; background-color: rgba(76, 175, 80, 0.1); border-left: 4px solid #4caf50; }
+        .kds-item.item-done .kds-name { text-decoration: line-through; color: #888; }
+        .kds-item.item-done .kds-qty { color: #555; }
+
+        .kds-qty { color: #81c784; font-weight: 900; margin-right: 5px; font-size: 1.1em; }
+        .kds-name { color: #eee; }
+        .kds-mod { display: block; font-size: 0.75em; color: #ff8a80; font-weight: bold; margin-top: 3px; padding-left: 25px; }
+        .tag-gf-warning { color: #ffd700; font-weight: bold; margin-left: 5px; border: 1px solid #ffd700; padding: 0 4px; border-radius: 3px; font-size: 0.6em; vertical-align: middle; }
+        .kds-footer { padding: 10px; background: #1a1a1a; border-top: 1px solid #333; }
+        .btn-action { width: 100%; padding: 12px; font-size: 1.1em; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; text-transform: uppercase; }
+        .btn-done { background: #333; color: white; border: 2px solid #555; }
+        .btn-done:hover { background: #4caf50; border-color: #4caf50; }
+        .via-badge { background: #ffea00; color: black; padding: 5px; text-align: center; font-weight: 900; margin: 10px; border-radius: 4px; animation: blink 1s infinite; font-size: 1.2em; border: 2px solid #fbc02d; }
+        
+        .highlight-item { background-color: rgba(255, 234, 0, 0.1); border-left: 4px solid #ffea00 !important; }
+        .agg-badge { color: #000; background: #ffea00; font-weight: 900; margin-left: 10px; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; animation: blink-bg 1s infinite; vertical-align: middle; }
+        
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); } 100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); } }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        @keyframes blink-bg { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <!-- SCHERMATA LOGIN SAAS -->
+    <div id="company-login-overlay">
+        <div class="login-box">
+            <i class="fa fa-tv" style="font-size: 50px; color: #ff9800; margin-bottom: 15px;"></i>
+            <h2 style="color: white; margin-top: 0;">SBLOCCO MONITOR</h2>
+            <p style="color: #aaa; font-size: 0.9em; margin-bottom: 25px;">Inserisci le credenziali del locale</p>
+            <input type="email" id="company-email" class="login-input" placeholder="Email Locale">
+            <input type="password" id="company-password" class="login-input" placeholder="Password" onkeypress="if(event.key === 'Enter') window.loginAzienda()">
+            <button class="btn-login" onclick="window.loginAzienda()">CONNETTI CUCINA</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div class="top-bar">
+        <div style="font-size:1.5em; font-weight:900; color:#ff9800; display: flex; align-items: center; gap: 10px;">
+            <i class="fa fa-fire"></i> <span id="nome-locale-kds">KDS PRO</span>
+            
+            <select id="filtro-reparto" class="select-reparto" onchange="cambiaReparto(this.value)">
+                <option value="tutti">🏪 TUTTI I REPARTI</option>
+                <option value="pizzeria">🍕 SOLO PIZZERIA</option>
+                <option value="cucina">👨‍🍳 CUCINA & FRITTI</option>
+                <option value="dolci">🍰 DOLCI</option>
+            </select>
+        </div>
+
+        <div class="clock" id="clock-display">00:00</div>
+        
+        <div class="controls">
+            <button class="btn-top active" id="btn-sound" onclick="toggleSound()">🔊 SUONO</button>
+            <button class="btn-top" onclick="toggleFullscreen()">⛶ FULL</button>
+            <button class="btn-top btn-logout" onclick="window.logoutKDS()" title="Disconnetti Monitor"><i class="fa-solid fa-power-off"></i></button>
+        </div>
+    </div>
+    
+    <div id="kds-grid">
+        <div style="width:100%; text-align:center; margin-top:50px; color:#555; font-size:1.5em;">
+            <i class="fa fa-spinner fa-spin"></i> Connessione al monitor cucina...
+        </div>
+    </div>
+    
+    <audio id="audio-ding" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, onSnapshot, doc, updateDoc, where, arrayUnion, arrayRemove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // --- SISTEMA MULTI-TENANT ---
+        const urlParams = new URLSearchParams(window.location.search);
+        window.TENANT_ID = urlParams.get('locale') || localStorage.getItem('saas_tenant_id') || 'default';
+        if (urlParams.get('locale')) localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+
+        const firebaseConfig = {
+  apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
+  authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+  projectId: "gestionale-ristoranti-96c5b",
+  storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+  messagingSenderId: "234695436534",
+  appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        let audioEnabled = true; 
+        let ordiniCache = [];
+        let currentReparto = 'tutti';
+        let isKdsInitialized = false;
+        
+        // Categorie di fallback già pronte anche se non ancora configurate in Cassa
+        let REPARTI_MAP = {
+            pizzeria: ['pizza', 'stirata', 'gf', 'speciale', 'calzone', 'focaccia', 'covaccino', 'panino'],
+            cucina: ['ant_pizzeria', 'ant_ristorante', 'primo', 'secondo', 'contorno', 'pescato'],
+            dolci: ['dolce'],
+            bar: ['bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro']
+        };
+
+        // === GESTIONE LOGIN SAAS + AUTO-LOGIN CUCINA ===
+        window.loginAzienda = async () => {
+            const email = document.getElementById('company-email').value.trim();
+            const password = document.getElementById('company-password').value.trim();
+            if(!email || !password) return Swal.fire("Attenzione", "Inserisci email e password", "warning");
+
+            try {
+                Swal.fire({ title: 'Collegamento Monitor...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                sessionStorage.removeItem('kds_manual_logout');
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                Swal.fire("Accesso Negato", "Credenziali azienda non valide.", "error");
+            }
+        };
+
+        window.logoutKDS = () => {
+            Swal.fire({
+                title: 'Spegnere il Monitor?',
+                text: "Dovrai rimettere la password aziendale per riattivarlo.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d32f2f',
+                cancelButtonColor: '#444',
+                confirmButtonText: 'Sì, scollega'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    sessionStorage.setItem('kds_manual_logout', 'true');
+                    signOut(auth);
+                }
+            });
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                document.getElementById('company-login-overlay').style.display = 'none';
+                Swal.close();
+                if(!isKdsInitialized) initKDS();
+            } else {
+                // Se l'operatore non ha premuto volontariamente Logout, connette il KDS in automatico
+                if (sessionStorage.getItem('kds_manual_logout') !== 'true') {
+                    signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {
+                        document.getElementById('company-login-overlay').style.display = 'flex';
+                    });
+                } else {
+                    document.getElementById('company-login-overlay').style.display = 'flex';
+                    isKdsInitialized = false;
+                }
+            }
+        });
+
+        // === CONTROLLI INTERFACCIA ===
+        window.toggleSound = () => { 
+            audioEnabled = !audioEnabled; 
+            const btn = document.getElementById('btn-sound'); 
+            btn.classList.toggle('active', audioEnabled); 
+        };
+        
+        window.toggleFullscreen = () => { 
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen(); 
+            else if (document.exitFullscreen) document.exitFullscreen(); 
+        };
+        
+        function playSound() { 
+            if(!audioEnabled) return; 
+            const audio = document.getElementById('audio-ding'); 
+            if(audio) { 
+                audio.currentTime = 0; 
+                audio.play().catch(e => console.log("Audio bloccato (in attesa di interazione):", e)); 
+            } 
+        }
+
+        window.cambiaReparto = (val) => {
+            currentReparto = val;
+            renderGrid(); 
+        };
+        
+        setInterval(() => { 
+            document.getElementById('clock-display').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); 
+        }, 1000);
+
+        const startupDate = new Date().getDate();
+        setInterval(() => {
+            if (new Date().getDate() !== startupDate) {
+                window.location.reload(); 
+            }
+        }, 300000); 
+
+        // === MOTORE KDS ===
+        function initKDS() {
+            isKdsInitialized = true;
+
+            // 1. White-Label Nome Locale in Tempo Reale
+            onSnapshot(doc(db, "impostazioni", "negozio"), (docSnap) => {
+                if (docSnap.exists() && docSnap.data().nome) {
+                    const nomeLoc = docSnap.data().nome.toUpperCase();
+                    document.getElementById('nome-locale-kds').innerText = nomeLoc + " - KDS";
+                    document.title = "KDS - " + nomeLoc;
+                }
+            });
+
+            // 2. Controllo Licenza e Sblocco Modulo KDS in Tempo Reale
+            onSnapshot(doc(db, "impostazioni", "licenza"), (docSnap) => {
+                let overlayKds = document.getElementById('kds-licenza-overlay');
+                if (docSnap.exists()) {
+                    const lic = docSnap.data();
+                    const bloccato = (lic.attiva === false || lic.kds_sbloccato === false);
+
+                    if (bloccato) {
+                        if (!overlayKds) {
+                            overlayKds = document.createElement('div');
+                            overlayKds.id = 'kds-licenza-overlay';
+                            overlayKds.style.cssText = 'position:fixed; inset:0; background:rgba(10,10,10,0.98); z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; padding:30px; font-family:sans-serif;';
+                            document.body.appendChild(overlayKds);
+                        }
+                        const titolo = lic.attiva === false ? "LICENZA SOSPESA" : "MODULO KDS NON ATTIVO";
+                        const msg = lic.attiva === false 
+                            ? (lic.messaggio_blocco || "L'abbonamento al software è scaduto.") 
+                            : "Il modulo Monitor Cucina (KDS) non è attivo su questo abbonamento. Sbloccalo dal Gestionale Cassa.";
+
+                        overlayKds.innerHTML = `
+                            <i class="fa-solid fa-tv" style="font-size:4.5em; color:#ff9800; margin-bottom:20px;"></i>
+                            <h1 style="color:#ff1744; margin:0 0 10px 0;">${titolo}</h1>
+                            <p style="color:#ccc; font-size:1.2em; max-width:500px; line-height:1.5;">${msg}</p>
+                        `;
+                        overlayKds.style.display = 'flex';
+                    } else if (overlayKds) {
+                        overlayKds.style.display = 'none';
+                    }
+                }
+            });
+
+            // 3. Configurazione Reparti KDS
+            onSnapshot(doc(db, "impostazioni", "kds"), (docSnap) => {
+                if(docSnap.exists()) {
+                    const d = docSnap.data();
+                    if ((d.pizzeria && d.pizzeria.length) || (d.cucina && d.cucina.length)) {
+                        REPARTI_MAP = d;
+                    }
+                    renderGrid(); 
+                }
+            });
+
+            // 4. Ascolto Ordini di Oggi
+            const now = new Date();
+            const today = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+            
+            const q = query(collection(db, "ordini"), where("data_ritiro", "==", today));
+            let isFirstLoad = true;
+            
+            onSnapshot(q, (snapshot) => {
+                let newOrders = []; 
+                let hasNewImportantUpdate = false;
+                
+                snapshot.forEach(docSnap => {
+                    const d = docSnap.data();
+                    if (d.stato !== 'Consegnato' && d.stato !== 'Annullato' && d.stato !== 'Prenotato' && d.cucina_completa !== true) {
+                        newOrders.push({ id: docSnap.id, ...d });
+                    }
+                });
+                
+                newOrders.sort((a,b) => (a.orario || "23:59").localeCompare(b.orario || "23:59"));
+                ordiniCache = newOrders; 
+                renderGrid(); 
+                
+                snapshot.docChanges().forEach((change) => {
+                    if(!isFirstLoad && (change.type === 'added' || change.type === 'modified')) {
+                        const d = change.doc.data();
+                        
+                        const relevantUpdate = d.prodotti && d.prodotti.some(p => {
+                            const cat = (p.cat || 'varie').toLowerCase().trim();
+                            if (currentReparto === 'tutti') {
+                                return !(REPARTI_MAP.bar || []).includes(cat); 
+                            } else {
+                                return (REPARTI_MAP[currentReparto] || []).includes(cat);
+                            }
+                        });
+                        
+                        if(relevantUpdate && d.cucina_completa !== true && d.stato !== 'Consegnato' && d.stato !== 'Annullato') {
+                            hasNewImportantUpdate = true;
+                        }
+                    }
+                });
+                
+                if(hasNewImportantUpdate) playSound();
+                isFirstLoad = false;
+            });
+        }
+
+        function raggruppaProdotti(prodotti) {
+            const raggruppati = [];
+            if(!prodotti) return [];
+
+            prodotti.forEach(p => {
+                const catP = (p.cat || 'varie').toLowerCase().trim();
+                let isAllowed = false;
+                
+                if (currentReparto === 'tutti') {
+                    const isBar = (REPARTI_MAP.bar || []).includes(catP);
+                    const isFood = (REPARTI_MAP.pizzeria || []).includes(catP) || (REPARTI_MAP.cucina || []).includes(catP) || (REPARTI_MAP.dolci || []).includes(catP);
+                    isAllowed = isFood || !isBar; 
+                } else {
+                    isAllowed = (REPARTI_MAP[currentReparto] || []).includes(catP);
+                }
+                
+                if (!isAllowed) return; 
+                
+                let cleanDet = p.dettagli || ''; 
+                if(cleanDet === 'Normale') cleanDet = '';
+                
+                const key = (p.nome) + '|' + cleanDet + '|' + (p.turno || 1);
+                const esistente = raggruppati.find(x => x._groupKey === key);
+                
+                if(esistente) esistente.qta += parseFloat(p.qta || 1); 
+                else raggruppati.push({ ...p, qta: parseFloat(p.qta || 1), dettagli: cleanDet, _groupKey: key, turno: p.turno || 1 }); 
+            });
+            
+            return raggruppati;
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('kds-grid');
+            
+            const scrollPositions = {};
+            document.querySelectorAll('.kds-body').forEach(el => {
+                scrollPositions[el.dataset.oid] = el.scrollTop;
+            });
+            const globalScrollY = window.scrollY;
+
+            grid.innerHTML = ""; 
+            const now = new Date();
+            let carteMostrate = 0;
+            
+            ordiniCache.forEach(o => {
+                const items = raggruppaProdotti(o.prodotti || []);
+                if(items.length === 0) return; 
+
+                carteMostrate++;
+
+                const [h, m] = (o.orario || "00:00").split(':');
+                const target = new Date(); 
+                target.setHours(h, m, 0);
+                if (h < 4 && now.getHours() > 20) target.setDate(target.getDate() + 1);
+                const diff = Math.round((target - now) / 60000);
+
+                let statusClass = ""; 
+                let timeLabel = `TRA ${diff} min`;
+                
+                if (o.stato === 'In forno') { 
+                    statusClass = "status-forno"; 
+                    timeLabel = "IN PREPARAZIONE"; 
+                } else if (diff < 0) { 
+                    statusClass = "status-late"; 
+                    timeLabel = `RITARDO ${Math.abs(diff)} min`; 
+                } else if (diff < 15) { 
+                    statusClass = "status-alert"; 
+                }
+
+                const itemsByTurn = {};
+                items.forEach(p => { 
+                    const t = p.turno || 1; 
+                    if(!itemsByTurn[t]) itemsByTurn[t] = []; 
+                    itemsByTurn[t].push(p); 
+                });
+
+                const listaAggiunte = o.ultime_aggiunte_real || o.ultime_aggiunte || null;
+
+                let bodyHtml = "";
+                Object.keys(itemsByTurn).sort().forEach(turn => {
+                    const isCompleted = o.turni_pronti && o.turni_pronti.includes(parseInt(turn));
+                    const turnMsg = `VIA TURNO ${turn}`;
+                    const isCalled = o.messaggio_cucina === turnMsg || (o.turni_chiamati && o.turni_chiamati.includes(parseInt(turn)));
+                    
+                    bodyHtml += `
+                        <div class="turn-section ${isCompleted ? 'completed' : ''}">
+                            <div class="turn-header">
+                                <span class="turn-title ${isCalled && !isCompleted ? 'highlight' : ''}">TURNO ${turn} ${isCalled && !isCompleted ? '🔔 (CHIAMATO)' : ''}</span>
+                                <button class="btn-turn-ready" onclick="segnaTurnoPronto('${o.id}', ${turn})" ${isCompleted ? 'disabled' : ''}>
+                                    ${isCompleted ? '<i class="fa fa-check"></i> FATTO' : 'PRONTO'}
+                                </button>
+                            </div>
+                            ${itemsByTurn[turn].map(p => {
+                                let aggQty = 0; 
+                                let showAgg = false;
+                                
+                                if(listaAggiunte && !isCompleted) {
+                                    let cleanDet = p.dettagli || ''; 
+                                    const agg = listaAggiunte.find(x => x.nome === p.nome && (x.dettagli||'') === cleanDet && (x.turno||1) == p.turno);
+                                    if(agg && agg.qta > 0) { 
+                                        aggQty = agg.qta; 
+                                        showAgg = true; 
+                                        statusClass = "status-alert"; 
+                                    }
+                                }
+                                
+                                const displayQta = p.qta % 1 === 0 ? p.qta : p.qta.toFixed(3);
+                                const isItemDone = o.piatti_pronti && o.piatti_pronti.includes(p._groupKey);
+                                const safeKey = p._groupKey.replace(/'/g, "\\'"); 
+
+                                return `
+                                <div class="kds-item ${showAgg ? 'highlight-item' : ''} ${isItemDone ? 'item-done' : ''}" 
+                                     onclick="togglePiattoPronto('${o.id}', '${safeKey}',${isItemDone ? 'true' : 'false'})">
+                                    <div>
+                                        <span class="kds-qty">${displayQta}</span>
+                                        <span class="kds-name">${p.nome}</span>${p.cat === 'gf' ? '<span class="tag-gf-warning">GF</span>' : ''}
+                                        ${showAgg ? `<span class="agg-badge">+${aggQty} DA FARE ORA</span>` : ''}
+                                    </div>
+                                    ${p.dettagli ? `<span class="kds-mod">${p.dettagli}</span>` : ''}
+                                </div>
+                            `}).join('')}
+                        </div>
+                    `;
+                });
+
+                let clientInfo = o.tavolo ? `TAVOLO ${o.tavolo}` : (o.nome + " " + (o.cognome||"")).toUpperCase();
+                
+                const card = document.createElement('div');
+                card.className = `kds-card ${statusClass}`;
+                card.innerHTML = `
+                    <div class="kds-header">
+                        <span>${o.orario || '--:--'}</span>
+                        <span>${timeLabel}</span>
+                    </div>
+                    <div class="kds-body" data-oid="${o.id}">
+                        ${o.messaggio_cucina && o.messaggio_cucina.includes('STORNO') ? `<div class="via-badge" style="background:#f44336;color:white;">${o.messaggio_cucina}</div>` : ''}
+                        <div class="kds-info">${clientInfo} <small style="color:#aaa; font-size:0.8em; float:right;">Op: ${o.operatore || o.cameriere || 'App'}</small></div>
+                        ${bodyHtml}
+                        ${o.note_ordine ? `<div style="background:#333; color:yellow; padding:5px; margin:5px; border-radius:4px; font-weight:bold;">NOTE: ${o.note_ordine}</div>` : ''}
+                    </div>
+                    <div class="kds-footer">
+                        <button class="btn-action btn-done" onclick="chiudiOrdineIntero('${o.id}')"><i class="fa fa-check-double"></i> TUTTO PRONTO</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            if(carteMostrate === 0) {
+                const repName = document.getElementById('filtro-reparto').options[document.getElementById('filtro-reparto').selectedIndex].text;
+                grid.innerHTML = `<div style="width:100%; text-align:center; margin-top:50px; color:#555; font-size:1.5em;">Nessun ordine nel reparto: ${repName}</div>`; 
+            }
+
+            document.querySelectorAll('.kds-body').forEach(el => {
+                if (scrollPositions[el.dataset.oid]) {
+                    el.scrollTop = scrollPositions[el.dataset.oid];
+                }
+            });
+            window.scrollTo(0, globalScrollY);
+        }
+
+        window.togglePiattoPronto = async (orderId, itemKey, isCurrentlyDone) => {
+            try {
+                if (isCurrentlyDone) {
+                    await updateDoc(doc(db, "ordini", orderId), { piatti_pronti: arrayRemove(itemKey) });
+                } else {
+                    await updateDoc(doc(db, "ordini", orderId), { piatti_pronti: arrayUnion(itemKey) });
+                }
+            } catch (e) {
+                console.error("Errore aggiornamento piatto:", e);
+            }
+        };
+
+        window.segnaTurnoPronto = async (id, turno) => {
+            try {
+                await updateDoc(doc(db, "ordini", id), { 
+                    turni_pronti: arrayUnion(parseInt(turno)),
+                    messaggio_cucina: `✅ PRONTO ${turno}`, 
+                    timestamp_messaggio: serverTimestamp()
+                });
+            } catch(e) { console.error(e); }
+        };
+
+        window.chiudiOrdineIntero = (id) => {
+            Swal.fire({
+                title: 'Tutto Pronto?',
+                text: "L'ordine sparirà dallo schermo e avviserà la cassa/sala.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#4caf50',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sì, è pronto!'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        await updateDoc(doc(db, "ordini", id), { 
+                            cucina_completa: true,
+                            stato: "Pronto",
+                            ultime_aggiunte: null,
+                            ultime_aggiunte_real: null
+                        });
+                        Swal.fire({icon: 'success', title: 'Completato!', timer: 1000, showConfirmButton: false});
+                    } catch(e) { console.error(e); }
+                }
+            });
+        };
+    </script>
+</body>
+</html>
