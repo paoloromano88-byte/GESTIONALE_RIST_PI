@@ -88,6 +88,7 @@ attivaControlloLicenzaCassa();
 let audioOn = true, printerOn = true, ordiniCache = [], activeListener = null, currentDateView = new Date();
 window.ordiniFuturiCache = [];
 window.prezzoCopertoLocale = 2.50;
+window.supplementoConsegnaLocale = 2.00;
 let PRINTER_CONFIG = { pizzeria: {ip:'', cats:[]}, cucina: {ip:'', cats:[]}, bar: {ip:'', cats:[]}, conto: {ip:''}, preconto: {ip:''} };
 let printedViaCache = new Set();
 let ALL_RIMOZIONI_CACHE = [];
@@ -296,8 +297,8 @@ window.generaSidebarOrari = () => {
             tendinaHtml = `
                 <div id="tendina-ora-${safeId}" style="display:${isOpen ? 'block' : 'none'}; background:#151515; border:1px solid #444; border-top:none; border-radius:0 0 6px 6px; padding:6px 8px; margin-top:-4px; margin-bottom:6px;">
                     ${clientiOra.map(c => `
-                        <div onclick="window.apriModifica('${c.id}')" title="${c.dettaglioPizze} (Clicca per aprire)" style="display:flex; justify-content:space-between; align-items:center; padding:5px 4px; border-bottom:1px dashed #333; font-size:0.85em; cursor:pointer; color:#eee;">
-                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:135px;">👤 <b>${c.cliente}</b></span>
+                        <div onclick="window.apriModifica('${window.safeId(c.id)}')" title="${window.escapeHtml(c.dettaglioPizze)} (Clicca per aprire)" style="display:flex; justify-content:space-between; align-items:center; padding:5px 4px; border-bottom:1px dashed #333; font-size:0.85em; cursor:pointer; color:#eee;">
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:135px;">👤 <b>${window.escapeHtml(c.cliente)}</b></span>
                             <span style="background:#ffb300; color:#000; font-weight:900; padding:1px 6px; border-radius:4px; font-size:0.85em;">${c.pizze} pz</span>
                         </div>
                     `).join('')}
@@ -583,6 +584,9 @@ NLg/qXlDavq+hN/q9BoFp6VP9e5sC0dBnMmT0WQLk7QppCI64qe3bUEYHGirnDsL
             if (dn.prezzo_coperto !== undefined) {
                 window.prezzoCopertoLocale = parseFloat(dn.prezzo_coperto) || 2.50;
                 if (document.getElementById('setting-coperto')) document.getElementById('setting-coperto').value = dn.prezzo_coperto;
+            }
+            if (dn.supplemento_consegna !== undefined && !isNaN(parseFloat(dn.supplemento_consegna))) {
+                window.supplementoConsegnaLocale = parseFloat(dn.supplemento_consegna);
             }
             if (dn.piva && document.getElementById('setting-piva')) document.getElementById('setting-piva').value = dn.piva;
             if (dn.indirizzo && document.getElementById('setting-indirizzo')) document.getElementById('setting-indirizzo').value = dn.indirizzo;
@@ -1177,13 +1181,13 @@ function renderOrdine(o, container) {
             itemsHtml += `<div class="turn-box">
                 <div class="turn-header">
                     <span>TURNO ${turn}</span>
-                    <button class="btn-via" onclick="inviaSegnaleVia('${o.id}', '${turn}')" ${btnAttr}>${btnLabel}</button>
+                    <button class="btn-via" onclick="inviaSegnaleVia('${window.safeId(o.id)}', '${turn}')" ${btnAttr}>${btnLabel}</button>
                 </div>
                 <ul class="order-list">`;
             itemsByTurn[turn].forEach(p => {
-                const detHtml = p.dettagli ? `<br><small style="color:red; margin-left:20px;">${p.dettagli}</small>` : '';
+                const detHtml = p.dettagli ? `<br><small style="color:red; margin-left:20px;">${window.sanitizeHtml(p.dettagli)}</small>` : '';
                 const qtaDisplay = p.qta % 1 === 0 ? p.qta : p.qta.toFixed(3);
-                itemsHtml += `<li class="order-item"><b>${qtaDisplay}</b> x ${p.nome} ${detHtml}</li>`;
+                itemsHtml += `<li class="order-item"><b>${window.escapeHtml(qtaDisplay)}</b> x ${window.escapeHtml(p.nome)} ${detHtml}</li>`;
             });
             itemsHtml += `</ul></div>`;
         });
@@ -1195,15 +1199,15 @@ function renderOrdine(o, container) {
 
         let nomeCli = "";
         if (o.tavolo && o.tavolo.trim() !== "") {
-            nomeCli = `<span style="background:#1976d2; color:white; padding:3px 8px; border-radius:5px; margin-right:8px; font-weight:900; letter-spacing:1px; font-size:0.85em;"><i class="fa fa-chair"></i> TAV. ${o.tavolo}</span><b style="font-size:1.1em;">${nomeCompleto}</b>`;
+            nomeCli = `<span style="background:#1976d2; color:white; padding:3px 8px; border-radius:5px; margin-right:8px; font-weight:900; letter-spacing:1px; font-size:0.85em;"><i class="fa fa-chair"></i> TAV. ${window.escapeHtml(o.tavolo)}</span><b style="font-size:1.1em;">${window.escapeHtml(nomeCompleto)}</b>`;
         } else {
-            nomeCli = `<b style="font-size:1.1em;">${nomeCompleto}</b>`;
+            nomeCli = `<b style="font-size:1.1em;">${window.escapeHtml(nomeCompleto)}</b>`;
         }
         
         const telCli = o.cliente?.telefono || o.telefono || '';
         const totaleStr = o.totale ? parseFloat(o.totale).toFixed(2) : "0.00";
-        const orarioPrenotazioneHtml = o.orario ? `<div style="margin-top:5px; color:#1976d2; font-size:0.9em;"><b><i class="fa fa-calendar-check"></i> Prenotato per le: ${o.orario}</b></div>` : '';
-        const noteHtml = o.note_ordine ? `<div style="margin-top:10px; background:#fff8e1; border:1px solid #ffe0b2; color:#e65100; padding:8px; border-radius:5px; font-weight:bold;">NOTE: ${o.note_ordine}</div>` : '';
+        const orarioPrenotazioneHtml = o.orario ? `<div style="margin-top:5px; color:#1976d2; font-size:0.9em;"><b><i class="fa fa-calendar-check"></i> Prenotato per le: ${window.escapeHtml(o.orario)}</b></div>` : '';
+        const noteHtml = o.note_ordine ? `<div style="margin-top:10px; background:#fff8e1; border:1px solid #ffe0b2; color:#e65100; padding:8px; border-radius:5px; font-weight:bold;">NOTE: ${window.escapeHtml(o.note_ordine)}</div>` : '';
 
         let orarioDisplay = o.orario || "--:--"; 
         let iconaOrario = "fa-clock"; 
@@ -1243,7 +1247,7 @@ function renderOrdine(o, container) {
                 else dt = new Date(o.timestamp_messaggio);
                 if(dt) viaTime = dt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); 
             }
-            alertViaHtml = `<div class="via-alert"><div><div class="via-text">🔔 ${o.messaggio_cucina}</div><small>Ore: ${viaTime}</small></div><button class="via-btn-ok" onclick="archiviaMessaggio('${o.id}')">OK</button></div>`;
+            alertViaHtml = `<div class="via-alert"><div><div class="via-text">🔔 ${window.escapeHtml(o.messaggio_cucina)}</div><small>Ore: ${viaTime}</small></div><button class="via-btn-ok" onclick="archiviaMessaggio('${window.safeId(o.id)}')">OK</button></div>`;
         }
 
         let copertiHtml = "";
@@ -1263,23 +1267,23 @@ function renderOrdine(o, container) {
             <div class="card-time-box">
                 <span style="font-size:0.5em; margin-right:5px; flex-direction:column; display:flex; text-align:left;">
                     <span>${labelOrario}</span>
-                    <span style="color:#aaa;">Op: ${o.operatore || o.cameriere || 'Admin'}</span>
+                    <span style="color:#aaa;">Op: ${window.escapeHtml(o.operatore || o.cameriere || 'Admin')}</span>
                 </span>
-                <span><i class="fa-regular ${iconaOrario}"></i> ${orarioDisplay} ${timerHtml}</span>
-                <i class="fa fa-trash trash-btn" onclick="eliminaOrdine('${o.id}')"></i>
+                <span><i class="fa-regular ${iconaOrario}"></i> ${window.escapeHtml(orarioDisplay)} ${timerHtml}</span>
+                <i class="fa fa-trash trash-btn" onclick="eliminaOrdine('${window.safeId(o.id)}')"></i>
             </div>
-            <div class="card-client-box"><span class="client-name">${nomeCli} ${copertiHtml}</span><a href="tel:${telCli}" class="client-phone"><i class="fa fa-phone"></i> ${telCli}</a></div>
+            <div class="card-client-box"><span class="client-name">${nomeCli} ${copertiHtml}</span><a href="tel:${String(telCli).replace(/[^\d+]/g, '')}" class="client-phone"><i class="fa fa-phone"></i> ${window.escapeHtml(telCli)}</a></div>
             ${agendaBadgesHtml}
             <div class="card-body">${alertViaHtml}${itemsHtml}${orarioPrenotazioneHtml}${noteHtml}<div class="card-total-box"><span>TOTALE</span><span>€ ${totaleStr}</span></div>
-            <div class="status-row"><button class="status-btn ${o.stato.includes('Pronto')?'active-pronto':''}" onclick="cambiaStato('${o.id}','Pronto')">PRONTO</button><button class="status-btn" style="background:#333; color:white;" onclick="apriPagamento('${o.id}')">PAGA & CHIUDI</button></div>
-            <div class="card-actions"><button class="action-btn" style="border-left:3px solid #2962ff; background:#e3f2fd; color:#1565c0;" onclick="apriModifica('${o.id}')">✏️ MODIFICA</button><button class="action-btn" style="border-left:3px solid black;" onclick="chiediDivisioneEStampa('${o.id}')">PRECONTO</button><button class="action-btn" style="border-left:3px solid #d32f2f;" onclick="stampa('${o.id}', 'PIZZERIA')">PIZZA</button><button class="action-btn" style="border-left:3px solid #f57c00;" onclick="stampa('${o.id}', 'CUCINA')">CUCINA</button><button class="action-btn" style="border-left:3px solid #1976d2;" onclick="stampa('${o.id}', 'BAR')">BAR</button></div></div>`;
+            <div class="status-row"><button class="status-btn ${o.stato.includes('Pronto')?'active-pronto':''}" onclick="cambiaStato('${window.safeId(o.id)}','Pronto')">PRONTO</button><button class="status-btn" style="background:#333; color:white;" onclick="apriPagamento('${window.safeId(o.id)}')">PAGA & CHIUDI</button></div>
+            <div class="card-actions"><button class="action-btn" style="border-left:3px solid #2962ff; background:#e3f2fd; color:#1565c0;" onclick="apriModifica('${window.safeId(o.id)}')">✏️ MODIFICA</button><button class="action-btn" style="border-left:3px solid black;" onclick="chiediDivisioneEStampa('${window.safeId(o.id)}')">PRECONTO</button><button class="action-btn" style="border-left:3px solid #d32f2f;" onclick="stampa('${window.safeId(o.id)}', 'PIZZERIA')">PIZZA</button><button class="action-btn" style="border-left:3px solid #f57c00;" onclick="stampa('${window.safeId(o.id)}', 'CUCINA')">CUCINA</button><button class="action-btn" style="border-left:3px solid #1976d2;" onclick="stampa('${window.safeId(o.id)}', 'BAR')">BAR</button></div></div>`;
         container.appendChild(div);
     } catch(e) {
         console.error("Errore rendering ordine " + o.id, e);
         const divErr = document.createElement('div');
         divErr.className = 'order-card';
         divErr.style.border = "2px solid red";
-        divErr.innerHTML = `<div style="padding:20px; color:red; text-align:center;"><b>ERRORE DATI ORDINE</b><br>${o.nome}<br><button onclick="eliminaOrdine('${o.id}')">ELIMINA</button></div>`;
+        divErr.innerHTML = `<div style="padding:20px; color:red; text-align:center;"><b>ERRORE DATI ORDINE</b><br>${window.escapeHtml(o.nome)}<br><button onclick="eliminaOrdine('${window.safeId(o.id)}')">ELIMINA</button></div>`;
         container.appendChild(divErr);
     }
 }
@@ -1329,7 +1333,10 @@ window.apriNuovoOrdine = () => {
     document.getElementById('new-ord-tavolo').value = "";
     document.getElementById('new-ord-coperti').value = "2";
     document.getElementById('new-ord-note').value = "";
-    
+    document.getElementById('new-ord-indirizzo').value = "";
+    document.getElementById('new-ord-citofono').value = "";
+    document.getElementById('new-ord-zona').value = "";
+
     let defaultDate = document.getElementById('timeline-date').value;
     if(!defaultDate) defaultDate = new Date().toISOString().split('T')[0];
     document.getElementById('new-ord-date').value = defaultDate;
@@ -1346,16 +1353,27 @@ window.apriNuovoOrdine = () => {
 };
 
 window.toggleTipoOrdine = (type) => {
+    const tipoPrecedente = newOrderType;
     newOrderType = type;
     document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`btn-type-${type}`).classList.add('active');
     
+    const fieldTavolo = document.getElementById('field-tavolo');
     if (type === 'tavolo') {
-        document.getElementById('field-tavolo').style.display = 'flex';
+        fieldTavolo.classList.remove('hidden-field');
+        fieldTavolo.style.display = 'flex';
         document.getElementById('new-ord-tel').style.display = 'none';
     } else {
-        document.getElementById('field-tavolo').style.display = 'none';
+        fieldTavolo.classList.add('hidden-field');
+        fieldTavolo.style.display = 'none';
         document.getElementById('new-ord-tel').style.display = 'block';
+    }
+
+    const fieldDom = document.getElementById('field-domicilio');
+    if (fieldDom) fieldDom.style.display = (type === 'domicilio') ? 'block' : 'none';
+    const inpSupp = document.getElementById('new-ord-supplemento');
+    if (type === 'domicilio' && tipoPrecedente !== 'domicilio' && inpSupp) {
+        inpSupp.value = (window.supplementoConsegnaLocale || 0).toFixed(2);
     }
     renderNewOrderPreview(); 
 };
@@ -1447,12 +1465,12 @@ window.renderNewOrderPreview = () => {
                     <div style="display:flex; justify-content:space-between; align-items: center;">
                         <div>
                             <span style="display:flex; align-items:center; gap:8px;">
-                                ${qtaDisplay}x <b style="font-size:1.1em;">${p.nome}</b>
+                                ${qtaDisplay}x <b style="font-size:1.1em;">${window.escapeHtml(p.nome)}</b>
                                 <span style="background:#ffea00; color:black; padding:2px 8px; border-radius:5px; font-size:0.9em; font-weight:900; border: 1px solid #c8b900;">
                                     T${p.turno || 1}
                                 </span>
                             </span>
-                            <small style="color:gray; display:block; margin-top:3px;">${dettagliHtml}</small>
+                            <small style="color:gray; display:block; margin-top:3px;">${window.sanitizeHtml(dettagliHtml)}</small>
                         </div>
                         <div style="text-align:right;">
                             <span style="font-weight:bold;">€ ${(p.prezzo * p.qta).toFixed(2)}</span>
@@ -1475,6 +1493,18 @@ window.renderNewOrderPreview = () => {
             <div style="display:flex; justify-content:space-between; border-top:1px dashed #ccc; padding:5px; align-items: center; margin-top:5px; color:#555;">
                 <div><span>${coperti}x <b>COPERTO</b></span></div>
                 <div style="text-align:right;"><span>€ ${costoCoperto.toFixed(2)}</span></div>
+            </div>`;
+        }
+    }
+
+    if (newOrderType === 'domicilio') {
+        const supp = parseFloat(document.getElementById('new-ord-supplemento')?.value) || 0;
+        if (supp > 0) {
+            total += supp;
+            list.innerHTML += `
+            <div style="display:flex; justify-content:space-between; border-top:1px dashed #ccc; padding:5px; align-items: center; margin-top:5px; color:#555;">
+                <div><span>🛵 <b>SUPPLEMENTO CONSEGNA</b></span></div>
+                <div style="text-align:right;"><span>€ ${supp.toFixed(2)}</span></div>
             </div>`;
         }
     }
@@ -1508,8 +1538,15 @@ window.creaNuovoOrdine = async () => {
     const note = document.getElementById('new-ord-note').value;
     
     if (newOrderType === 'tavolo' && !tavolo) return Swal.fire("Inserisci il numero del tavolo!");
-    if (newOrderType === 'asporto' && !nome) return Swal.fire("Inserisci il nome del cliente!");
+    if (newOrderType !== 'tavolo' && !nome) return Swal.fire("Inserisci il nome del cliente!");
     if (!dataRitiro) return Swal.fire("Inserisci la data!");
+
+    const isDom = newOrderType === 'domicilio';
+    const indirizzo = isDom ? document.getElementById('new-ord-indirizzo').value.trim() : '';
+    const citofono = isDom ? document.getElementById('new-ord-citofono').value.trim() : '';
+    const zona = isDom ? document.getElementById('new-ord-zona').value.trim() : '';
+    const supplemento = isDom ? (parseFloat(document.getElementById('new-ord-supplemento').value) || 0) : 0;
+    if (isDom && !indirizzo) return Swal.fire("Attenzione", "Inserisci l'indirizzo per la consegna a domicilio!", "warning");
 
     let totaleOrdine = 0;
     tempNewOrderItems.forEach(p => totaleOrdine += (p.prezzo * p.qta));
@@ -1517,6 +1554,7 @@ window.creaNuovoOrdine = async () => {
     if (newOrderType === 'tavolo' && coperti > 0) {
         totaleOrdine += (coperti * (window.prezzoCopertoLocale || 2.50));
     }
+    totaleOrdine += supplemento;
 
     const op = sessionStorage.getItem('operatore_corrente') || 'Sconosciuto';
 
@@ -1531,11 +1569,14 @@ window.creaNuovoOrdine = async () => {
         orario: orario,
         note_ordine: note,
         stato: (newOrderType === 'tavolo' ? 'In forno' : 'In attesa'), 
-        tipo: (newOrderType === 'tavolo' ? 'SALA' : 'ASPORTO'),
+        tipo: (newOrderType === 'tavolo' ? 'SALA' : (isDom ? 'DOMICILIO' : 'ASPORTO')),
         prodotti: tempNewOrderItems,
         totale: totaleOrdine,
         operatore: op
     };
+    if (isDom) {
+        Object.assign(newOrderData, { indirizzo, citofono, zona, supplemento_consegna: supplemento });
+    }
 
     try {
         await addDoc(collection(db, "ordini"), newOrderData);
@@ -1574,6 +1615,15 @@ window.apriModifica = (id) => {
     document.getElementById('edit-tel').value = o.telefono || o.cliente?.telefono || '';
     document.getElementById('edit-ora').value = o.orario || '';
     document.getElementById('edit-note').value = o.note_ordine || '';
+
+    const isDom = o.tipo === 'DOMICILIO' || Boolean(o.indirizzo && String(o.indirizzo).trim() !== '');
+    document.getElementById('edit-is-domicilio').checked = isDom;
+    document.getElementById('edit-indirizzo').value = o.indirizzo || '';
+    document.getElementById('edit-citofono').value = o.citofono || '';
+    document.getElementById('edit-zona').value = o.zona || '';
+    const suppSalvato = parseFloat(o.supplemento_consegna);
+    document.getElementById('edit-supplemento').value = (isDom && !isNaN(suppSalvato) ? suppSalvato : (window.supplementoConsegnaLocale || 0)).toFixed(2);
+    document.getElementById('edit-domicilio-fields').style.display = isDom ? 'block' : 'none';
     
     document.getElementById('manual-name').value = "";
     document.getElementById('manual-price').value = "";
@@ -1600,12 +1650,23 @@ window.autoFillPrice = (input) => {
     }
 };
 
+function getSupplementoEdit() {
+    if (!document.getElementById('edit-is-domicilio')?.checked) return 0;
+    return parseFloat(document.getElementById('edit-supplemento')?.value) || 0;
+}
+
+window.toggleEditDomicilioFields = (attivo) => {
+    document.getElementById('edit-domicilio-fields').style.display = attivo ? 'block' : 'none';
+    ricalcolaTotaleEditLive();
+};
+
 window.ricalcolaTotaleEditLive = () => {
     let t = 0;
     currentEditProducts.forEach(p => t += parseFloat(p.prezzo) * parseFloat(p.qta));
     
     const nCop = parseInt(document.getElementById('edit-coperti').value || 0);
     if(nCop > 0) t += (nCop * (window.prezzoCopertoLocale || 2.50));
+    t += getSupplementoEdit();
 
     document.getElementById('edit-total-display').textContent = "€ " + t.toFixed(2);
 };
@@ -1629,12 +1690,12 @@ window.renderEditProdotti = () => {
                 <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
                     <div style="flex:2;">
                         <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px;">
-                            <input type="text" class="input-std" value="${p.nome}" oninput="updateEditField(${idx}, 'nome', this.value)" style="font-weight:bold; width:100%;">
+                            <input type="text" class="input-std" value="${window.escapeHtml(p.nome)}" oninput="updateEditField(${idx}, 'nome', this.value)" style="font-weight:bold; width:100%;">
                             <span style="background:#ffea00; color:black; padding:6px 10px; border-radius:5px; font-size:0.9em; font-weight:900; border: 1px solid #c8b900;">
                                 T${p.turno || 1}
                             </span>
                         </div>
-                        <small style="display:block; color:#666;">${dettagliHtml}</small>
+                        <small style="display:block; color:#666;">${window.sanitizeHtml(dettagliHtml)}</small>
                     </div>
                     <div style="flex:1; text-align:center;">
                         <button class="btn-qta" onclick="cambiaQtaModifica(${idx}, -1)">-</button>
@@ -1932,6 +1993,12 @@ window.salvaModificheOrdine = async () => {
     const nuoviCoperti = parseInt(document.getElementById('edit-coperti').value || 0);
     if(nuoviCoperti > 0) newTotal += (nuoviCoperti * (window.prezzoCopertoLocale || 2.50));
 
+    const isDom = document.getElementById('edit-is-domicilio').checked;
+    const indirizzoEdit = document.getElementById('edit-indirizzo').value.trim();
+    if (isDom && !indirizzoEdit) return Swal.fire("Attenzione", "Inserisci l'indirizzo per la consegna a domicilio!", "warning");
+    const supplementoEdit = getSupplementoEdit();
+    newTotal += supplementoEdit;
+
     const oldOrder = ordiniCache.find(x => x.id === currentEditOrderId) || window.ordiniFuturiCache.find(x => x.id === currentEditOrderId);
     let messaggioTesto = null;
     let oggettiAggiunti = []; 
@@ -1981,8 +2048,17 @@ window.salvaModificheOrdine = async () => {
         orario: document.getElementById('edit-ora').value,
         note_ordine: document.getElementById('edit-note').value,
         prodotti: currentEditProducts,
-        totale: newTotal
+        totale: newTotal,
+        indirizzo: isDom ? indirizzoEdit : "",
+        citofono: isDom ? document.getElementById('edit-citofono').value.trim() : "",
+        zona: isDom ? document.getElementById('edit-zona').value.trim() : "",
+        supplemento_consegna: supplementoEdit
     };
+    if (isDom) {
+        updateData.tipo = 'DOMICILIO';
+    } else if (oldOrder && oldOrder.tipo === 'DOMICILIO') {
+        updateData.tipo = updateData.tavolo ? 'SALA' : 'ASPORTO';
+    }
 
     if (messaggioTesto) {
         updateData.messaggio_cucina = messaggioTesto;
@@ -2643,7 +2719,7 @@ window.confirmStirata = () => {
 
     let desc = `<b>1/2</b> ${d.h1.name}`; if(d.h1.details.length > 0) desc += ` <br>${d.h1.details.join(' ')}`;
     desc += `<br><b>1/2</b> ${d.h2.name}`; if(d.h2.details.length > 0) desc += ` <br>${d.h2.details.join(' ')}`;
-    if(mainNote) desc += `<br><b>Note:</b> ${mainNote}`;
+    if(mainNote) desc += `<br><b>Note:</b> ${window.escapeHtml(mainNote)}`;
 
     const componentiScorta = [];
     if (!d.h1.manual && d.h1.id) componentiScorta.push(d.h1.id);
@@ -2735,7 +2811,7 @@ window.updateCartUI = () => {
         list.innerHTML += `
         <div class="cart-item" style="border-left-color:${turnoColor}">
             <div class="cart-row-top">
-                <div class="cart-prod-name">${groupItem.nome}</div>
+                <div class="cart-prod-name">${window.escapeHtml(groupItem.nome)}</div>
                 <div class="cart-controls">
                     <div class="qty-box">
                         <button class="btn-qty" onclick="changeGroupQty(${idx}, -1)">-</button>
@@ -2747,7 +2823,7 @@ window.updateCartUI = () => {
                     <i class="fa fa-trash btn-trash" onclick="removeGroup(${idx})"></i>
                 </div>
             </div>
-            <div style="font-size:11px; margin-bottom:8px; line-height:1.3; color:#ccc;">${groupItem.dettagli || ''}</div>
+            <div style="font-size:11px; margin-bottom:8px; line-height:1.3; color:#ccc;">${window.sanitizeHtml(groupItem.dettagli || '')}</div>
             <div class="turno-row">${[1,2,3,4,5].map(t => `<div class="turno-btn ${groupItem.turno==t?'active':''}" onclick="setGroupTurno(${idx},${t})">${t}</div>`).join('')}</div>
         </div>`;
     });
@@ -3808,13 +3884,13 @@ window.caricaCestino = async () => {
                 const totale = d.totale ? parseFloat(d.totale).toFixed(2) : "0.00";
                 let prodottiHtml = "";
                 if(d.prodotti && Array.isArray(d.prodotti)){
-                    prodottiHtml = d.prodotti.map(prod => `<div>${prod.qta}x ${prod.nome} <small>(${prod.dettagli||''})</small></div>`).join('');
+                    prodottiHtml = d.prodotti.map(prod => `<div>${window.escapeHtml(prod.qta)}x ${window.escapeHtml(prod.nome)} <small>(${window.sanitizeHtml(prod.dettagli||'')})</small></div>`).join('');
                 }
 
                 list.innerHTML += `
                     <div style="background:white; border:1px solid #ddd; border-left:5px solid #d32f2f; padding:10px; margin-bottom:10px; border-radius:4px; color:#222;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                            <span style="font-weight:bold; font-size:1.1em;">${d.orario} | ${nomeCli}</span>
+                            <span style="font-weight:bold; font-size:1.1em;">${window.escapeHtml(d.orario)} | ${window.escapeHtml(nomeCli)}</span>
                             <span style="color:#d32f2f; font-weight:bold;">ANNULLATO</span>
                         </div>
                         <div style="color:#555; font-size:0.9em; margin-bottom:8px; padding-left:10px; border-left:2px solid #eee;">
@@ -4194,10 +4270,10 @@ window.renderCRM = (clienti) => {
         list.innerHTML += `
         <div class="crm-card">
             <div style="display:flex; align-items:center; flex:1;">
-                <div class="crm-avatar">${firstLetter}</div>
+                <div class="crm-avatar">${window.escapeHtml(firstLetter)}</div>
                 <div class="crm-info">
-                    <h4>${c.nome} ${tags}</h4>
-                    <small><i class="fa fa-phone"></i> ${c.telefono}</small>
+                    <h4>${window.escapeHtml(c.nome)} ${tags}</h4>
+                    <small><i class="fa fa-phone"></i> ${window.escapeHtml(c.telefono)}</small>
                     ${barraFidelity}
                 </div>
             </div>
@@ -4206,10 +4282,10 @@ window.renderCRM = (clienti) => {
                 <div style="color:#777; font-size:0.85em;">${c.numOrdini} ordini</div>
             </div>
             <div class="crm-actions">
-                <a href="whatsapp://send?phone=39${(c.telefono||'').replace(/\s+/g,'')}" class="btn-crm-action" style="background:#25D366;"><i class="fa-brands fa-whatsapp"></i></a>
+                <a href="whatsapp://send?phone=39${String(c.telefono||'').replace(/[^\d]/g,'')}" class="btn-crm-action" style="background:#25D366;"><i class="fa-brands fa-whatsapp"></i></a>
             </div>
             <div class="crm-actions">
-                <button class="btn-crm-action btn-crm-edit" onclick="window.apriModificaCliente('${c.id}')"><i class="fa fa-pencil"></i></button>
+                <button class="btn-crm-action btn-crm-edit" onclick="window.apriModificaCliente('${window.safeId(c.id)}')"><i class="fa fa-pencil"></i></button>
                 <button class="btn-crm-action btn-crm-del" onclick="window.eliminaCliente('${c.id}')"><i class="fa fa-trash"></i></button>
             </div>
         </div>`;
@@ -4397,17 +4473,17 @@ window.renderKDS = () => {
 
         let itemsHtml = itemsCucina.map(p => {
             const qtaDisplay = p.qta % 1 === 0 ? p.qta : p.qta.toFixed(3);
-            return `<div class="kds-item"><b>${qtaDisplay}</b> x ${p.nome}${p.dettagli ? `<span class="kds-note">${p.dettagli}</span>` : ''}</div>`;
+            return `<div class="kds-item"><b>${window.escapeHtml(qtaDisplay)}</b> x ${window.escapeHtml(p.nome)}${p.dettagli ? `<span class="kds-note">${window.sanitizeHtml(p.dettagli)}</span>` : ''}</div>`;
         }).join('');
 
         grid.innerHTML += `
             <div class="kds-card" style="border-color:${borderColor}">
-                <div class="kds-header" style="background:${borderColor}">${o.orario} - ${o.tavolo ? 'TAV '+o.tavolo : 'ASPORTO'}</div>
+                <div class="kds-header" style="background:${borderColor}">${window.escapeHtml(o.orario)} - ${o.tavolo ? 'TAV '+window.escapeHtml(o.tavolo) : 'ASPORTO'}</div>
                 <div style="padding:10px;">
-                    <div style="font-size:1.2em; font-weight:bold; margin-bottom:10px; color:#ddd;">${o.nome}</div>
+                    <div style="font-size:1.2em; font-weight:bold; margin-bottom:10px; color:#ddd;">${window.escapeHtml(o.nome)}</div>
                     ${itemsHtml}
                 </div>
-                <button onclick="cambiaStato('${o.id}', 'Pronto')" style="width:100%; padding:15px; background:#333; color:white; border:none; font-size:1.2em; cursor:pointer; margin-top:10px;">PRONTO</button>
+                <button onclick="cambiaStato('${window.safeId(o.id)}', 'Pronto')" style="width:100%; padding:15px; background:#333; color:white; border:none; font-size:1.2em; cursor:pointer; margin-top:10px;">PRONTO</button>
             </div>
         `;
     });
@@ -4457,11 +4533,11 @@ window.renderMappa = () => {
             let nomeCliente = (ordineAttivo.nome || ordineAttivo.cliente?.nome || "").trim();
             if (!nomeCliente || nomeCliente.startsWith("TAVOLO")) nomeCliente = "Occupato";
             let nomeBreve = nomeCliente.split(" ")[0].toUpperCase();
-            div.innerHTML = `<span class="table-num" style="font-size: ${fontSize};">${tavoloNum}</span><div class="table-info" style="line-height: 1.2; padding-top: 3px;"><b style="font-size: 1.1em; color: #fff;">${nomeBreve}${multiBadge}</b><br><small style="color: #ffcccc;">€ ${tot}</small></div>`;
+            div.innerHTML = `<span class="table-num" style="font-size: ${fontSize};">${tavoloNum}</span><div class="table-info" style="line-height: 1.2; padding-top: 3px;"><b style="font-size: 1.1em; color: #fff;">${window.escapeHtml(nomeBreve)}${multiBadge}</b><br><small style="color: #ffcccc;">€ ${tot}</small></div>`;
             div.onclick = () => { window.chiudiMappa(); window.apriModifica(ordineAttivo.id); }; 
         } else if (prenotazione) {
             div.className = 'table-box reserved';
-            div.innerHTML = `<span class="table-num" style="font-size: ${fontSize};">${tavoloNum}</span><div class="table-info">${prenotazione.orario || ''}${multiBadge}<br>${prenotazione.nome || ''}</div>`;
+            div.innerHTML = `<span class="table-num" style="font-size: ${fontSize};">${tavoloNum}</span><div class="table-info">${window.escapeHtml(prenotazione.orario || '')}${multiBadge}<br>${window.escapeHtml(prenotazione.nome || '')}</div>`;
             div.onclick = () => window.gestisciPrenotazione(prenotazione);
         } else {
             div.className = 'table-box';
@@ -4550,8 +4626,8 @@ window.aggiungiPrenotazioneRapida = async (tavolo) => {
 
 window.gestisciPrenotazione = (prenotazione) => {
     Swal.fire({
-        title: `Prenotazione: ${prenotazione.nome}`,
-        html: `Ore: <b>${prenotazione.orario}</b><br>Coperti: <b>${prenotazione.coperti}</b><br>Tel: ${prenotazione.telefono || 'Non inserito'}`,
+        title: `Prenotazione: ${window.escapeHtml(prenotazione.nome)}`,
+        html: `Ore: <b>${window.escapeHtml(prenotazione.orario)}</b><br>Coperti: <b>${window.escapeHtml(prenotazione.coperti)}</b><br>Tel: ${window.escapeHtml(prenotazione.telefono || 'Non inserito')}`,
         icon: 'info',
         showCancelButton: true,
         showDenyButton: true,
@@ -4791,7 +4867,7 @@ window.caricaStoricoData = async () => {
                     <small style="color:#aaa;">Orario: ${o.orario || '--:--'} | Totale: €${parseFloat(o.totale || 0).toFixed(2)}</small>
                 </div>
                 <div>
-                    <button onclick="vediDettagliStorico('${o.id}')" style="background:#2196f3; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                    <button onclick="vediDettagliStorico('${window.safeId(o.id)}')" style="background:#2196f3; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
                         <i class="fa fa-eye"></i> VEDI ORDINE
                     </button>
                 </div>
@@ -4812,8 +4888,8 @@ window.vediDettagliStorico = async (id) => {
         let prodHtml = '<div style="text-align:left; background:#222; padding:10px; border-radius:8px; max-height:250px; overflow-y:auto; margin-bottom:15px; border:1px solid #444;">';
         if (o.prodotti && o.prodotti.length > 0) {
             o.prodotti.forEach(p => {
-                let det = (p.dettagli && p.dettagli !== 'Normale') ? `<br><small style="color:#aaa;">${p.dettagli}</small>` : '';
-                prodHtml += `<div style="border-bottom:1px solid #333; padding:8px 0; color:white;"><div style="display:flex; justify-content:space-between;"><b>${p.qta}x ${p.nome}</b><span style="color:#ffea00;">€${(p.prezzo * p.qta).toFixed(2)}</span></div>${det}</div>`;
+                let det = (p.dettagli && p.dettagli !== 'Normale') ? `<br><small style="color:#aaa;">${window.sanitizeHtml(p.dettagli)}</small>` : '';
+                prodHtml += `<div style="border-bottom:1px solid #333; padding:8px 0; color:white;"><div style="display:flex; justify-content:space-between;"><b>${window.escapeHtml(p.qta)}x ${window.escapeHtml(p.nome)}</b><span style="color:#ffea00;">€${(p.prezzo * p.qta).toFixed(2)}</span></div>${det}</div>`;
             });
         } else {
             prodHtml += `<div style="color:#888;">Nessun prodotto registrato.</div>`;
@@ -4824,7 +4900,7 @@ window.vediDettagliStorico = async (id) => {
             title: `Dettagli Ordine`,
             html: `
                 <div style="color:#aaa; font-size:1em; margin-bottom:15px; padding-bottom:10px; border-bottom:1px dashed #555;">
-                    ${o.tavolo ? 'TAVOLO ' + o.tavolo : (o.nome || 'Asporto')} | Ore: ${o.orario || '--:--'} <br>
+                    ${window.escapeHtml(o.tavolo ? 'TAVOLO ' + o.tavolo : (o.nome || 'Asporto'))} | Ore: ${window.escapeHtml(o.orario || '--:--')} <br>
                     <b style="font-size:1.2em; color:white;">Totale Pagato: €${parseFloat(o.totale || 0).toFixed(2)}</b>
                 </div>
                 ${prodHtml}

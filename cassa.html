@@ -29,6 +29,7 @@
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sanitize.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/rsvp@4.8.5/dist/rsvp.min.js"></script>
@@ -505,7 +506,7 @@
                         <input type="text" id="edit-zona" class="input-std" placeholder="Zona / Quartiere" style="flex:1; margin:0;">
                         <div style="flex:1; display:flex; align-items:center; gap:6px; background:#fff; padding:0 10px; border-radius:6px; border:1px solid #cbd5e1;">
                             <span style="font-size:0.85em; color:#475569; white-space:nowrap; font-weight:bold;">Suppl. (€):</span>
-                            <input type="number" id="edit-supplemento" class="input-std" step="0.50" min="0" value="2.00" style="border:none; margin:0; font-weight:bold; color:#d97706;" oninput="window.aggiornaTotaleEditConSupplemento()">
+                            <input type="number" id="edit-supplemento" class="input-std" step="0.50" min="0" value="2.00" style="border:none; margin:0; font-weight:bold; color:#d97706;" oninput="ricalcolaTotaleEditLive()">
                         </div>
                     </div>
                 </div>
@@ -1508,10 +1509,10 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; background:#fef3c7; padding:6px 10px; border-radius:8px; flex-wrap:wrap; gap:8px;">
                         <span style="font-size:0.9em;">
                             <b style="background:#d97706; color:#fff; padding:2px 6px; border-radius:4px; font-size:0.8em;">${badgeUrg}</b>
-                            <b>${(item.nome || 'Cliente').toUpperCase()}</b> — <b>${item.pax} Persone</b> (${dataFmt} ore ${item.orario || '--:--'})
-                            ${item.telefono ? ` 📞 <b>${item.telefono}</b>` : ''}
+                            <b>${window.escapeHtml((item.nome || 'Cliente').toUpperCase())}</b> — <b>${window.escapeHtml(item.pax)} Persone</b> (${dataFmt} ore ${window.escapeHtml(item.orario || '--:--')})
+                            ${item.telefono ? ` 📞 <b>${window.escapeHtml(item.telefono)}</b>` : ''}
                         </span>
-                        <button onclick="window.confermaChiamataGruppoCassa('${item.id}')" style="background:#10b981; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.82em;">
+                        <button onclick="window.confermaChiamataGruppoCassa('${window.safeId(item.id)}')" style="background:#10b981; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.82em;">
                             <i class="fa fa-check"></i> Segna Confermato
                         </button>
                     </div>
@@ -1520,172 +1521,12 @@
         });
 
         // 4. INTEGRAZIONE COMPLETA "CONSEGNA A DOMICILIO" (NUOVO ORDINE, MODIFICA ORDINE, KDS, STATISTICHE E SCHEDE CASSA)
-        window.tipoOrdineCassaCorrente = 'asporto';
+        // Nuovo ordine e modifica ordine domicilio sono gestiti direttamente in cassa.js
         window.mappaOrdiniDomicilio = {};
         window.tuttiOrdiniCassaCache = {};
-        window.ordineInModificaCorrente = null;
-        window.baseTotaleEditSenzaSupp = 0;
-
-        window.toggleEditDomicilioFields = (attivo) => {
-            const box = document.getElementById('edit-domicilio-fields');
-            if (box) box.style.display = attivo ? 'block' : 'none';
-            window.aggiornaTotaleEditConSupplemento();
-        };
-
-        window.aggiornaTotaleEditConSupplemento = () => {
-            const disp = document.getElementById('edit-total-display');
-            if (!disp) return;
-            const isDom = document.getElementById('edit-is-domicilio')?.checked;
-            const supp = isDom ? (parseFloat(document.getElementById('edit-supplemento')?.value) || 0) : 0;
-            const totFinale = (window.baseTotaleEditSenzaSupp || 0) + supp;
-            disp.innerText = `€ ${totFinale.toFixed(2)}`;
-        };
 
         setTimeout(() => {
-            const origToggleTipo = window.toggleTipoOrdine;
-            const origRenderPreview = window.renderNewOrderPreview;
-            const origCreaOrdine = window.creaNuovoOrdine;
-            const origRicalcolaEdit = window.ricalcolaTotaleEditLive;
-            const origSalvaModifiche = window.salvaModificheOrdine;
             const origCalcolaStats = window.calcolaStats;
-
-            // A. Gestione Nuovo Ordine
-            window.toggleTipoOrdine = (tipo) => {
-                window.tipoOrdineCassaCorrente = tipo;
-
-                if (typeof origToggleTipo === 'function') {
-                    origToggleTipo(tipo === 'domicilio' ? 'asporto' : tipo);
-                }
-
-                const btnAsp = document.getElementById('btn-type-asporto');
-                const btnTav = document.getElementById('btn-type-tavolo');
-                const btnDom = document.getElementById('btn-type-domicilio');
-                const fieldTav = document.getElementById('field-tavolo');
-                const fieldDom = document.getElementById('field-domicilio');
-
-                if (btnAsp) btnAsp.classList.toggle('active', tipo === 'asporto');
-                if (btnTav) btnTav.classList.toggle('active', tipo === 'tavolo');
-                if (btnDom) btnDom.classList.toggle('active', tipo === 'domicilio');
-
-                if (fieldTav) {
-                    if (tipo === 'tavolo') fieldTav.classList.remove('hidden-field');
-                    else fieldTav.classList.add('hidden-field');
-                    fieldTav.style.display = (tipo === 'tavolo') ? 'flex' : 'none';
-                }
-                if (fieldDom) {
-                    fieldDom.style.display = (tipo === 'domicilio') ? 'block' : 'none';
-                }
-
-                if (typeof window.renderNewOrderPreview === 'function') {
-                    window.renderNewOrderPreview();
-                }
-            };
-
-            window.renderNewOrderPreview = () => {
-                if (typeof origRenderPreview === 'function') {
-                    origRenderPreview();
-                }
-                if (window.tipoOrdineCassaCorrente === 'domicilio') {
-                    const totEl = document.getElementById('new-ord-totale-preview');
-                    const supp = parseFloat(document.getElementById('new-ord-supplemento')?.value) || 0;
-                    if (totEl && supp > 0) {
-                        const baseVal = parseFloat(totEl.innerText.replace('€', '').trim()) || 0;
-                        totEl.innerText = `€ ${(baseVal + supp).toFixed(2)}`;
-                    }
-                }
-            };
-
-            if (typeof origCreaOrdine === 'function') {
-                window.creaNuovoOrdine = async () => {
-                    const isDom = (window.tipoOrdineCassaCorrente === 'domicilio');
-                    const indirizzo = document.getElementById('new-ord-indirizzo')?.value.trim() || '';
-                    const citofono = document.getElementById('new-ord-citofono')?.value.trim() || '';
-                    const zona = document.getElementById('new-ord-zona')?.value.trim() || '';
-                    const supp = parseFloat(document.getElementById('new-ord-supplemento')?.value) || 0;
-                    const nomeCli = document.getElementById('new-ord-nome')?.value.trim() || '';
-                    const cognomeCli = document.getElementById('new-ord-cognome')?.value.trim() || '';
-                    const dataOrd = document.getElementById('new-ord-date')?.value || getLocalTodayStr();
-
-                    if (isDom && !indirizzo) {
-                        return Swal.fire("Attenzione", "Inserisci l'indirizzo per la consegna a domicilio!", "warning");
-                    }
-
-                    await origCreaOrdine();
-
-                    if (isDom) {
-                        setTimeout(async () => {
-                            const qSnap = await getDocs(query(collection(db, "ordini"), where("data_ritiro", "==", dataOrd)));
-                            let docTarget = null;
-                            qSnap.forEach(d => {
-                                const data = d.data();
-                                const matchNome = (data.nome || '').toLowerCase() === nomeCli.toLowerCase() && (data.cognome || '').toLowerCase() === cognomeCli.toLowerCase();
-                                if (matchNome && data.tipo !== 'DOMICILIO') {
-                                    docTarget = { id: d.id, ...data };
-                                }
-                            });
-                            if (docTarget) {
-                                const nuovoTot = (parseFloat(docTarget.totale) || 0) + supp;
-                                await updateDoc(doc(db, "ordini", docTarget.id), {
-                                    tipo: "DOMICILIO",
-                                    indirizzo: indirizzo,
-                                    citofono: citofono,
-                                    zona: zona,
-                                    supplemento_consegna: supp,
-                                    totale: nuovoTot
-                                });
-                            }
-                        }, 600);
-                    }
-                };
-            }
-
-            // B. Gestione Modifica Ordine (Indirizzo, Citofono, Zona, Supplemento)
-            if (typeof origRicalcolaEdit === 'function') {
-                window.ricalcolaTotaleEditLive = () => {
-                    origRicalcolaEdit();
-                    const disp = document.getElementById('edit-total-display');
-                    if (disp) {
-                        window.baseTotaleEditSenzaSupp = parseFloat(disp.innerText.replace('€', '').trim()) || 0;
-                        window.aggiornaTotaleEditConSupplemento();
-                    }
-                };
-            }
-
-            if (typeof origSalvaModifiche === 'function') {
-                window.salvaModificheOrdine = async () => {
-                    const isDom = document.getElementById('edit-is-domicilio')?.checked || false;
-                    const ind = document.getElementById('edit-indirizzo')?.value.trim() || '';
-                    const cit = document.getElementById('edit-citofono')?.value.trim() || '';
-                    const zon = document.getElementById('edit-zona')?.value.trim() || '';
-                    const sup = isDom ? (parseFloat(document.getElementById('edit-supplemento')?.value) || 0) : 0;
-
-                    if (isDom && !ind) {
-                        return Swal.fire("Attenzione", "Inserisci l'indirizzo per la consegna a domicilio!", "warning");
-                    }
-
-                    const ordTarget = window.ordineInModificaCorrente;
-                    await origSalvaModifiche();
-
-                    if (ordTarget && ordTarget.id) {
-                        setTimeout(async () => {
-                            try {
-                                const totVisualizzato = parseFloat(document.getElementById('edit-total-display')?.innerText.replace('€', '').trim()) || 0;
-                                const nuovoTipo = isDom ? "DOMICILIO" : (ordTarget.tavolo ? "SALA" : "ASPORTO");
-                                await updateDoc(doc(db, "ordini", ordTarget.id), {
-                                    tipo: nuovoTipo,
-                                    indirizzo: isDom ? ind : "",
-                                    citofono: isDom ? cit : "",
-                                    zona: isDom ? zon : "",
-                                    supplemento_consegna: sup,
-                                    totale: totVisualizzato > 0 ? totVisualizzato : (window.baseTotaleEditSenzaSupp + sup)
-                                });
-                            } catch (e) {
-                                console.error("Errore salvataggio dati domicilio in modifica:", e);
-                            }
-                        }, 450);
-                    }
-                };
-            }
 
             // C. Statistiche Domicilio e Quote Rider nel Back Office
             window.calcolaStatisticheDomicilioPeriodo = async () => {
@@ -1740,52 +1581,6 @@
                 };
             }
         }, 800);
-
-        // Osservatore apertura Modale Modifica Ordine per pre-compilare i campi Domicilio
-        const editModalEl = document.getElementById('modal-edit-order');
-        if (editModalEl) {
-            const editModalObs = new MutationObserver(() => {
-                if (editModalEl.style.display && editModalEl.style.display !== 'none') {
-                    setTimeout(() => {
-                        const nomeVal = (document.getElementById('edit-nome')?.value || '').trim().toLowerCase();
-                        const cognomeVal = (document.getElementById('edit-cognome')?.value || '').trim().toLowerCase();
-                        const telVal = (document.getElementById('edit-tel')?.value || '').trim();
-                        const oraVal = (document.getElementById('edit-ora')?.value || '').trim();
-                        const disp = document.getElementById('edit-total-display');
-
-                        const lista = Object.values(window.tuttiOrdiniCassaCache);
-                        const match = lista.find(o => {
-                            const mNome = (o.nome || '').trim().toLowerCase() === nomeVal && (o.cognome || '').trim().toLowerCase() === cognomeVal;
-                            const mTel = telVal && (o.telefono || '').trim() === telVal;
-                            const mOra = !oraVal || (o.orario || '').trim() === oraVal;
-                            return (mNome || mTel) && mOra;
-                        });
-
-                        window.ordineInModificaCorrente = match || null;
-                        const isDom = match ? (match.tipo === 'DOMICILIO' || Boolean(match.indirizzo && String(match.indirizzo).trim() !== '')) : false;
-                        const suppSalvato = match ? (parseFloat(match.supplemento_consegna) || 0) : 2.00;
-                        const totAttuale = disp ? (parseFloat(disp.innerText.replace('€', '').trim()) || 0) : 0;
-
-                        window.baseTotaleEditSenzaSupp = isDom ? Math.max(0, totAttuale - suppSalvato) : totAttuale;
-
-                        const chkDom = document.getElementById('edit-is-domicilio');
-                        const inpInd = document.getElementById('edit-indirizzo');
-                        const inpCit = document.getElementById('edit-citofono');
-                        const inpZon = document.getElementById('edit-zona');
-                        const inpSup = document.getElementById('edit-supplemento');
-
-                        if (chkDom) chkDom.checked = isDom;
-                        if (inpInd) inpInd.value = match?.indirizzo || '';
-                        if (inpCit) inpCit.value = match?.citofono || '';
-                        if (inpZon) inpZon.value = match?.zona || '';
-                        if (inpSup) inpSup.value = isDom ? suppSalvato.toFixed(2) : '2.00';
-
-                        window.toggleEditDomicilioFields(isDom);
-                    }, 150);
-                }
-            });
-            editModalObs.observe(editModalEl, { attributes: true, attributeFilter: ['style'] });
-        }
 
         // Ascolto ordini DOMICILIO e sostituzione automatica "RITIRO" -> "CONSEGNA A DOMICILIO" nelle card e nel KDS
         function aggiornaEtichetteDomicilioSuCard() {
@@ -1849,20 +1644,23 @@
 
                         let badgeRider = '';
                         if (ordineMatch.stato_consegna === 'Consegnato') {
-                            badgeRider = `<div style="margin-top:4px; background:#10b981; color:#fff; padding:2px 8px; border-radius:4px; display:inline-block;">✅ CONSEGNATO DAL RIDER ${ordineMatch.fattorino ? '(' + ordineMatch.fattorino.toUpperCase() + ')' : ''}</div>`;
+                            badgeRider = `<div style="margin-top:4px; background:#10b981; color:#fff; padding:2px 8px; border-radius:4px; display:inline-block;">✅ CONSEGNATO DAL RIDER ${ordineMatch.fattorino ? '(' + window.escapeHtml(ordineMatch.fattorino).toUpperCase() + ')' : ''}</div>`;
                         } else if (ordineMatch.stato_consegna === 'In consegna') {
-                            badgeRider = `<div style="margin-top:4px; background:#0284c7; color:#fff; padding:2px 8px; border-radius:4px; display:inline-block;">🛵 IN CONSEGNA CON: ${(ordineMatch.fattorino || 'RIDER').toUpperCase()}</div>`;
+                            badgeRider = `<div style="margin-top:4px; background:#0284c7; color:#fff; padding:2px 8px; border-radius:4px; display:inline-block;">🛵 IN CONSEGNA CON: ${window.escapeHtml((ordineMatch.fattorino || 'RIDER').toUpperCase())}</div>`;
                         } else if (ordineMatch.fattorino) {
-                            badgeRider = `<br><span style="color:#0284c7;">🛵 Fattorino: <b>${ordineMatch.fattorino}</b></span>`;
+                            badgeRider = `<br><span style="color:#0284c7;">🛵 Fattorino: <b>${window.escapeHtml(ordineMatch.fattorino)}</b></span>`;
                         }
 
                         const newHtml = `
-                            📍 ${ordineMatch.indirizzo || 'Indirizzo non specificato'}
-                            ${ordineMatch.zona ? ` (${ordineMatch.zona})` : ''}
-                            ${ordineMatch.citofono ? ` • 🔔 Citofono: <b>${ordineMatch.citofono}</b>` : ''}
+                            📍 ${window.escapeHtml(ordineMatch.indirizzo || 'Indirizzo non specificato')}
+                            ${ordineMatch.zona ? ` (${window.escapeHtml(ordineMatch.zona)})` : ''}
+                            ${ordineMatch.citofono ? ` • 🔔 Citofono: <b>${window.escapeHtml(ordineMatch.citofono)}</b>` : ''}
                             ${badgeRider}
                         `;
-                        if (infoBox.innerHTML !== newHtml) {
+                        // Confronto con l'ultimo HTML scritto (non con innerHTML, che il browser rinormalizza
+                        // es. &#39; -> ') per evitare riscritture infinite con il MutationObserver
+                        if (infoBox.dataset.lastHtml !== newHtml) {
+                            infoBox.dataset.lastHtml = newHtml;
                             infoBox.innerHTML = newHtml;
                         }
                     }
@@ -2065,11 +1863,11 @@
                         <div class="print-domicilio-header" style="background:#000; color:#fff; text-align:center; font-weight:900; padding:4px; margin-bottom:6px;">
                             🛵 CONSEGNA A DOMICILIO
                         </div>
-                        <div class="print-domicilio-row"><b>📍 INDIRIZZO:</b> ${(ordine.indirizzo || 'Non specificato').toUpperCase()}</div>
-                        ${ordine.citofono ? `<div class="print-domicilio-row"><b>🔔 CITOFONO/SCALA:</b> ${ordine.citofono.toUpperCase()}</div>` : ''}
-                        ${ordine.zona ? `<div class="print-domicilio-row"><b>🗺️ ZONA:</b> ${ordine.zona.toUpperCase()}</div>` : ''}
-                        ${ordine.telefono ? `<div class="print-domicilio-row"><b>📞 TELEFONO:</b> ${ordine.telefono}</div>` : ''}
-                        ${ordine.fattorino ? `<div class="print-domicilio-row"><b>🛵 RIDER:</b> ${ordine.fattorino.toUpperCase()}</div>` : ''}
+                        <div class="print-domicilio-row"><b>📍 INDIRIZZO:</b> ${window.escapeHtml((ordine.indirizzo || 'Non specificato').toUpperCase())}</div>
+                        ${ordine.citofono ? `<div class="print-domicilio-row"><b>🔔 CITOFONO/SCALA:</b> ${window.escapeHtml(ordine.citofono.toUpperCase())}</div>` : ''}
+                        ${ordine.zona ? `<div class="print-domicilio-row"><b>🗺️ ZONA:</b> ${window.escapeHtml(ordine.zona.toUpperCase())}</div>` : ''}
+                        ${ordine.telefono ? `<div class="print-domicilio-row"><b>📞 TELEFONO:</b> ${window.escapeHtml(ordine.telefono)}</div>` : ''}
+                        ${ordine.fattorino ? `<div class="print-domicilio-row"><b>🛵 RIDER:</b> ${window.escapeHtml(ordine.fattorino.toUpperCase())}</div>` : ''}
                         ${supp > 0 ? `<div class="print-domicilio-row" style="border-top:1px dashed #000; margin-top:4px; padding-top:4px;"><b>➕ SUPPL. CONSEGNA:</b> € ${supp.toFixed(2)}</div>` : ''}
                     </div>
                 `;

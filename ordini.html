@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sanitize.js"></script>
 
     <style>
         :root { --primary: #2962ff; --bg: #121212; --card: #1e1e1e; --text: #fff; --green: #00c853; --gold: #ffea00; --red: #ff1744; }
@@ -640,9 +641,9 @@
                         </div>
                         <div id="tel-tendina-${safeId}" class="slot-dropdown" style="display:${isOpen ? 'block' : 'none'};">
                             ${clientiList.map(c => `
-                                <div class="slot-client-row" onclick="window.mostraDettaglioOrdineTel('${c.id}')">
+                                <div class="slot-client-row" onclick="window.mostraDettaglioOrdineTel('${window.safeId(c.id)}')">
                                     <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:190px;">
-                                        👤 <b>${c.cliente}</b>
+                                        👤 <b>${window.escapeHtml(c.cliente)}</b>
                                     </span>
                                     <span style="background:var(--gold); color:#000; font-weight:900; padding:2px 8px; border-radius:6px; font-size:0.85em;">
                                         🍕 ${c.pizze}
@@ -694,15 +695,15 @@
             if (!info) return;
 
             Swal.fire({
-                title: `👤 ${info.cliente} (${info.orario})`,
+                title: `👤 ${window.escapeHtml(info.cliente)} (${window.escapeHtml(info.orario)})`,
                 html: `
                     <div style="text-align:left; background:#161b22; padding:12px; border-radius:10px; border:1px solid #30363d; color:#fff; font-size:0.95em;">
-                        ${info.telefono ? `<div style="margin-bottom:8px;">📞 <a href="tel:${info.telefono}" style="color:#58a6ff; text-decoration:none; font-weight:bold;">${info.telefono}</a></div>` : ''}
+                        ${info.telefono ? `<div style="margin-bottom:8px;">📞 <a href="tel:${String(info.telefono).replace(/[^\d+]/g, '')}" style="color:#58a6ff; text-decoration:none; font-weight:bold;">${window.escapeHtml(info.telefono)}</a></div>` : ''}
                         <div style="color:var(--gold); font-weight:bold; margin-bottom:6px;">🍕 Pizze in ordine (${info.pizze}):</div>
                         <ul style="margin:0; padding-left:18px; line-height:1.5;">
-                            ${info.righe.map(r => `<li>${r}</li>`).join('')}
+                            ${info.righe.map(r => `<li>${window.escapeHtml(r)}</li>`).join('')}
                         </ul>
-                        ${info.note ? `<div style="margin-top:10px; padding:6px 8px; background:#332b00; border-left:3px solid var(--gold); color:#ffea00; font-size:0.9em;">📝 Note: ${info.note}</div>` : ''}
+                        ${info.note ? `<div style="margin-top:10px; padding:6px 8px; background:#332b00; border-left:3px solid var(--gold); color:#ffea00; font-size:0.9em;">📝 Note: ${window.escapeHtml(info.note)}</div>` : ''}
                         <div style="margin-top:10px; text-align:right; font-weight:900; color:var(--green); font-size:1.1em;">Totale: € ${info.totale}</div>
                     </div>
                 `,
