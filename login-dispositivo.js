@@ -3,12 +3,15 @@
 // Sostituisce le credenziali scritte nel codice: se il dispositivo non è
 // collegato mostra una schermata email/password. Firebase ricorda l'accesso,
 // quindi la schermata compare solo la prima volta (o dopo un logout).
+// Ogni account è collegato a un locale dal Super Admin (documento utenti/{uid}):
+// dopo l'accesso il dispositivo si apre da solo sul locale dell'account.
 // Uso (dentro uno <script type="module">, dopo initializeApp):
 //   import { assicuraLoginDispositivo } from "./login-dispositivo.js";
 //   await assicuraLoginDispositivo();
 // ============================================================================
 import { getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const MESSAGGI_ERRORE = {
     'auth/invalid-credential': 'Email o password errati.',
@@ -56,15 +59,67 @@ function creaOverlay(titolo, onAccedi) {
     return overlay;
 }
 
+// Solo gli account email/password sono account del personale (i clienti dell'App usano l'SMS)
+function isAccountPersonale(user) {
+    return !!user && (user.providerData || []).some(p => p.providerId === 'password');
+}
+
+function mostraAccountNonAbilitato(user) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed; inset:0; z-index:2147483000; display:flex; align-items:center; justify-content:center; padding:20px; background:#0f172a; color:#fff; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align:center;';
+    overlay.innerHTML = `
+        <div style="max-width:380px;">
+            <div style="font-size:2.4em; margin-bottom:8px;">⛔</div>
+            <h2 style="margin:0 0 10px 0; font-size:1.2em;">Account non abilitato</h2>
+            <p style="color:#cbd5e1; font-size:0.95em; margin:0 0 18px 0;">L'account <b data-email></b> non è collegato a nessun locale. Contatta l'assistenza.</p>
+            <button type="button" style="padding:12px 22px; border:none; border-radius:10px; background:#2563eb; color:#fff; font-weight:900; cursor:pointer;">ESCI E USA UN ALTRO ACCOUNT</button>
+        </div>`;
+    overlay.querySelector('[data-email]').textContent = user.email || user.uid;
+    overlay.querySelector('button').addEventListener('click', async () => {
+        await signOut(getAuth(getApps()[0]));
+        location.reload();
+    });
+    document.body.appendChild(overlay);
+}
+
+// Legge il profilo dell'account (utenti/{uid}) e apre il locale giusto.
+// Restituisce il profilo, oppure null se l'account non è abilitato (in quel caso mostra il blocco).
+export async function verificaAccountLocale(user) {
+    let profilo = null;
+    try {
+        const snap = await getDoc(doc(getFirestore(getApps()[0]), 'utenti', user.uid));
+        profilo = snap.exists() ? snap.data() : null;
+    } catch (e) {
+        console.warn("Lettura profilo account non riuscita:", e);
+    }
+    if (!profilo || !['locale', 'superadmin'].includes(profilo.ruolo)) {
+        mostraAccountNonAbilitato(user);
+        return null;
+    }
+    if (profilo.ruolo === 'locale') {
+        const localeAttuale = window.TENANT_ID || 'default';
+        if (profilo.locale && profilo.locale !== localeAttuale) {
+            // Il dispositivo era su un altro locale: passa a quello dell'account
+            localStorage.setItem('saas_tenant_id', profilo.locale);
+            const url = new URL(location.href);
+            url.searchParams.set('locale', profilo.locale);
+            location.replace(url.toString());
+            await new Promise(() => {});
+        }
+    }
+    return profilo;
+}
+
 // Restituisce l'utente collegato; se nessuno è collegato mostra la schermata di accesso e attende.
-export function assicuraLoginDispositivo({ titolo = 'Accesso dispositivo' } = {}) {
+// Con verificaLocale (predefinito) controlla anche che l'account sia abilitato e apre il suo locale.
+export function assicuraLoginDispositivo({ titolo = 'Accesso dispositivo', verificaLocale = true } = {}) {
     const auth = getAuth(getApps()[0]);
-    return new Promise((resolve) => {
+    const attesaLogin = new Promise((resolve) => {
         let overlay = null;
         let stop = null;
         let collegato = false;
         stop = onAuthStateChanged(auth, (user) => {
-            if (user) {
+            if (isAccountPersonale(user)) {
                 if (overlay) overlay.remove();
                 collegato = true;
                 if (stop) stop();
@@ -79,6 +134,12 @@ export function assicuraLoginDispositivo({ titolo = 'Accesso dispositivo' } = {}
         });
         if (collegato) stop();
     });
+    if (!verificaLocale) return attesaLogin;
+    return attesaLogin.then(async (user) => {
+        const profilo = await verificaAccountLocale(user);
+        if (!profilo) await new Promise(() => {});   // account non abilitato: la pagina resta bloccata
+        return user;
+    });
 }
 
 // Attende che il dispositivo sia collegato, senza mostrare nulla (per script secondari
@@ -89,7 +150,7 @@ export function attendiUtenteCollegato() {
         let stop = null;
         let collegato = false;
         stop = onAuthStateChanged(auth, (user) => {
-            if (!user) return;
+            if (!isAccountPersonale(user)) return;
             collegato = true;
             if (stop) stop();
             resolve(user);

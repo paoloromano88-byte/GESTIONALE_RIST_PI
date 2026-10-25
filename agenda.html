@@ -286,6 +286,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, query, onSnapshot, getDocs, getDoc, setDoc, addDoc, updateDoc, doc as _doc, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { verificaAccountLocale } from "./login-dispositivo.js";
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -733,7 +734,9 @@
         };
 
         onAuthStateChanged(auth, async (user) => {
-            if (user) {
+            if (user && user.providerData.some(p => p.providerId === 'password')) {
+                document.getElementById('company-login-overlay').style.display = 'none';
+                if (!(await verificaAccountLocale(user))) return;
                 gestisciAccessoOperatore();
             } else {
                 // Nessun accesso automatico: il dispositivo entra una volta con l'account del locale e Firebase lo ricorda

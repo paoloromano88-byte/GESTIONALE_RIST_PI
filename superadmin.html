@@ -7,6 +7,7 @@
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sanitize.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
         .container { max-width: 780px; margin: 0 auto; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: none; }
@@ -42,6 +43,9 @@
                 </button>
                 <button id="btn-clone-menu" onclick="clonaListinoSuTenant()" style="display:none; background:#8b5cf6; color:white; border:none; padding:9px 12px; border-radius:6px; font-size:0.6em; cursor:pointer; font-weight:bold;" title="Copia Menu, Aggiunte e Rimozioni dal Locale Principale a questo ristorante">
                     <i class="fa fa-copy"></i> CLONA MENU BASE
+                </button>
+                <button onclick="esciSuperAdmin()" title="Esci" style="background:#30363d; color:white; border:none; padding:9px 12px; border-radius:6px; font-size:0.6em; cursor:pointer; font-weight:bold;">
+                    <i class="fa fa-right-from-bracket"></i>
                 </button>
                 <button id="btn-del-tenant" onclick="eliminaRistorante()" style="display:none; background:#da3633; color:white; border:none; padding:9px 12px; border-radius:6px; font-size:0.6em; cursor:pointer; font-weight:bold;" title="Elimina questo cliente">
                     <i class="fa fa-trash"></i>
@@ -142,6 +146,26 @@
             <input type="text" id="lic-testo-avviso" class="input" placeholder="Es. ⚠️ Promemoria: l'abbonamento scade tra 3 giorni.">
         </div>
 
+        <!-- ACCOUNT DEL LOCALE (ogni account vede SOLO il suo locale) -->
+        <div class="section-box">
+            <h3 style="color:#58a6ff; margin:0 0 6px 0; font-size:1.05em;"><i class="fa-solid fa-user-lock"></i> Account del Locale</h3>
+            <p style="margin:0 0 12px 0; font-size:0.8em; color:#8b949e;">Con questi account i dispositivi del locale (cassa, sala, KDS, rider...) accedono <b>solo</b> ai dati di questo locale. Non possono vedere altri locali né modificare la licenza.</p>
+            <div id="lista-account" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <input type="email" id="acc-email" class="input" placeholder="Email (es. cassa@pizzeriabella.it)" style="flex:2; min-width:200px;">
+                <input type="text" id="acc-password" class="input" placeholder="Password (min. 6 caratteri)" autocomplete="new-password" style="flex:1; min-width:160px;">
+                <button onclick="creaAccountLocale()" style="background:#238636; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fa fa-plus"></i> CREA ACCOUNT</button>
+            </div>
+            <details style="margin-top:10px; font-size:0.85em; color:#8b949e;">
+                <summary style="cursor:pointer;">Collega un account già esistente (creato in Firebase Console)</summary>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                    <input type="text" id="acc-uid" class="input" placeholder="UID utente (Firebase Console > Authentication)" style="flex:2; min-width:200px;">
+                    <input type="email" id="acc-uid-email" class="input" placeholder="Email dell'account" style="flex:1; min-width:160px;">
+                    <button onclick="collegaAccountEsistente()" style="background:#1f6feb; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fa fa-link"></i> COLLEGA</button>
+                </div>
+            </details>
+        </div>
+
         <button class="btn btn-save" onclick="salvaLicenza(false)"><i class="fa-solid fa-floppy-disk"></i> SALVA CONFIGURAZIONE RISTORANTE</button>
 
         <!-- LINK RAPIDI DA INVIARE AL CLIENTE -->
@@ -157,9 +181,9 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot, writeBatch, query, where, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
 
         const firebaseConfig = {
@@ -175,44 +199,136 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // Accesso del dispositivo con l'account del locale (una sola volta, poi Firebase lo ricorda)
-        await assicuraLoginDispositivo({ titolo: "Super Admin" });
-
-        const MASTER_PIN = "1988"; 
+        // Accesso con il proprio account; poi si verifica che sia Super Admin (utenti/{uid}.ruolo)
+        const utenteCorrente = await assicuraLoginDispositivo({ titolo: "Super Admin", verificaLocale: false });
 
         let currentTenant = "default";
         let statoAttuale = true;
         let unsubLicenza = null;
         let unsubNegozio = null;
 
-        async function verificaMasterPin() {
-            if (sessionStorage.getItem('saas_master_unlocked') === 'true') {
-                document.getElementById('main-console').style.display = 'block';
-                await caricaListaRistoranti();
-                window.cambiaTenant('default');
-                return;
+        async function avviaConsole() {
+            document.getElementById('main-console').style.display = 'block';
+            await caricaListaRistoranti();
+            window.cambiaTenant('default');
+        }
+
+        const SWAL_SCURO = { background: '#161b22', color: '#fff' };
+
+        async function verificaAccessoSuperAdmin() {
+            let profilo = null;
+            try {
+                const snap = await getDoc(doc(db, "utenti", utenteCorrente.uid));
+                profilo = snap.exists() ? snap.data() : null;
+            } catch (e) { console.warn(e); }
+
+            if (profilo && profilo.ruolo === 'superadmin') return avviaConsole();
+
+            // Primo avvio: se non esiste ancora nessun Super Admin, questo account può registrarsi.
+            // Con le regole Firestore definitive l'elenco utenti è leggibile solo dal Super Admin.
+            let nessunSuperAdmin = false;
+            try {
+                const esistenti = await getDocs(query(collection(db, "utenti"), where("ruolo", "==", "superadmin"), limit(1)));
+                nessunSuperAdmin = esistenti.empty;
+            } catch (e) { nessunSuperAdmin = false; }
+
+            if (nessunSuperAdmin && !profilo) {
+                const res = await Swal.fire({
+                    title: '👑 Primo avvio',
+                    html: `Nessun Super Admin registrato.<br>Vuoi rendere <b>${window.escapeHtml(utenteCorrente.email)}</b> l'account Super Admin?<br><br><small style="color:#8b949e;">Usa un account personale, diverso da quelli dei locali.</small>`,
+                    icon: 'question', showCancelButton: true, confirmButtonText: 'Sì, registra', cancelButtonText: 'Esci',
+                    allowOutsideClick: false, confirmButtonColor: '#238636', ...SWAL_SCURO
+                });
+                if (res.isConfirmed) {
+                    await setDoc(doc(db, "utenti", utenteCorrente.uid), { email: utenteCorrente.email, ruolo: 'superadmin', creato_il: serverTimestamp() });
+                    await Swal.fire({ icon: 'success', title: 'Super Admin registrato!', timer: 1500, showConfirmButton: false, ...SWAL_SCURO });
+                    return avviaConsole();
+                }
+                return window.esciSuperAdmin();
             }
 
-            const { value: pin } = await Swal.fire({
-                title: '🔐 Accesso Super-Admin',
-                input: 'password',
-                inputLabel: 'Inserisci il tuo PIN Master di proprietà',
-                inputPlaceholder: '****',
-                allowOutsideClick: false,
-                background: '#161b22',
-                color: '#fff',
-                confirmButtonColor: '#238636'
+            await Swal.fire({
+                icon: 'error', title: 'Accesso negato',
+                html: `L'account <b>${window.escapeHtml(utenteCorrente.email)}</b> non è Super Admin.`,
+                confirmButtonText: 'Esci e usa un altro account', allowOutsideClick: false, ...SWAL_SCURO
             });
+            window.esciSuperAdmin();
+        }
 
-            if (pin === MASTER_PIN) {
-                sessionStorage.setItem('saas_master_unlocked', 'true');
-                document.getElementById('main-console').style.display = 'block';
-                await caricaListaRistoranti();
-                window.cambiaTenant('default');
-            } else {
-                Swal.fire({ icon: 'error', title: 'PIN Errato', background: '#161b22', color: '#fff' }).then(() => verificaMasterPin());
+        window.esciSuperAdmin = async () => {
+            await signOut(auth);
+            location.reload();
+        };
+
+        // --- ACCOUNT DEI LOCALI (utenti/{uid} = { email, locale, ruolo: 'locale' }) ---
+        async function caricaAccountLocale() {
+            const box = document.getElementById('lista-account');
+            if (!box) return;
+            box.innerHTML = "<div style='color:#8b949e; font-size:0.85em;'>Caricamento...</div>";
+            try {
+                const snap = await getDocs(query(collection(db, "utenti"), where("locale", "==", currentTenant)));
+                if (snap.empty) {
+                    box.innerHTML = "<div style='color:#d29922; font-size:0.85em;'>⚠️ Nessun account: i dispositivi di questo locale non possono accedere.</div>";
+                    return;
+                }
+                box.innerHTML = snap.docs.map(d => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:10px 12px; gap:10px;">
+                        <span style="overflow:hidden; text-overflow:ellipsis;"><i class="fa fa-user" style="color:#58a6ff;"></i> <b>${window.escapeHtml(d.data().email || '')}</b> <small style="color:#8b949e;">(${window.escapeHtml(d.id.slice(0, 8))}…)</small></span>
+                        <button onclick="scollegaAccount('${window.safeId(d.id)}')" style="background:#da3633; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.8em; white-space:nowrap;"><i class="fa fa-unlink"></i> Scollega</button>
+                    </div>`).join('');
+            } catch (e) {
+                box.innerHTML = `<div style='color:#f85149; font-size:0.85em;'>Errore: ${window.escapeHtml(e.message)}</div>`;
             }
         }
+
+        window.creaAccountLocale = async () => {
+            const email = document.getElementById('acc-email').value.trim();
+            const password = document.getElementById('acc-password').value;
+            if (!email || password.length < 6) return Swal.fire({ icon: 'warning', title: 'Inserisci email e una password di almeno 6 caratteri', ...SWAL_SCURO });
+
+            Swal.fire({ title: 'Creazione account...', allowOutsideClick: false, didOpen: () => Swal.showLoading(), ...SWAL_SCURO });
+            // App Firebase secondaria: crea l'account senza scollegare il Super Admin da questa pagina
+            const appCreazione = getApps().find(a => a.name === 'creazione-account') || initializeApp(firebaseConfig, 'creazione-account');
+            const authCreazione = getAuth(appCreazione);
+            try {
+                const cred = await createUserWithEmailAndPassword(authCreazione, email, password);
+                await setDoc(doc(db, "utenti", cred.user.uid), { email, locale: currentTenant, ruolo: 'locale', creato_il: serverTimestamp() });
+                document.getElementById('acc-email').value = '';
+                document.getElementById('acc-password').value = '';
+                await caricaAccountLocale();
+                Swal.fire({ icon: 'success', title: 'Account creato!', html: `Accedi con <b>${window.escapeHtml(email)}</b> su ogni dispositivo del locale.`, ...SWAL_SCURO });
+            } catch (e) {
+                const msg = e.code === 'auth/email-already-in-use'
+                    ? "Questa email ha già un account: usa \"Collega un account già esistente\" con il suo UID."
+                    : e.message;
+                Swal.fire({ icon: 'error', title: 'Account non creato', text: msg, ...SWAL_SCURO });
+            } finally {
+                await signOut(authCreazione).catch(() => {});
+            }
+        };
+
+        window.collegaAccountEsistente = async () => {
+            const uid = document.getElementById('acc-uid').value.trim();
+            const email = document.getElementById('acc-uid-email').value.trim();
+            if (!/^[A-Za-z0-9]{20,40}$/.test(uid)) return Swal.fire({ icon: 'warning', title: 'UID non valido', text: "Copialo da Firebase Console > Authentication > Users (colonna UID utente).", ...SWAL_SCURO });
+            if (uid === utenteCorrente.uid) return Swal.fire({ icon: 'warning', title: "Non puoi collegare l'account Super Admin a un locale", ...SWAL_SCURO });
+            await setDoc(doc(db, "utenti", uid), { email, locale: currentTenant, ruolo: 'locale', creato_il: serverTimestamp() });
+            document.getElementById('acc-uid').value = '';
+            document.getElementById('acc-uid-email').value = '';
+            await caricaAccountLocale();
+            Swal.fire({ icon: 'success', title: 'Account collegato!', timer: 1300, showConfirmButton: false, ...SWAL_SCURO });
+        };
+
+        window.scollegaAccount = async (uid) => {
+            const res = await Swal.fire({
+                title: 'Scollegare questo account?',
+                text: "I dispositivi che lo usano non potranno più accedere ai dati del locale.",
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#da3633', confirmButtonText: 'Sì, scollega', ...SWAL_SCURO
+            });
+            if (!res.isConfirmed) return;
+            await deleteDoc(doc(db, "utenti", uid));
+            await caricaAccountLocale();
+        };
 
         async function caricaListaRistoranti() {
             const sel = document.getElementById('select-tenant');
@@ -221,7 +337,7 @@
                 const snap = await getDocs(collection(db, "saas_clienti"));
                 snap.forEach(d => {
                     const info = d.data();
-                    sel.innerHTML += `<option value="${d.id}">🍕 ${info.nome || d.id} (${d.id})</option>`;
+                    sel.innerHTML += `<option value="${window.escapeHtml(d.id)}">🍕 ${window.escapeHtml(info.nome || d.id)} (${window.escapeHtml(d.id)})</option>`;
                 });
             } catch(e) { console.log(e); }
         }
@@ -363,6 +479,7 @@
 
             const badge = document.getElementById('current-tenant-badge');
             if (badge) badge.innerText = `ID: ${tenantId}`;
+            caricaAccountLocale();
 
             const btnDel = document.getElementById('btn-del-tenant');
             const btnClone = document.getElementById('btn-clone-menu');
@@ -540,7 +657,7 @@
             }
         };
 
-        verificaMasterPin();
+        verificaAccessoSuperAdmin();
     </script>
 </body>
 </html>
