@@ -11,11 +11,16 @@ const env = await initializeTestEnvironment({ projectId: 'demo-gestionale', fire
 
 await env.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore();
+  await setDoc(doc(db, 'utenti/super1'), { email: 'admin@piattaforma.it', ruolo: 'superadmin' });
+  await setDoc(doc(db, 'utenti/staffDefault'), { email: 'cassa@damimmo.it', ruolo: 'locale', locale: 'default' });
+  await setDoc(doc(db, 'utenti/staffTest'), { email: 'cassa@pizzeriatest.it', ruolo: 'locale', locale: 'pizzeria-test' });
+  await setDoc(doc(db, 'saas_clienti/pizzeria-test'), { nome: 'Pizzeria Test' });
   for (const base of ['', 'ristoranti/pizzeria-test/']) {
     await setDoc(doc(db, base + 'prodotti/margherita'), { nome: 'Margherita', prezzo: 6, scorta: 10, attivo: true, cat: 'pizza' });
     await setDoc(doc(db, base + 'prodotti/bufala'), { nome: 'Bufala', prezzo: 8, scorta: '5', attivo: true, cat: 'pizza' });
     await setDoc(doc(db, base + 'impostazioni/negozio'), { nome: 'Test', supplemento_consegna: 2 });
     await setDoc(doc(db, base + 'impostazioni/stampanti'), { ip: '192.168.1.50' });
+    await setDoc(doc(db, base + 'impostazioni/licenza'), { attiva: false, moduli: { kds: false } });
     await setDoc(doc(db, base + 'dipendenti/d1'), { nome: 'Giulia', pin: '2222' });
     await setDoc(doc(db, base + 'ordini/o1'), { nome: 'Mario', telefono: '3331112222', data_ritiro: '2026-10-26', stato: 'In attesa', totale: 10, cliente: { telefono: '3331112222' } });
     await setDoc(doc(db, base + 'ordini/o2'), { nome: 'Anna', telefono: '3339998888', data_ritiro: '2026-10-26', stato: 'In attesa', totale: 12, cliente: { telefono: '3339998888' } });
@@ -24,7 +29,11 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   }
 });
 
-const staff = env.authenticatedContext('staff1', { firebase: { sign_in_provider: 'password' }, email: 'staff@locale.it' }).firestore();
+const conto = (uid, email) => env.authenticatedContext(uid, { firebase: { sign_in_provider: 'password' }, email }).firestore();
+const superAdmin = conto('super1', 'admin@piattaforma.it');
+const staffDefault = conto('staffDefault', 'cassa@damimmo.it');
+const staffTest = conto('staffTest', 'cassa@pizzeriatest.it');
+const abusivo = conto('abusivo', 'hacker@example.com');   // account email creato da sé, mai collegato
 const anon = env.unauthenticatedContext().firestore();
 const mario = env.authenticatedContext('uidMario', { phone_number: '+393331112222', firebase: { sign_in_provider: 'phone' } }).firestore();
 
@@ -47,12 +56,28 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   console.log(`\n== ${base || '(locale principale)'}`);
   const c = (db, p) => collection(db, base + p);
   const d = (db, p) => doc(db, base + p);
+  const staff = base ? staffTest : staffDefault;          // personale di QUESTO locale
+  const altroStaff = base ? staffDefault : staffTest;     // personale di un ALTRO locale
 
-  // Personale
+  // Personale del locale
   await t('staff legge dipendenti', true, () => getDocs(c(staff, 'dipendenti')));
   await t('staff elenca tutti gli ordini', true, () => getDocs(c(staff, 'ordini')));
   await t('staff modifica ordine', true, () => updateDoc(d(staff, 'ordini/o2'), { stato: 'Pronto' }));
   await t('staff legge impostazioni stampanti', true, () => getDoc(d(staff, 'impostazioni/stampanti')));
+  await t('staff legge la licenza', true, () => getDoc(d(staff, 'impostazioni/licenza')));
+  await t('staff NON si riattiva la licenza', false, () => updateDoc(d(staff, 'impostazioni/licenza'), { attiva: true }));
+  await t('staff NON cancella la licenza', false, () => deleteDoc(d(staff, 'impostazioni/licenza')));
+
+  // Isolamento tra locali e account non collegati
+  await t('personale di un ALTRO locale NON legge gli ordini', false, () => getDocs(c(altroStaff, 'ordini')));
+  await t('personale di un ALTRO locale NON legge dipendenti', false, () => getDocs(c(altroStaff, 'dipendenti')));
+  await t('personale di un ALTRO locale NON modifica ordini', false, () => updateDoc(d(altroStaff, 'ordini/o1'), { stato: 'Annullato' }));
+  await t('account email non collegato NON legge ordini', false, () => getDocs(c(abusivo, 'ordini')));
+  await t('account email non collegato NON legge dipendenti', false, () => getDocs(c(abusivo, 'dipendenti')));
+
+  // Super Admin
+  await t('super admin legge ordini', true, () => getDocs(c(superAdmin, 'ordini')));
+  await t('super admin cambia la licenza', true, () => updateDoc(d(superAdmin, 'impostazioni/licenza'), { attiva: true }));
 
   // Cliente anonimo: letture
   await t('anonimo legge menu prodotti', true, () => getDocs(c(anon, 'prodotti')));
@@ -110,9 +135,21 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('Mario NON legge dipendenti', false, () => getDocs(c(mario, 'dipendenti')));
 }
 
-// Super Admin e locali
+// Piattaforma: Super Admin, elenco locali, account
+console.log('\n== piattaforma');
 await t('anonimo NON legge saas_clienti', false, () => getDocs(collection(anon, 'saas_clienti')));
-await t('staff gestisce saas_clienti', true, () => setDoc(doc(staff, 'saas_clienti/x'), { nome: 'x' }));
+await t('personale di un locale NON legge saas_clienti', false, () => getDocs(collection(staffDefault, 'saas_clienti')));
+await t('personale di un locale NON elenca gli account', false, () => getDocs(collection(staffTest, 'utenti')));
+await t('personale legge il PROPRIO profilo', true, () => getDoc(doc(staffTest, 'utenti/staffTest')));
+await t('personale NON legge il profilo di altri', false, () => getDoc(doc(staffTest, 'utenti/staffDefault')));
+await t('personale NON si promuove Super Admin', false, () => updateDoc(doc(staffTest, 'utenti/staffTest'), { ruolo: 'superadmin' }));
+await t('personale NON si sposta su un altro locale', false, () => updateDoc(doc(staffTest, 'utenti/staffTest'), { locale: 'default' }));
+await t('account abusivo NON si crea il profilo', false, () => setDoc(doc(abusivo, 'utenti/abusivo'), { ruolo: 'superadmin' }));
+await t('account abusivo NON si collega a un locale', false, () => setDoc(doc(abusivo, 'utenti/abusivo'), { ruolo: 'locale', locale: 'default' }));
+await t('personale default NON tocca il documento ristoranti/x', false, () => setDoc(doc(staffDefault, 'ristoranti/pizzeria-test'), { x: 1 }));
+await t('super admin gestisce saas_clienti', true, () => setDoc(doc(superAdmin, 'saas_clienti/x'), { nome: 'x' }));
+await t('super admin elenca gli account di un locale', true, () => getDocs(query(collection(superAdmin, 'utenti'), where('locale', '==', 'pizzeria-test'))));
+await t('super admin crea account per un locale', true, () => setDoc(doc(superAdmin, 'utenti/nuovo'), { email: 'n@x.it', ruolo: 'locale', locale: 'pizzeria-test' }));
 
 console.log(`\nRISULTATO: ${ok} ok, ${ko} falliti`);
 await env.cleanup();

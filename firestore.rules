@@ -3,22 +3,49 @@ rules_version = '2';
 // =============================================================================
 // REGOLE FIRESTORE - Gestionale Ristoranti
 //
-// Personale (cassa, sala, KDS, rider...): account email/password del locale -> accesso completo.
+// Super Admin: account con utenti/{uid}.ruolo == 'superadmin' -> accesso completo a tutto.
+// Personale di un locale: account con utenti/{uid} = { ruolo: 'locale', locale: '<id>' }
+//   -> accesso completo SOLO ai dati del proprio locale, senza poter modificare la licenza.
+//   Gli account si creano e si collegano dalla pagina Super Admin; un account email non
+//   collegato (anche se creato da chiunque) non ha alcun accesso da personale.
 // Clienti (App Clienti, menu QR): senza account o con accesso SMS -> solo ciò che serve:
 //   - leggere menu e impostazioni pubbliche
 //   - inviare un ordine valido e seguirlo tramite il suo ID
 //   - leggere i PROPRI ordini e la propria scheda solo dopo la verifica SMS del numero
 //
-// Le stesse regole valgono per il locale principale (raccolte alla radice)
-// e per ogni locale creato da Super Admin (ristoranti/{locale}/...).
+// Il locale principale ('default') ha le raccolte alla radice; ogni locale creato
+// da Super Admin le ha in ristoranti/{locale}/...
 // =============================================================================
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // ---------- Chi è l'utente ----------
-    function isStaff() {
+    function haProfilo() {
       return request.auth != null
-        && request.auth.token.firebase.sign_in_provider == 'password';
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && exists(/databases/$(database)/documents/utenti/$(request.auth.uid));
+    }
+
+    function profilo() {
+      return get(/databases/$(database)/documents/utenti/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return haProfilo() && profilo().ruolo == 'superadmin';
+    }
+
+    function isPersonaleDi(locale) {
+      return haProfilo() && profilo().ruolo == 'locale' && profilo().get('locale', '') == locale;
+    }
+
+    // Il personale gestisce tutto il proprio locale tranne la licenza (abbonamento e moduli)
+    function personalePuoScrivere(locale, coll, id) {
+      return isPersonaleDi(locale) && !(coll == 'impostazioni' && id == 'licenza');
+    }
+
+    // Raccolte alla radice che non appartengono al locale principale
+    function riservataPiattaforma(coll) {
+      return coll in ['utenti', 'saas_clienti', 'ristoranti'];
     }
 
     // Il numero verificato via SMS corrisponde al telefono indicato (salvato senza +39)
@@ -142,13 +169,20 @@ service cloud.firestore {
             && occupazioneValida(id, request.resource.data.diff(resource.data).affectedKeys()));
     }
 
-    // ---------- Personale: accesso completo a tutto ----------
+    // ---------- Super Admin: accesso completo a tutto ----------
     match /{document=**} {
-      allow read, write: if isStaff();
+      allow read, write: if isSuperAdmin();
+    }
+
+    // ---------- Profilo del proprio account (serve per aprire il locale giusto) ----------
+    match /utenti/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
     }
 
     // ---------- Locale principale ----------
     match /{coll}/{id} {
+      allow read: if !riservataPiattaforma(coll) && isPersonaleDi('default');
+      allow write: if !riservataPiattaforma(coll) && personalePuoScrivere('default', coll, id);
       allow get: if puoLeggereDoc(coll, id);
       allow list: if puoElencare(coll);
       allow create: if puoCreare(coll, id);
@@ -157,6 +191,8 @@ service cloud.firestore {
 
     // ---------- Locali creati da Super Admin ----------
     match /ristoranti/{locale}/{coll}/{id} {
+      allow read: if isPersonaleDi(locale);
+      allow write: if personalePuoScrivere(locale, coll, id);
       allow get: if puoLeggereDoc(coll, id);
       allow list: if puoElencare(coll);
       allow create: if puoCreare(coll, id);

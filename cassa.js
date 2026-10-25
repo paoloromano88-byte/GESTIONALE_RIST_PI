@@ -1,6 +1,7 @@
 import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, increment, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { verificaAccountLocale } from "./login-dispositivo.js";
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
 // --- CONFIGURAZIONE PROGETTO FIREBASE ---
@@ -408,9 +409,12 @@ window.checkLogin = async () => {
 };
 
 // --- CONTROLLO AUTOMATICO SESSIONE (Rispetta sempre il nome del ristorante selezionato) ---
-onAuthStateChanged(auth, (user) => {
-    if (user) {
+onAuthStateChanged(auth, async (user) => {
+    // Solo gli account email/password del personale (i clienti dell'App Clienti usano l'SMS)
+    if (user && user.providerData.some(p => p.providerId === 'password')) {
         if (document.getElementById('login-overlay')) document.getElementById('login-overlay').style.display = 'none';
+        // Account collegato a un locale dal Super Admin: apre il locale giusto o blocca se non abilitato
+        if (!(await verificaAccountLocale(user))) return;
         sessionStorage.setItem('operatore_corrente', 'ADMIN');
         if(document.getElementById('nome-locale-ui')) {
             document.getElementById('nome-locale-ui').innerText = `${window.nomeLocaleCorrenteCassa} - CASSA`;
