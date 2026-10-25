@@ -1,0 +1,19 @@
+# Pubblica il sito su Firebase Hosting (produzione) a ogni push su main
+name: Deploy Firebase Hosting (produzione)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GESTIONALE_RISTORANTI_96C5B }}
+          channelId: live
+          projectId: gestionale-ristoranti-96c5b

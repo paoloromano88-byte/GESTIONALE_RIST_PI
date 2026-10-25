@@ -11,6 +11,7 @@
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sanitize.js"></script>
     <style>
         :root {
             --bg-dark: #0b1120;
@@ -300,63 +301,64 @@
                 const isInDelivery = o.stato_consegna === 'In consegna';
                 const cardClass = isDone ? 'status-done' : (isInDelivery ? 'status-delivery' : 'status-ready');
                 
+                const esc = window.escapeHtml;
                 const nomeCompleto = `${o.cognome || ''} ${o.nome || ''}`.trim() || 'Cliente';
-                const prodottiStr = (o.prodotti || []).map(p => `${p.qta}x ${p.nome}`).join(' • ');
+                const prodottiStr = (o.prodotti || []).map(p => `${esc(p.qta)}x ${esc(p.nome)}`).join(' • ');
                 const indirizzoCompleto = `${o.indirizzo || 'Indirizzo non specificato'} ${o.zona ? '(' + o.zona + ')' : ''}`;
                 const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(indirizzoCompleto)}`;
-                const telUrl = `tel:${o.telefono || ''}`;
+                const telUrl = `tel:${String(o.telefono || '').replace(/[^\d+]/g, '')}`;
 
                 // Indica al fattorino se lo scontrino è già stato battuto/chiuso in cassa
                 const scontrinoBattuto = (o.stato === 'Consegnato' || o.metodo_pagamento);
                 const badgePagamento = scontrinoBattuto
-                    ? `<span class="payment-tag" style="background:#065f46; color:#6ee7b7;">🧾 Scontrino Emesso ${o.metodo_pagamento ? '(' + o.metodo_pagamento + ')' : ''}</span>`
+                    ? `<span class="payment-tag" style="background:#065f46; color:#6ee7b7;">🧾 Scontrino Emesso ${o.metodo_pagamento ? '(' + esc(o.metodo_pagamento) + ')' : ''}</span>`
                     : `<span class="payment-tag" style="background:#7c2d12; color:#fdba74;">💶 Da Chiudere in Cassa</span>`;
 
                 return `
                     <div class="delivery-card ${cardClass}">
                         <div class="card-header">
                             <div>
-                                <div class="client-name">${nomeCompleto.toUpperCase()}</div>
-                                <div style="font-size:0.82em; color:#94a3b8; font-weight:bold;">${o.telefono || 'Nessun telefono'}</div>
+                                <div class="client-name">${esc(nomeCompleto.toUpperCase())}</div>
+                                <div style="font-size:0.82em; color:#94a3b8; font-weight:bold;">${esc(o.telefono || 'Nessun telefono')}</div>
                             </div>
-                            <div class="order-time"><i class="fa fa-clock"></i> ${o.orario || '--:--'}</div>
+                            <div class="order-time"><i class="fa fa-clock"></i> ${esc(o.orario || '--:--')}</div>
                         </div>
 
                         <div class="address-box">
                             <div class="address-text">
                                 <i class="fa-solid fa-location-dot" style="color:#f87171;"></i>
-                                <span style="flex:1;">${indirizzoCompleto}</span>
+                                <span style="flex:1;">${esc(indirizzoCompleto)}</span>
                             </div>
-                            ${o.citofono ? `<div class="address-meta">🔔 Citofono / Scala: <b>${o.citofono}</b></div>` : ''}
+                            ${o.citofono ? `<div class="address-meta">🔔 Citofono / Scala: <b>${esc(o.citofono)}</b></div>` : ''}
                         </div>
 
                         <div class="products-summary">
                             🍕 <b>Piatti:</b> ${prodottiStr || 'Nessun dettaglio'}
-                            ${o.note_ordine ? `<div style="margin-top:4px; color:#fbbf24;">📝 Note: ${o.note_ordine}</div>` : ''}
+                            ${o.note_ordine ? `<div style="margin-top:4px; color:#fbbf24;">📝 Note: ${esc(o.note_ordine)}</div>` : ''}
                         </div>
 
                         <div class="card-footer">
                             <div class="order-total">Totale: €${parseFloat(o.totale || 0).toFixed(2)}</div>
                             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                                 ${badgePagamento}
-                                ${o.fattorino ? `<span class="driver-tag">🛵 ${o.fattorino}</span>` : ''}
+                                ${o.fattorino ? `<span class="driver-tag">🛵 ${esc(o.fattorino)}</span>` : ''}
                             </div>
                         </div>
 
                         <div class="actions-row">
-                            <a href="${mapsUrl}" target="_blank" class="btn-action btn-maps" style="text-decoration:none;">
+                            <a href="${esc(mapsUrl)}" target="_blank" class="btn-action btn-maps" style="text-decoration:none;">
                                 <i class="fa fa-map-location-dot"></i> Maps
                             </a>
-                            <a href="${telUrl}" class="btn-action btn-call" style="text-decoration:none;">
+                            <a href="${esc(telUrl)}" class="btn-action btn-call" style="text-decoration:none;">
                                 <i class="fa fa-phone"></i> Chiama
                             </a>
                             ${!isDone ? `
                                 ${!isInDelivery ? `
-                                    <button class="btn-action btn-take" onclick="window.assegnaFattorino('${o.id}')">
+                                    <button class="btn-action btn-take" onclick="window.assegnaFattorino('${window.safeId(o.id)}')">
                                         <i class="fa fa-motorcycle"></i> Prendi in Carico
                                     </button>
                                 ` : `
-                                    <button class="btn-action btn-done" onclick="window.segnaConsegnato('${o.id}')">
+                                    <button class="btn-action btn-done" onclick="window.segnaConsegnato('${window.safeId(o.id)}')">
                                         <i class="fa fa-check"></i> Consegnato
                                     </button>
                                 `}

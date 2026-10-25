@@ -478,6 +478,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sanitize.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc as _doc, getDoc, query, where, orderBy, limit, setDoc, writeBatch, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -982,17 +983,17 @@
 
                     let prodList = "";
                     if(d.prodotti && d.prodotti.length > 0) {
-                        prodList = d.prodotti.map(p => `${p.qta}x ${p.nome}`).join(", ");
+                        prodList = d.prodotti.map(p => `${window.escapeHtml(p.qta)}x ${window.escapeHtml(p.nome)}`).join(", ");
                     }
 
                     const badgeTipo = isDom
-                        ? `<div style="font-size:0.8em; color:var(--col-gold); margin-bottom:5px; font-weight:bold;">🛵 Consegna a Domicilio: ${d.indirizzo || ''} ${d.citofono ? '(' + d.citofono + ')' : ''}</div>`
+                        ? `<div style="font-size:0.8em; color:var(--col-gold); margin-bottom:5px; font-weight:bold;">🛵 Consegna a Domicilio: ${window.escapeHtml(d.indirizzo || '')} ${d.citofono ? '(' + window.escapeHtml(d.citofono) + ')' : ''}</div>`
                         : `<div style="font-size:0.8em; color:#aaa; margin-bottom:5px;">🥡 Ritiro al Locale</div>`;
 
                     container.innerHTML += `
                         <div class="storico-item">
                             <div class="storico-header">
-                                <span><i class="fa-regular fa-calendar"></i> ${dataFormat}</span>
+                                <span><i class="fa-regular fa-calendar"></i> ${window.escapeHtml(dataFormat)}</span>
                                 <span>€ ${(parseFloat(d.totale) || 0).toFixed(2)}</span>
                             </div>
                             ${badgeTipo}
@@ -1001,10 +1002,10 @@
                             </div>
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
                                 <div>
-                                    <span class="storico-stato" style="background:${bg};">${st.toUpperCase()}</span>
-                                    <span style="font-size:0.8em; color:#888; margin-left:10px;">Ore: ${d.orario || 'N/D'}</span>
+                                    <span class="storico-stato" style="background:${bg};">${window.escapeHtml(st.toUpperCase())}</span>
+                                    <span style="font-size:0.8em; color:#888; margin-left:10px;">Ore: ${window.escapeHtml(d.orario || 'N/D')}</span>
                                 </div>
-                                <button onclick="eseguiRiordino('${d.id}')" style="background:var(--col-gold); color:black; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; cursor:pointer;">
+                                <button onclick="eseguiRiordino('${window.safeId(d.id)}')" style="background:var(--col-gold); color:black; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; cursor:pointer;">
                                     <i class="fa-solid fa-rotate-right"></i> RIORDINA
                                 </button>
                             </div>
@@ -1341,7 +1342,7 @@
             const note = document.getElementById('bg-note').value; const price = parseFloat(document.getElementById('bg-price').innerText);
             let details = `<b>1/2</b> ${d.h1.name}`; if(d.h1.details.length > 0) details += ` <br>${d.h1.details.join(' ')}`;
             details += `<br><b>1/2</b> ${d.h2.name}`; if(d.h2.details.length > 0) details += ` <br>${d.h2.details.join(' ')}`;
-            if(note) details += `<br><b>Note:</b> ${note}`;
+            if(note) details += `<br><b>Note:</b> ${window.escapeHtml(note)}`;
             const componentiScorta = [d.h1.id, d.h2.id].filter(Boolean);
             pushToCart({ nome: "STIRATA BI-GUSTO", prezzo: price, qta: 1, dettagli: details, cat: 'stirata', isPeso: false, componenti: componentiScorta });
             document.getElementById('modal-bigusto').style.display='none';

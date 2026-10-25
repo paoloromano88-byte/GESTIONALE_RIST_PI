@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sanitize.js"></script>
     <style>
         body { font-family: 'Roboto', sans-serif; margin: 0; padding: 0; background-color: #121212; color: white; overflow-x: hidden; }
         
@@ -499,7 +500,7 @@
                         <div class="turn-section ${isCompleted ? 'completed' : ''}">
                             <div class="turn-header">
                                 <span class="turn-title ${isCalled && !isCompleted ? 'highlight' : ''}">TURNO ${turn} ${isCalled && !isCompleted ? '🔔 (CHIAMATO)' : ''}</span>
-                                <button class="btn-turn-ready" onclick="segnaTurnoPronto('${o.id}', ${turn})" ${isCompleted ? 'disabled' : ''}>
+                                <button class="btn-turn-ready" onclick="segnaTurnoPronto('${window.safeId(o.id)}', ${turn})" ${isCompleted ? 'disabled' : ''}>
                                     ${isCompleted ? '<i class="fa fa-check"></i> FATTO' : 'PRONTO'}
                                 </button>
                             </div>
@@ -519,17 +520,17 @@
                                 
                                 const displayQta = p.qta % 1 === 0 ? p.qta : p.qta.toFixed(3);
                                 const isItemDone = o.piatti_pronti && o.piatti_pronti.includes(p._groupKey);
-                                const safeKey = p._groupKey.replace(/'/g, "\\'"); 
+                                const safeKey = window.escapeHtml(String(p._groupKey).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); 
 
                                 return `
                                 <div class="kds-item ${showAgg ? 'highlight-item' : ''} ${isItemDone ? 'item-done' : ''}" 
-                                     onclick="togglePiattoPronto('${o.id}', '${safeKey}',${isItemDone ? 'true' : 'false'})">
+                                     onclick="togglePiattoPronto('${window.safeId(o.id)}', '${safeKey}',${isItemDone ? 'true' : 'false'})">
                                     <div>
-                                        <span class="kds-qty">${displayQta}</span>
-                                        <span class="kds-name">${p.nome}</span>${p.cat === 'gf' ? '<span class="tag-gf-warning">GF</span>' : ''}
+                                        <span class="kds-qty">${window.escapeHtml(displayQta)}</span>
+                                        <span class="kds-name">${window.escapeHtml(p.nome)}</span>${p.cat === 'gf' ? '<span class="tag-gf-warning">GF</span>' : ''}
                                         ${showAgg ? `<span class="agg-badge">+${aggQty} DA FARE ORA</span>` : ''}
                                     </div>
-                                    ${p.dettagli ? `<span class="kds-mod">${p.dettagli}</span>` : ''}
+                                    ${p.dettagli ? `<span class="kds-mod">${window.sanitizeHtml(p.dettagli)}</span>` : ''}
                                 </div>
                             `}).join('')}
                         </div>
@@ -542,18 +543,18 @@
                 card.className = `kds-card ${statusClass}`;
                 card.innerHTML = `
                     <div class="kds-header">
-                        <span>${o.orario || '--:--'}</span>
+                        <span>${window.escapeHtml(o.orario || '--:--')}</span>
                         <span>${timeLabel}</span>
                     </div>
-                    <div class="kds-body" data-oid="${o.id}">
-                        ${o.messaggio_cucina && o.messaggio_cucina.includes('STORNO') ? `<div class="via-badge" style="background:#f44336;color:white;">${o.messaggio_cucina}</div>` : ''}
-                        <div class="kds-info">${clientInfo} <small style="color:#aaa; font-size:0.8em; float:right;">Op: ${o.operatore || o.cameriere || 'App'}</small></div>
+                    <div class="kds-body" data-oid="${window.escapeHtml(o.id)}">
+                        ${o.messaggio_cucina && o.messaggio_cucina.includes('STORNO') ? `<div class="via-badge" style="background:#f44336;color:white;">${window.escapeHtml(o.messaggio_cucina)}</div>` : ''}
+                        <div class="kds-info">${window.escapeHtml(clientInfo)} <small style="color:#aaa; font-size:0.8em; float:right;">Op: ${window.escapeHtml(o.operatore || o.cameriere || 'App')}</small></div>
                         ${getEtichetteFiltrateKDS(o)}
                         ${bodyHtml}
-                        ${o.note_ordine ? `<div style="background:#333; color:yellow; padding:5px; margin:5px; border-radius:4px; font-weight:bold;">NOTE: ${o.note_ordine}</div>` : ''}
+                        ${o.note_ordine ? `<div style="background:#333; color:yellow; padding:5px; margin:5px; border-radius:4px; font-weight:bold;">NOTE: ${window.escapeHtml(o.note_ordine)}</div>` : ''}
                     </div>
                     <div class="kds-footer">
-                        <button class="btn-action btn-done" onclick="chiudiOrdineIntero('${o.id}')"><i class="fa fa-check-double"></i> TUTTO PRONTO</button>
+                        <button class="btn-action btn-done" onclick="chiudiOrdineIntero('${window.safeId(o.id)}')"><i class="fa fa-check-double"></i> TUTTO PRONTO</button>
                     </div>
                 `;
                 grid.appendChild(card);
