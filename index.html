@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title id="app-window-title">Ordina Online - App Cliente V8.8</title>
+    <title id="app-window-title">Ordina Online - App Cliente V8.9</title>
     <link rel="apple-touch-icon" href="logo.png">
     
     <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
@@ -130,6 +130,53 @@
         .tag-gf { color: #ffeb3b; font-weight: 900; font-size: 11px; background: #b71c1c; padding: 2px 4px; border-radius: 3px; border: 1px solid #ffeb3b; }
         .clean-input { margin-bottom: 12px; }
         
+        /* SELETTORE RITIRO / DOMICILIO NEL CARRELLO */
+        .delivery-mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .delivery-mode-btn {
+            flex: 1;
+            padding: 12px 10px;
+            border-radius: 12px;
+            border: 2px solid var(--col-border);
+            background: var(--col-bg-input);
+            color: var(--col-text-muted);
+            font-weight: 800;
+            font-size: 0.92em;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .delivery-mode-btn i {
+            font-size: 1.3em;
+        }
+        .delivery-mode-btn.active-ritiro {
+            border-color: var(--col-green);
+            background: rgba(67, 160, 71, 0.18);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(67, 160, 71, 0.3);
+        }
+        .delivery-mode-btn.active-domicilio {
+            border-color: var(--col-gold);
+            background: rgba(255, 179, 0, 0.18);
+            color: var(--col-gold);
+            box-shadow: 0 0 12px rgba(255, 179, 0, 0.3);
+        }
+        .domicilio-fields-box {
+            display: none;
+            background: rgba(255, 179, 0, 0.07);
+            border: 1px dashed var(--col-gold);
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 14px;
+        }
+
         .btn-applica { background: var(--col-gold); color: black; border: none; border-radius: 10px; font-weight: bold; padding: 0 20px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         .btn-confirm { background-color: var(--col-green); color: white; width: 90%; padding: 18px; border: none; font-size: 1.2em; font-weight: 800; border-radius: 50px; position: fixed; bottom: max(20px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 202; box-shadow: 0 5px 20px rgba(0,0,0,0.7); cursor: pointer;}
         .btn-confirm:disabled { background: #444; color: #888; cursor: not-allowed; box-shadow: none; }
@@ -235,19 +282,47 @@
             Riepilogo Ordine
         </div>
         <div class="cart-form-box">
-            <h3 style="margin-top:0;">I tuoi dati</h3>
+            <h3 style="margin-top:0;">Modalità di Ordine</h3>
+
+            <!-- SELETTORE RITIRO IN SEDE / CONSEGNA A DOMICILIO -->
+            <div class="delivery-mode-selector">
+                <button type="button" id="btn-mode-asporto" class="delivery-mode-btn active-ritiro" onclick="window.setModalitaConsegnaApp('ASPORTO')">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                    <span>RITIRO AL LOCALE</span>
+                    <small style="font-weight:500; font-size:0.8em; color:#aaa;">Gratuito</small>
+                </button>
+                <button type="button" id="btn-mode-domicilio" class="delivery-mode-btn" onclick="window.setModalitaConsegnaApp('DOMICILIO')">
+                    <i class="fa-solid fa-motorcycle"></i>
+                    <span>DOMICILIO</span>
+                    <small id="lbl-supp-domicilio" style="font-weight:600; font-size:0.8em; color:var(--col-gold);">+ € 2.00</small>
+                </button>
+            </div>
+
+            <!-- CAMPI INDIRIZZO E CITOFONO (Visibili quando si sceglie DOMICILIO) -->
+            <div id="box-campi-domicilio" class="domicilio-fields-box">
+                <div style="font-weight:800; color:var(--col-gold); font-size:0.9em; margin-bottom:8px;">
+                    <i class="fa-solid fa-location-dot"></i> Dati per la Consegna a Domicilio
+                </div>
+                <input type="text" id="indirizzo-domicilio" class="clean-input" placeholder="Indirizzo (Via e Numero Civico) *">
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="citofono-domicilio" class="clean-input" placeholder="Citofono / Scala *" style="flex:1; margin-bottom:0;">
+                    <input type="text" id="zona-domicilio" class="clean-input" placeholder="Zona / Quartiere" style="flex:1; margin-bottom:0;">
+                </div>
+            </div>
+
+            <h3 style="margin-top:10px;">I tuoi dati</h3>
             <input type="text" id="nome" class="clean-input" placeholder="Nome (Obbligatorio)">
             <input type="text" id="cognome" class="clean-input" placeholder="Cognome (Obbligatorio)">
             
             <input type="tel" id="telefono" class="clean-input" placeholder="Telefono (Min 10 cifre)" 
                    pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '');" minlength="10">
             
-            <label style="font-weight:bold; font-size:0.9em; display:block; margin-bottom:5px; color:var(--col-gold);">Ritiro:</label>
+            <label id="lbl-data-ora-ordine" style="font-weight:bold; font-size:0.9em; display:block; margin-bottom:5px; color:var(--col-gold);">Data e Orario di Ritiro:</label>
             <div style="display:flex; gap:10px;">
                 <input type="date" id="data-ritiro" class="clean-input" onchange="aggiornaOrari()" style="flex:1;">
                 <select id="orario" class="clean-input" style="flex:1;"><option value="">Orario...</option></select>
             </div>
-            <input type="text" id="note-generali" class="clean-input" placeholder="Note per la cucina (opzionale)">
+            <input type="text" id="note-generali" class="clean-input" placeholder="Note per la cucina o per il rider (opzionale)">
         </div>
         <div id="cart-items-container"></div>
         <div class="cart-form-box" style="margin-bottom:100px;">
@@ -341,7 +416,7 @@
                 Il Titolare del trattamento dei dati è "<span id="privacy-owner-name">Da Mimmo - Restaurant & Pizza</span>".</p>
                 
                 <p><strong>2. Finalità del Trattamento</strong><br>
-                I dati personali forniti (Nome, Cognome, Telefono) vengono utilizzati esclusivamente per la gestione e l'evasione dell'ordine, e per contattarti in caso di necessità riguardanti la consegna o il ritiro.</p>
+                I dati personali forniti (Nome, Cognome, Telefono, Indirizzo per eventuale consegna) vengono utilizzati esclusivamente per la gestione e l'evasione dell'ordine, e per contattarti in caso di necessità riguardanti la consegna o il ritiro.</p>
                 
                 <p><strong>3. Conservazione dei Dati</strong><br>
                 I dati verranno conservati nel nostro database sicuro al fine di facilitare i tuoi ordini futuri e per farti partecipare alla raccolta punti (Fidelity Card). Non cederemo né venderemo MAI i tuoi dati a terzi.</p>
@@ -450,6 +525,7 @@
         const CART_STORAGE_KEY = `mimmo_cart_${window.TENANT_ID}`;
         const SESSION_STORAGE_KEY = `mimmo_user_session_${window.TENANT_ID}`;
         const LAST_ORDER_STORAGE_KEY = `mimmo_last_order_${window.TENANT_ID}`;
+        const ADDRESS_STORAGE_KEY = `mimmo_user_address_${window.TENANT_ID}`;
 
         function getTodayLocalStr() {
             const now = new Date();
@@ -476,6 +552,31 @@
         window.storicoOrdiniDati = {}; 
         let limiteFornoDinamico = 10;
         let crossSellAttivo = false;
+
+        // --- STATO MODALITÀ CONSEGNA (ASPORTO / DOMICILIO) ---
+        window.modalitaConsegnaApp = 'ASPORTO';
+        window.supplementoConsegnaApp = 2.00;
+
+        window.setModalitaConsegnaApp = (modalita) => {
+            window.modalitaConsegnaApp = modalita === 'DOMICILIO' ? 'DOMICILIO' : 'ASPORTO';
+            const btnAsp = document.getElementById('btn-mode-asporto');
+            const btnDom = document.getElementById('btn-mode-domicilio');
+            const boxDom = document.getElementById('box-campi-domicilio');
+            const lblDataOra = document.getElementById('lbl-data-ora-ordine');
+
+            if (window.modalitaConsegnaApp === 'DOMICILIO') {
+                if (btnAsp) btnAsp.classList.remove('active-ritiro');
+                if (btnDom) btnDom.classList.add('active-domicilio');
+                if (boxDom) boxDom.style.display = 'block';
+                if (lblDataOra) lblDataOra.innerText = 'Data e Orario di Consegna a Domicilio:';
+            } else {
+                if (btnDom) btnDom.classList.remove('active-domicilio');
+                if (btnAsp) btnAsp.classList.add('active-ritiro');
+                if (boxDom) boxDom.style.display = 'none';
+                if (lblDataOra) lblDataOra.innerText = 'Data e Orario di Ritiro:';
+            }
+            updateCartUI();
+        };
 
         window.biGustoData = { h1: {id:null, name:'', price:0, extraPrice:0, details:[]}, h2: {id:null, name:'', price:0, extraPrice:0, details:[]} };
         window.modificationContext = 'CART'; 
@@ -559,6 +660,9 @@
                             nome: partiNome[0] || "Cliente",
                             cognome: oldData.cognome || partiNome.slice(1).join(" ") || "",
                             telefono: telCheck,
+                            indirizzo: oldData.indirizzo || "",
+                            citofono: oldData.citofono || "",
+                            zona: oldData.zona || "",
                             data_reg: serverTimestamp()
                         };
                         await setDoc(docRef, newData);
@@ -595,7 +699,10 @@
                     const userData = {
                         nome: parti[0] || "Cliente",
                         cognome: oldData.cognome || parti.slice(1).join(" ") || "",
-                        telefono: tel
+                        telefono: tel,
+                        indirizzo: oldData.indirizzo || "",
+                        citofono: oldData.citofono || "",
+                        zona: oldData.zona || ""
                     };
                     impostaUtenteLoggato(userData);
                     window.chiudiModalAuth();
@@ -674,6 +781,9 @@
                             nome: parti[0] || "Cliente",
                             cognome: oldData.cognome || parti.slice(1).join(" ") || "",
                             telefono: telCheck,
+                            indirizzo: oldData.indirizzo || "",
+                            citofono: oldData.citofono || "",
+                            zona: oldData.zona || "",
                             data_reg: serverTimestamp()
                         };
                         await setDoc(docRef, newData);
@@ -772,10 +882,30 @@
                 const iNome = document.getElementById('nome');
                 const iCognome = document.getElementById('cognome');
                 const iTel = document.getElementById('telefono');
+                const iInd = document.getElementById('indirizzo-domicilio');
+                const iCit = document.getElementById('citofono-domicilio');
+                const iZon = document.getElementById('zona-domicilio');
+
                 if(iNome && !iNome.value) iNome.value = currentUserData.nome || '';
                 if(iCognome && !iCognome.value) iCognome.value = currentUserData.cognome || '';
                 if(iTel && !iTel.value) iTel.value = currentUserData.telefono || '';
+                if(iInd && !iInd.value && currentUserData.indirizzo) iInd.value = currentUserData.indirizzo;
+                if(iCit && !iCit.value && currentUserData.citofono) iCit.value = currentUserData.citofono;
+                if(iZon && !iZon.value && currentUserData.zona) iZon.value = currentUserData.zona;
             }
+
+            // Ripristina anche l'ultimo indirizzo salvato localmente sul dispositivo
+            try {
+                const savedAddr = JSON.parse(localStorage.getItem(ADDRESS_STORAGE_KEY) || "null");
+                if (savedAddr) {
+                    const iInd = document.getElementById('indirizzo-domicilio');
+                    const iCit = document.getElementById('citofono-domicilio');
+                    const iZon = document.getElementById('zona-domicilio');
+                    if (iInd && !iInd.value && savedAddr.indirizzo) iInd.value = savedAddr.indirizzo;
+                    if (iCit && !iCit.value && savedAddr.citofono) iCit.value = savedAddr.citofono;
+                    if (iZon && !iZon.value && savedAddr.zona) iZon.value = savedAddr.zona;
+                }
+            } catch (e) {}
         }
 
         window.caricaStoricoOrdini = async () => {
@@ -833,6 +963,7 @@
                         dataFormat = d.data_ritiro + " " + (d.orario || "");
                     }
 
+                    const isDom = d.tipo === 'DOMICILIO' || (d.indirizzo && String(d.indirizzo).trim() !== '');
                     let st = d.stato || "In Attesa";
                     let bg = "#757575"; 
                     if(st.toLowerCase().includes('forno')) bg = "#e65100"; 
@@ -840,10 +971,23 @@
                     if(st.toLowerCase().includes('consegnato')) bg = "#1565c0"; 
                     if(st.toLowerCase().includes('annullato')) bg = "#b71c1c"; 
 
+                    // Se è un ordine a domicilio, mostra anche lo stato live del Rider
+                    if (isDom && d.stato_consegna === 'In consegna') {
+                        st = `🛵 IN CONSEGNA${d.fattorino ? ' (' + d.fattorino.toUpperCase() + ')' : ''}`;
+                        bg = "#0284c7";
+                    } else if (isDom && d.stato_consegna === 'Consegnato') {
+                        st = "✅ CONSEGNATO";
+                        bg = "#10b981";
+                    }
+
                     let prodList = "";
                     if(d.prodotti && d.prodotti.length > 0) {
                         prodList = d.prodotti.map(p => `${p.qta}x ${p.nome}`).join(", ");
                     }
+
+                    const badgeTipo = isDom
+                        ? `<div style="font-size:0.8em; color:var(--col-gold); margin-bottom:5px; font-weight:bold;">🛵 Consegna a Domicilio: ${d.indirizzo || ''} ${d.citofono ? '(' + d.citofono + ')' : ''}</div>`
+                        : `<div style="font-size:0.8em; color:#aaa; margin-bottom:5px;">🥡 Ritiro al Locale</div>`;
 
                     container.innerHTML += `
                         <div class="storico-item">
@@ -851,13 +995,14 @@
                                 <span><i class="fa-regular fa-calendar"></i> ${dataFormat}</span>
                                 <span>€ ${(parseFloat(d.totale) || 0).toFixed(2)}</span>
                             </div>
+                            ${badgeTipo}
                             <div class="storico-dettagli">
                                 🍕 ${prodList}
                             </div>
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
                                 <div>
                                     <span class="storico-stato" style="background:${bg};">${st.toUpperCase()}</span>
-                                    <span style="font-size:0.8em; color:#888; margin-left:10px;">Ritiro: ${d.orario || 'N/D'}</span>
+                                    <span style="font-size:0.8em; color:#888; margin-left:10px;">Ore: ${d.orario || 'N/D'}</span>
                                 </div>
                                 <button onclick="eseguiRiordino('${d.id}')" style="background:var(--col-gold); color:black; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; cursor:pointer;">
                                     <i class="fa-solid fa-rotate-right"></i> RIORDINA
@@ -903,6 +1048,14 @@
                         };
                         pushToCart(newItem);
                     });
+
+                    // Se l'ordine precedente era a domicilio, pre-imposta anche la modalità e l'indirizzo
+                    if (ordineTarget.tipo === 'DOMICILIO' || ordineTarget.indirizzo) {
+                        window.setModalitaConsegnaApp('DOMICILIO');
+                        if (ordineTarget.indirizzo) document.getElementById('indirizzo-domicilio').value = ordineTarget.indirizzo;
+                        if (ordineTarget.citofono) document.getElementById('citofono-domicilio').value = ordineTarget.citofono;
+                        if (ordineTarget.zona) document.getElementById('zona-domicilio').value = ordineTarget.zona;
+                    }
                     
                     window.chiudiModalAuth();
                     window.apriCarrello();
@@ -928,7 +1081,7 @@
                 document.getElementById('app-window-title').innerText = `${fallbackName} - Ordina Online`;
             }
 
-            // 1. Impostazioni Negozio (White-Label in tempo reale + Giorno Chiusura)
+            // 1. Impostazioni Negozio (White-Label in tempo reale + Giorno Chiusura + Supplemento Domicilio)
             onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
                 if(docNegozio.exists()) {
                     const dn = docNegozio.data();
@@ -948,6 +1101,12 @@
                     if (dn.logo_url) {
                         document.getElementById('home-logo-img').src = dn.logo_url;
                         document.getElementById('menu-logo-img').src = dn.logo_url;
+                    }
+                    if (dn.supplemento_consegna !== undefined && !isNaN(parseFloat(dn.supplemento_consegna))) {
+                        window.supplementoConsegnaApp = parseFloat(dn.supplemento_consegna);
+                        const lblSupp = document.getElementById('lbl-supp-domicilio');
+                        if (lblSupp) lblSupp.innerText = `+ € ${window.supplementoConsegnaApp.toFixed(2)}`;
+                        updateCartUI();
                     }
                 }
             });
@@ -1219,8 +1378,26 @@
                 const priceDisplay = item.isPeso ? 'Da pesare in cassa' : `€ ${(item.prezzo * item.qta).toFixed(2)}`;
                 box.innerHTML += `<div class="cart-item-card"><div class="cart-item-info"><div class="cart-item-name">${qtyDisplay}x ${item.nome}</div><div class="cart-item-details">${item.dettagli}</div></div><div class="cart-item-actions"><div class="cart-item-price" style="${item.isPeso ? 'font-size:0.8em; color:var(--col-gold);' : ''}">${priceDisplay}</div><div style="display:flex; gap:10px;"><div class="btn-edit" onclick="window.editCartItem(${i})"><i class="fa-solid fa-pencil"></i></div><div class="btn-trash" onclick="window.delItem(${i})"><i class="fa-solid fa-trash"></i></div></div></div></div>`;
             });
-            let totFin = calcolaTotaleConSconto(tot);
-            document.getElementById('btn-invia').innerText = `CONFERMA - € ${totFin.toFixed(2)}`; document.getElementById('btn-invia').disabled = carrello.length<=0; 
+
+            // Riga supplemento consegna se è attivo DOMICILIO
+            const isDom = window.modalitaConsegnaApp === 'DOMICILIO';
+            const supp = (isDom && carrello.length > 0) ? (parseFloat(window.supplementoConsegnaApp) || 0) : 0;
+            if (isDom && carrello.length > 0) {
+                box.innerHTML += `
+                    <div class="cart-item-card" style="border-left-color: var(--col-gold); padding: 14px 20px;">
+                        <div class="cart-item-info">
+                            <div class="cart-item-name" style="font-size: 0.98em; margin:0;">🛵 Supplemento Consegna a Domicilio</div>
+                        </div>
+                        <div class="cart-item-actions">
+                            <div class="cart-item-price" style="color: var(--col-gold);">€ ${supp.toFixed(2)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let totFin = calcolaTotaleConSconto(tot) + supp;
+            document.getElementById('btn-invia').innerText = `CONFERMA - € ${totFin.toFixed(2)}`;
+            document.getElementById('btn-invia').disabled = carrello.length<=0; 
             if(document.getElementById('data-ritiro').value !== "") window.aggiornaOrari();
             localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(carrello));
         }
@@ -1271,15 +1448,21 @@
             const tel = document.getElementById('telefono').value.trim();
             const ora = document.getElementById('orario').value;
             const priv = document.getElementById('privacy-check').checked;
+            const isDom = window.modalitaConsegnaApp === 'DOMICILIO';
+            const indirizzo = document.getElementById('indirizzo-domicilio')?.value.trim() || '';
+            const citofono = document.getElementById('citofono-domicilio')?.value.trim() || '';
+            const zona = document.getElementById('zona-domicilio')?.value.trim() || '';
 
-            if(!nome || !cognome || !tel || !ora) return Swal.fire("Attenzione", "Compila tutti i campi obbligatori.", "warning"); 
+            if(!nome || !cognome || !tel || !ora) return Swal.fire("Attenzione", "Compila tutti i campi obbligatori (Nome, Cognome, Telefono e Orario).", "warning"); 
+            if(isDom && !indirizzo) return Swal.fire("Indirizzo Mancante", "Inserisci la Via e il Numero Civico per la consegna a domicilio.", "warning");
+            if(isDom && !citofono) return Swal.fire("Citofono Mancante", "Indica il nome sul citofono o la scala per aiutare il fattorino.", "warning");
             if(!/^[a-zA-Z\sàèéìíòóùú']+$/i.test(nome) || !/^[a-zA-Z\sàèéìíòóùú']+$/i.test(cognome)) return Swal.fire("Attenzione", "Inserisci nome e cognome reali (solo lettere).", "warning");
             if(!/^(3\d{9})$/.test(tel)) return Swal.fire("Attenzione", "Inserisci un numero di cellulare valido di 10 cifre (deve iniziare con 3).", "warning");
             if(!priv) return Swal.fire("Attenzione", "Devi accettare la Privacy Policy per continuare.", "warning");
             if(carrello.length === 0) return Swal.fire("Attenzione", "Il carrello è vuoto!", "warning");
 
             if (!currentUserData || !currentUserData.telefono) {
-                impostaUtenteLoggato({ nome, cognome, telefono: tel });
+                impostaUtenteLoggato({ nome, cognome, telefono: tel, indirizzo, citofono, zona });
             }
 
             const haBibite = carrello.some(p => p.cat && (p.cat.includes('bibita') || p.cat.includes('birra')));
@@ -1296,18 +1479,27 @@
 
         window.inviaOrdineEffettivo = async () => {
             const lastTime = localStorage.getItem(LAST_ORDER_STORAGE_KEY); if (lastTime) { const diff = Date.now() - parseInt(lastTime); if (diff < 60000) { return Swal.fire("Attendi...", `Hai appena inviato un ordine! Attendi qualche secondo.`, "info"); } }
-            const btn = document.getElementById('btn-invia'); const nome = document.getElementById('nome').value.trim(); const cognome = document.getElementById('cognome').value.trim(); const tel = document.getElementById('telefono').value.trim(); const ora = document.getElementById('orario').value; 
+            const btn = document.getElementById('btn-invia');
+            const nome = document.getElementById('nome').value.trim();
+            const cognome = document.getElementById('cognome').value.trim();
+            const tel = document.getElementById('telefono').value.trim();
+            const ora = document.getElementById('orario').value;
+            const isDom = window.modalitaConsegnaApp === 'DOMICILIO';
+            const indirizzo = isDom ? (document.getElementById('indirizzo-domicilio')?.value.trim() || '') : '';
+            const citofono = isDom ? (document.getElementById('citofono-domicilio')?.value.trim() || '') : '';
+            const zona = isDom ? (document.getElementById('zona-domicilio')?.value.trim() || '') : '';
+            const supp = isDom ? (parseFloat(window.supplementoConsegnaApp) || 0) : 0;
             
             let totBase = 0;
             carrello.forEach(i => { if(!i.isPeso) totBase += (parseFloat(i.prezzo) * parseFloat(i.qta)); });
-            let totFinale = calcolaTotaleConSconto(totBase);
+            let totFinale = +(calcolaTotaleConSconto(totBase) + supp).toFixed(2);
             
             if(totFinale > 300) return Swal.fire("Attenzione", "Per ordini superiori a €300, ti preghiamo di chiamarci al telefono.", "warning");
             btn.innerText="INVIO IN CORSO..."; btn.disabled=true;
             try {
                 const dataRitiroVal = document.getElementById('data-ritiro').value;
                 await addDoc(collection(db, "ordini"), {
-                    cliente: {nome, cognome, telefono:tel},
+                    cliente: { nome, cognome, telefono: tel, indirizzo, citofono, zona },
                     nome: nome,
                     cognome: cognome,
                     telefono: tel,
@@ -1318,13 +1510,22 @@
                     note_ordine: document.getElementById('note-generali').value.substring(0, 200),
                     codice_sconto: codiceScontoAttivo,
                     sconto_applicato: codiceScontoAttivo || null,
-                    tipo: "ASPORTO",
+                    tipo: isDom ? "DOMICILIO" : "ASPORTO",
+                    indirizzo: indirizzo,
+                    citofono: citofono,
+                    zona: zona,
+                    supplemento_consegna: supp,
                     stato: "In attesa",
                     data_invio: serverTimestamp(),
                     user_agent: navigator.userAgent
                 });
 
-                // Scala Scorte Zero-Click (inclusa Stirata Bi-Gusto) e aggiorna CRM Cliente
+                // Salva l'indirizzo sul dispositivo per comodità nei prossimi ordini
+                if (isDom && indirizzo) {
+                    localStorage.setItem(ADDRESS_STORAGE_KEY, JSON.stringify({ indirizzo, citofono, zona }));
+                }
+
+                // Scala Scorte Zero-Click (inclusa Stirata Bi-Gusto) e aggiorna CRM Cliente con Indirizzo
                 try {
                     const batch = writeBatch(db);
                     carrello.forEach(item => {
@@ -1351,14 +1552,20 @@
                         });
                     });
                     if (tel) {
-                        batch.set(doc(db, "clienti", tel), {
+                        const crmPayload = {
                             nome: `${nome} ${cognome}`.trim(),
                             cognome: cognome,
                             telefono: tel,
                             totaleSpeso: increment(totFinale),
                             numOrdini: increment(1),
                             ultimaData: dataRitiroVal
-                        }, { merge: true });
+                        };
+                        if (isDom && indirizzo) {
+                            crmPayload.indirizzo = indirizzo;
+                            crmPayload.citofono = citofono;
+                            crmPayload.zona = zona;
+                        }
+                        batch.set(doc(db, "clienti", tel), crmPayload, { merge: true });
                     }
                     await batch.commit();
                 } catch (errBatch) {
@@ -1367,7 +1574,10 @@
 
                 localStorage.setItem(LAST_ORDER_STORAGE_KEY, Date.now());
                 localStorage.removeItem(CART_STORAGE_KEY);
-                Swal.fire({title: "Ordine Inviato!", text: "Il tuo ordine è stato ricevuto.", icon: "success"}).then(() => { location.reload(); });
+                const msgConferma = isDom
+                    ? `Il tuo ordine a domicilio per le ore ${ora} è stato ricevuto!`
+                    : `Il tuo ordine per il ritiro alle ore ${ora} è stato ricevuto!`;
+                Swal.fire({title: "Ordine Inviato!", text: msgConferma, icon: "success"}).then(() => { location.reload(); });
             } catch(e) {
                 Swal.fire("Errore di Rete", "Non è stato possibile inviare l'ordine: " + e.message, "error");
                 btn.innerText="CONFERMA";
@@ -1393,6 +1603,8 @@
             const rb = document.getElementById('result-box'); if (!rb) return;
             rb.style.display='block'; document.getElementById('res-orario').innerText=d.orario; document.getElementById('res-nome').innerText=d.cliente?.nome||d.nome;
             let st="IN ATTESA", cls="st-attesa"; if(d.stato.toLowerCase().includes('forno')){st="🔥 IN FORNO";cls="st-forno";} if(d.stato.toLowerCase().includes('pronto')){st="✅ PRONTO";cls="st-pronto";} if(d.stato.toLowerCase().includes('consegnato')){st="RITIRATO";cls="st-consegnato";}
+            if (d.stato_consegna === 'In consegna') { st = "🛵 IN CONSEGNA"; cls = "st-forno"; }
+            if (d.stato_consegna === 'Consegnato') { st = "✅ CONSEGNATO"; cls = "st-consegnato"; }
             const badge = document.getElementById('res-status'); badge.innerText=st; badge.className=`status-badge ${cls}`;
         }
 
