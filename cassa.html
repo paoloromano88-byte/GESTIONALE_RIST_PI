@@ -1107,6 +1107,10 @@
                 <div class="form-row">
                     <input type="text" id="dip-nome" class="input-std" placeholder="Nome Operatore">
                     <input type="tel" id="dip-pin" class="input-std" placeholder="PIN (es. 1234)" maxlength="4" style="-webkit-text-security: disc;" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    <select id="dip-ruolo" class="input-std" title="Il ruolo Rider abilita l'accesso all'App Consegne">
+                        <option value="cameriere">Cameriere</option>
+                        <option value="rider">🛵 Rider</option>
+                    </select>
                     <button class="btn-save" onclick="salvaDipendente()">AGGIUNGI</button>
                 </div>
                 <div id="lista-dipendenti" class="db-list"></div>
