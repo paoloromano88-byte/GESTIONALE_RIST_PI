@@ -736,13 +736,8 @@
             if (user) {
                 gestisciAccessoOperatore();
             } else {
-                signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026")
-                    .then(() => {
-                        gestisciAccessoOperatore();
-                    })
-                    .catch(() => {
-                        gestisciAccessoOperatore();
-                    });
+                // Nessun accesso automatico: il dispositivo entra una volta con l'account del locale e Firebase lo ricorda
+                document.getElementById('company-login-overlay').style.display = 'flex';
             }
         });
 

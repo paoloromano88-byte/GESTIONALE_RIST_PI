@@ -251,21 +251,9 @@
                 Swal.close();
                 if(!isKdsInitialized) initKDS();
             } else {
-                // Se l'operatore non ha premuto volontariamente Logout, connette il KDS in automatico
-                if (sessionStorage.getItem('kds_manual_logout') !== 'true') {
-                    signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026")
-                        .then(() => {
-                            if(!isKdsInitialized) initKDS();
-                        })
-                        .catch(() => {
-                            // Avvia comunque il KDS se le regole Firestore sono aperte
-                            document.getElementById('company-login-overlay').style.display = 'none';
-                            if(!isKdsInitialized) initKDS();
-                        });
-                } else {
-                    document.getElementById('company-login-overlay').style.display = 'flex';
-                    isKdsInitialized = false;
-                }
+                // Nessun accesso automatico: il monitor entra una volta con l'account del locale e Firebase lo ricorda
+                document.getElementById('company-login-overlay').style.display = 'flex';
+                isKdsInitialized = false;
             }
         });
 
