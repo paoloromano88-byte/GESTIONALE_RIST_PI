@@ -36,10 +36,14 @@
     <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.5.24/jsrsasign-all-min.js"></script>
 
-    <!-- OTTIMIZZAZIONE SMARTPHONE E SBLOCCO SCHEDE ORDINI -->
+    <!-- OTTIMIZZAZIONE SMARTPHONE, SBLOCCO SCHEDE ORDINI E STAMPA TERMICA -->
     <style>
         #btn-mobile-orari {
             display: none;
+        }
+
+        .color-dom {
+            color: #f59e0b !important;
         }
 
         @media (max-width: 768px) {
@@ -143,6 +147,37 @@
                 max-height: 92vh !important;
                 padding: 15px !important;
                 box-sizing: border-box !important;
+            }
+        }
+
+        /* Stile ad alto contrasto per stampa termica via browser (#print-area) */
+        @media print {
+            .print-domicilio-box {
+                border: 2px solid #000 !important;
+                padding: 8px !important;
+                margin: 8px 0 !important;
+                font-family: 'Courier New', Courier, monospace !important;
+                color: #000 !important;
+                background: #fff !important;
+                text-align: left !important;
+            }
+            .print-domicilio-header {
+                background: #000 !important;
+                color: #fff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                text-align: center !important;
+                font-weight: 900 !important;
+                font-size: 1.2em !important;
+                padding: 4px !important;
+                margin-bottom: 6px !important;
+                text-transform: uppercase !important;
+            }
+            .print-domicilio-row {
+                font-size: 1.05em !important;
+                line-height: 1.35 !important;
+                margin: 2px 0 !important;
+                font-weight: bold !important;
             }
         }
     </style>
@@ -437,6 +472,7 @@
 
     <datalist id="menu-suggestions"></datalist>
 
+    <!-- MODALE MODIFICA ORDINE (CON SEZIONE DOMICILIO INTEGRATA) -->
     <div id="modal-edit-order" class="modal-overlay">
         <div class="modal-box" style="max-width: 600px;">
             <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="chiudiModifica()">&times;</div>
@@ -453,6 +489,28 @@
                 <input type="text" id="edit-tel" class="input-std" placeholder="Tel" style="flex:1;">
                 <input type="time" id="edit-ora" class="input-std" style="flex:1;">
             </div>
+
+            <!-- PANNELLO DOMICILIO IN MODIFICA ORDINE -->
+            <div style="background:#fffbeb; border:1px solid #f59e0b; border-radius:8px; padding:10px; margin-bottom:10px; color:#92400e;">
+                <label style="display:flex; align-items:center; gap:8px; font-weight:900; cursor:pointer; font-size:0.95em;">
+                    <input type="checkbox" id="edit-is-domicilio" style="width:18px; height:18px; accent-color:#f59e0b;" onchange="window.toggleEditDomicilioFields(this.checked)">
+                    🛵 CONSEGNA A DOMICILIO (Indirizzo, Citofono e Supplemento)
+                </label>
+                <div id="edit-domicilio-fields" style="display:none; margin-top:10px;">
+                    <div class="form-row" style="margin-bottom:6px;">
+                        <input type="text" id="edit-indirizzo" class="input-std" placeholder="Indirizzo (Via e Civico) *" style="flex:2; margin:0;">
+                        <input type="text" id="edit-citofono" class="input-std" placeholder="Citofono / Scala" style="flex:1; margin:0;">
+                    </div>
+                    <div class="form-row" style="margin:0;">
+                        <input type="text" id="edit-zona" class="input-std" placeholder="Zona / Quartiere" style="flex:1; margin:0;">
+                        <div style="flex:1; display:flex; align-items:center; gap:6px; background:#fff; padding:0 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <span style="font-size:0.85em; color:#475569; white-space:nowrap; font-weight:bold;">Suppl. (€):</span>
+                            <input type="number" id="edit-supplemento" class="input-std" step="0.50" min="0" value="2.00" style="border:none; margin:0; font-weight:bold; color:#d97706;" oninput="window.aggiornaTotaleEditConSupplemento()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="form-row">
                 <textarea id="edit-note" class="input-std" placeholder="Note Ordine" rows="2"></textarea>
             </div>
@@ -833,6 +891,7 @@
                 </div>
             </div>
 
+            <!-- STATISTICHE (CON NUOVO RIEPILOGO DOMICILIO E SUPPL. RIDER) -->
             <div id="view-stats" style="display:none;">
                 <div class="stat-presets">
                     <button class="btn-preset" onclick="setPeriodo('oggi')">Oggi</button>
@@ -882,8 +941,8 @@
                         </div>
                     </div>
 
-                    <div class="stat-split-container">
-                        <div class="stat-section stat-split-box">
+                    <div class="stat-split-container" style="display:flex; gap:15px; flex-wrap:wrap;">
+                        <div class="stat-section stat-split-box" style="flex:1; min-width:250px;">
                             <div class="stat-header">🥡 ASPORTO</div>
                             <div class="stat-cards-row">
                                 <div class="stat-card-mini">
@@ -905,7 +964,29 @@
                             </div>
                         </div>
 
-                        <div class="stat-section stat-split-box">
+                        <div class="stat-section stat-split-box" style="flex:1; min-width:250px; border:1px solid #f59e0b;">
+                            <div class="stat-header" style="color:#f59e0b;">🛵 DOMICILIO & RIDER</div>
+                            <div class="stat-cards-row">
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-dom" id="st-incasso-dom">€ 0.00</span>
+                                    <span class="stat-lbl-mini">Incasso Dom.</span>
+                                </div>
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-dom" id="st-pizze-dom">0</span>
+                                    <span class="stat-lbl-mini">Pizze</span>
+                                </div>
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-dom" id="st-ordini-dom">0</span>
+                                    <span class="stat-lbl-mini">Consegne</span>
+                                </div>
+                                <div class="stat-card-mini">
+                                    <span class="stat-val-mini color-dom" id="st-supp-dom">€ 0.00</span>
+                                    <span class="stat-lbl-mini">Quote Rider</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-section stat-split-box" style="flex:1; min-width:250px;">
                             <div class="stat-header">🍽️ SALA</div>
                             <div class="stat-cards-row">
                                 <div class="stat-card-mini">
@@ -1241,7 +1322,6 @@
             document.title = `${currentTenantDisplayName} - Cassa PRO`;
         });
 
-        // Se cassa.js prova a scrivere "DA MIMMO - CASSA (ADMIN)" su un altro locale, lo corregge istantaneamente
         if (uiTitleEl && tenantId !== 'default') {
             const observer = new MutationObserver(() => {
                 if (uiTitleEl.innerText.includes('DA MIMMO') && currentTenantDisplayName !== 'DA MIMMO') {
@@ -1272,7 +1352,7 @@
             }
         });
 
-        // 2. FUNZIONI GLOBALI ETICHETTE E ALLEGATI AGENDA PER CASSA E STAMPE TERMICHE
+        // 2. FUNZIONI GLOBALI ETICHETTE, ALLEGATI E STAMPA CUCINA CON DOMICILIO
         window.apriAllegatoAgendaInCassa = (base64Img, nomeCli) => {
             Swal.fire({
                 title: `📎 Allegato - ${(nomeCli || 'Cliente').toUpperCase()}`,
@@ -1328,14 +1408,34 @@
         window.getRigheStampaCucinaFiltrate = (o) => {
             if (!o) return "";
             let righe = [];
-            const serv = (o.preferenza_servizio || '').trim().toLowerCase();
+
+            const ordineDom = (window.mappaOrdiniDomicilio && o.id) ? window.mappaOrdiniDomicilio[o.id] : null;
+            const dati = ordineDom ? { ...o, ...ordineDom } : o;
+            const isDomicilio = dati.tipo === 'DOMICILIO' || (dati.indirizzo && String(dati.indirizzo).trim() !== '');
+
+            if (isDomicilio) {
+                righe.push("================================");
+                righe.push("   *** CONSEGNA A DOMICILIO *** ");
+                righe.push("================================");
+                if (dati.indirizzo) righe.push(`IND: ${dati.indirizzo.toUpperCase()}`);
+                if (dati.citofono)  righe.push(`CITOFONO: ${dati.citofono.toUpperCase()}`);
+                if (dati.zona)      righe.push(`ZONA: ${dati.zona.toUpperCase()}`);
+                if (dati.telefono)  righe.push(`TEL: ${dati.telefono}`);
+                if (dati.fattorino) righe.push(`RIDER: ${dati.fattorino.toUpperCase()}`);
+                if (parseFloat(dati.supplemento_consegna) > 0) {
+                    righe.push(`SUPPL. CONSEGNA: EUR ${parseFloat(dati.supplemento_consegna).toFixed(2)}`);
+                }
+                righe.push("================================");
+            }
+
+            const serv = (dati.preferenza_servizio || '').trim().toLowerCase();
             if (serv === 'giro pizza' || serv === 'giropizza') righe.push("*** SERVIZIO: GIRO PIZZA ***");
             else if (serv === 'ristorante') righe.push("*** SERVIZIO: RISTORANTE ***");
             else if (serv === 'pizzeria') righe.push("*** SERVIZIO: PIZZERIA ***");
             else if (serv === 'misto') righe.push("*** SERVIZIO: MISTO ***");
 
-            if (Array.isArray(o.etichette)) {
-                const haSenzaGlutine = o.etichette.some(t => {
+            if (Array.isArray(dati.etichette)) {
+                const haSenzaGlutine = dati.etichette.some(t => {
                     const low = String(t || '').toLowerCase();
                     return low.includes('senza glutine') || low.includes('glutine') || low.includes('celiac') || low.includes('gf');
                 });
@@ -1419,15 +1519,37 @@
             }).join('');
         });
 
-        // 4. INTEGRAZIONE COMPLETA "CONSEGNA A DOMICILIO" (MODALE + ETICHETTA SCHEDE IN CASSA)
+        // 4. INTEGRAZIONE COMPLETA "CONSEGNA A DOMICILIO" (NUOVO ORDINE, MODIFICA ORDINE, KDS, STATISTICHE E SCHEDE CASSA)
         window.tipoOrdineCassaCorrente = 'asporto';
         window.mappaOrdiniDomicilio = {};
+        window.tuttiOrdiniCassaCache = {};
+        window.ordineInModificaCorrente = null;
+        window.baseTotaleEditSenzaSupp = 0;
+
+        window.toggleEditDomicilioFields = (attivo) => {
+            const box = document.getElementById('edit-domicilio-fields');
+            if (box) box.style.display = attivo ? 'block' : 'none';
+            window.aggiornaTotaleEditConSupplemento();
+        };
+
+        window.aggiornaTotaleEditConSupplemento = () => {
+            const disp = document.getElementById('edit-total-display');
+            if (!disp) return;
+            const isDom = document.getElementById('edit-is-domicilio')?.checked;
+            const supp = isDom ? (parseFloat(document.getElementById('edit-supplemento')?.value) || 0) : 0;
+            const totFinale = (window.baseTotaleEditSenzaSupp || 0) + supp;
+            disp.innerText = `€ ${totFinale.toFixed(2)}`;
+        };
 
         setTimeout(() => {
             const origToggleTipo = window.toggleTipoOrdine;
             const origRenderPreview = window.renderNewOrderPreview;
             const origCreaOrdine = window.creaNuovoOrdine;
+            const origRicalcolaEdit = window.ricalcolaTotaleEditLive;
+            const origSalvaModifiche = window.salvaModificheOrdine;
+            const origCalcolaStats = window.calcolaStats;
 
+            // A. Gestione Nuovo Ordine
             window.toggleTipoOrdine = (tipo) => {
                 window.tipoOrdineCassaCorrente = tipo;
 
@@ -1516,11 +1638,162 @@
                     }
                 };
             }
+
+            // B. Gestione Modifica Ordine (Indirizzo, Citofono, Zona, Supplemento)
+            if (typeof origRicalcolaEdit === 'function') {
+                window.ricalcolaTotaleEditLive = () => {
+                    origRicalcolaEdit();
+                    const disp = document.getElementById('edit-total-display');
+                    if (disp) {
+                        window.baseTotaleEditSenzaSupp = parseFloat(disp.innerText.replace('€', '').trim()) || 0;
+                        window.aggiornaTotaleEditConSupplemento();
+                    }
+                };
+            }
+
+            if (typeof origSalvaModifiche === 'function') {
+                window.salvaModificheOrdine = async () => {
+                    const isDom = document.getElementById('edit-is-domicilio')?.checked || false;
+                    const ind = document.getElementById('edit-indirizzo')?.value.trim() || '';
+                    const cit = document.getElementById('edit-citofono')?.value.trim() || '';
+                    const zon = document.getElementById('edit-zona')?.value.trim() || '';
+                    const sup = isDom ? (parseFloat(document.getElementById('edit-supplemento')?.value) || 0) : 0;
+
+                    if (isDom && !ind) {
+                        return Swal.fire("Attenzione", "Inserisci l'indirizzo per la consegna a domicilio!", "warning");
+                    }
+
+                    const ordTarget = window.ordineInModificaCorrente;
+                    await origSalvaModifiche();
+
+                    if (ordTarget && ordTarget.id) {
+                        setTimeout(async () => {
+                            try {
+                                const totVisualizzato = parseFloat(document.getElementById('edit-total-display')?.innerText.replace('€', '').trim()) || 0;
+                                const nuovoTipo = isDom ? "DOMICILIO" : (ordTarget.tavolo ? "SALA" : "ASPORTO");
+                                await updateDoc(doc(db, "ordini", ordTarget.id), {
+                                    tipo: nuovoTipo,
+                                    indirizzo: isDom ? ind : "",
+                                    citofono: isDom ? cit : "",
+                                    zona: isDom ? zon : "",
+                                    supplemento_consegna: sup,
+                                    totale: totVisualizzato > 0 ? totVisualizzato : (window.baseTotaleEditSenzaSupp + sup)
+                                });
+                            } catch (e) {
+                                console.error("Errore salvataggio dati domicilio in modifica:", e);
+                            }
+                        }, 450);
+                    }
+                };
+            }
+
+            // C. Statistiche Domicilio e Quote Rider nel Back Office
+            window.calcolaStatisticheDomicilioPeriodo = async () => {
+                const startVal = document.getElementById('stats-start')?.value || getLocalTodayStr();
+                const endVal = document.getElementById('stats-end')?.value || startVal;
+
+                try {
+                    const snap = await getDocs(query(collection(db, "ordini"), where("data_ritiro", ">=", startVal), where("data_ritiro", "<=", endVal)));
+                    let incDom = 0;
+                    let pizzeDom = 0;
+                    let ordDom = 0;
+                    let suppDom = 0;
+
+                    snap.forEach(d => {
+                        const o = d.data();
+                        if (o.stato === 'Annullato') return;
+                        const isDom = o.tipo === 'DOMICILIO' || (o.indirizzo && String(o.indirizzo).trim() !== '');
+                        if (!isDom) return;
+
+                        ordDom++;
+                        incDom += parseFloat(o.totale) || 0;
+                        suppDom += parseFloat(o.supplemento_consegna) || 0;
+
+                        const items = Array.isArray(o.prodotti) ? o.prodotti : (Array.isArray(o.items) ? o.items : []);
+                        items.forEach(it => {
+                            const cat = String(it.categoria || it.cat || '').toLowerCase();
+                            const nome = String(it.nome || '').toLowerCase();
+                            if (cat.includes('pizz') || cat === 'stirata' || cat === 'gf' || nome.includes('pizza')) {
+                                pizzeDom += parseFloat(it.quantita || it.qty || 1) || 1;
+                            }
+                        });
+                    });
+
+                    const elInc = document.getElementById('st-incasso-dom');
+                    const elPiz = document.getElementById('st-pizze-dom');
+                    const elOrd = document.getElementById('st-ordini-dom');
+                    const elSup = document.getElementById('st-supp-dom');
+
+                    if (elInc) elInc.innerText = `€ ${incDom.toFixed(2)}`;
+                    if (elPiz) elPiz.innerText = Math.round(pizzeDom);
+                    if (elOrd) elOrd.innerText = ordDom;
+                    if (elSup) elSup.innerText = `€ ${suppDom.toFixed(2)}`;
+                } catch (e) {
+                    console.error("Errore calcolo statistiche domicilio:", e);
+                }
+            };
+
+            if (typeof origCalcolaStats === 'function') {
+                window.calcolaStats = async () => {
+                    await origCalcolaStats();
+                    await window.calcolaStatisticheDomicilioPeriodo();
+                };
+            }
         }, 800);
 
-        // Ascolto ordini DOMICILIO e sostituzione automatica "RITIRO" -> "CONSEGNA A DOMICILIO" nelle card
+        // Osservatore apertura Modale Modifica Ordine per pre-compilare i campi Domicilio
+        const editModalEl = document.getElementById('modal-edit-order');
+        if (editModalEl) {
+            const editModalObs = new MutationObserver(() => {
+                if (editModalEl.style.display && editModalEl.style.display !== 'none') {
+                    setTimeout(() => {
+                        const nomeVal = (document.getElementById('edit-nome')?.value || '').trim().toLowerCase();
+                        const cognomeVal = (document.getElementById('edit-cognome')?.value || '').trim().toLowerCase();
+                        const telVal = (document.getElementById('edit-tel')?.value || '').trim();
+                        const oraVal = (document.getElementById('edit-ora')?.value || '').trim();
+                        const disp = document.getElementById('edit-total-display');
+
+                        const lista = Object.values(window.tuttiOrdiniCassaCache);
+                        const match = lista.find(o => {
+                            const mNome = (o.nome || '').trim().toLowerCase() === nomeVal && (o.cognome || '').trim().toLowerCase() === cognomeVal;
+                            const mTel = telVal && (o.telefono || '').trim() === telVal;
+                            const mOra = !oraVal || (o.orario || '').trim() === oraVal;
+                            return (mNome || mTel) && mOra;
+                        });
+
+                        window.ordineInModificaCorrente = match || null;
+                        const isDom = match ? (match.tipo === 'DOMICILIO' || Boolean(match.indirizzo && String(match.indirizzo).trim() !== '')) : false;
+                        const suppSalvato = match ? (parseFloat(match.supplemento_consegna) || 0) : 2.00;
+                        const totAttuale = disp ? (parseFloat(disp.innerText.replace('€', '').trim()) || 0) : 0;
+
+                        window.baseTotaleEditSenzaSupp = isDom ? Math.max(0, totAttuale - suppSalvato) : totAttuale;
+
+                        const chkDom = document.getElementById('edit-is-domicilio');
+                        const inpInd = document.getElementById('edit-indirizzo');
+                        const inpCit = document.getElementById('edit-citofono');
+                        const inpZon = document.getElementById('edit-zona');
+                        const inpSup = document.getElementById('edit-supplemento');
+
+                        if (chkDom) chkDom.checked = isDom;
+                        if (inpInd) inpInd.value = match?.indirizzo || '';
+                        if (inpCit) inpCit.value = match?.citofono || '';
+                        if (inpZon) inpZon.value = match?.zona || '';
+                        if (inpSup) inpSup.value = isDom ? suppSalvato.toFixed(2) : '2.00';
+
+                        window.toggleEditDomicilioFields(isDom);
+                    }, 150);
+                }
+            });
+            editModalObs.observe(editModalEl, { attributes: true, attributeFilter: ['style'] });
+        }
+
+        // Ascolto ordini DOMICILIO e sostituzione automatica "RITIRO" -> "CONSEGNA A DOMICILIO" nelle card e nel KDS
         function aggiornaEtichetteDomicilioSuCard() {
-            const grids = [document.getElementById('grid-asporto'), document.getElementById('grid-pronti')];
+            const grids = [
+                document.getElementById('grid-asporto'),
+                document.getElementById('grid-pronti'),
+                document.getElementById('kds-grid')
+            ];
             const listaDomicilio = Object.values(window.mappaOrdiniDomicilio);
             if (listaDomicilio.length === 0) return;
 
@@ -1543,11 +1816,12 @@
 
                     if (!ordineMatch) return;
 
-                    // 1. Sostituisce la scritta "RITIRO" in alto a sinistra con "CONSEGNA A DOMICILIO"
+                    // 1. Sostituisce la scritta "RITIRO" o "ASPORTO" con "CONSEGNA A DOMICILIO"
                     const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT, null, false);
                     let node;
                     while ((node = walker.nextNode())) {
-                        if (node.nodeValue && node.nodeValue.trim() === 'RITIRO') {
+                        const val = node.nodeValue ? node.nodeValue.trim() : '';
+                        if (val === 'RITIRO' || val === 'ASPORTO') {
                             const parent = node.parentElement;
                             if (parent) {
                                 parent.innerHTML = `<span style="background:#f59e0b; color:#000; padding:2px 7px; border-radius:4px; font-weight:900; font-size:0.95em; display:inline-block;"><i class="fa fa-motorcycle"></i> CONSEGNA A DOMICILIO</span>`;
@@ -1596,15 +1870,18 @@
             });
         }
 
-        // Sincronizzazione in tempo reale con Firebase per tutti gli ordini a domicilio
+        // Sincronizzazione in tempo reale con Firebase per tutti gli ordini
         onSnapshot(collection(db, "ordini"), (snap) => {
             const nuovaMappa = {};
+            const cacheCompleta = {};
             snap.forEach(d => {
                 const data = d.data();
+                cacheCompleta[d.id] = { id: d.id, ...data };
                 if (data.tipo === 'DOMICILIO' || (data.indirizzo && String(data.indirizzo).trim() !== '')) {
                     nuovaMappa[d.id] = { id: d.id, ...data };
                 }
             });
+            window.tuttiOrdiniCassaCache = cacheCompleta;
             window.mappaOrdiniDomicilio = nuovaMappa;
             aggiornaEtichetteDomicilioSuCard();
         });
@@ -1614,8 +1891,10 @@
         });
         const gAsp = document.getElementById('grid-asporto');
         const gPronti = document.getElementById('grid-pronti');
+        const gKds = document.getElementById('kds-grid');
         if (gAsp) gridObs.observe(gAsp, { childList: true, subtree: true });
         if (gPronti) gridObs.observe(gPronti, { childList: true, subtree: true });
+        if (gKds) gridObs.observe(gKds, { childList: true, subtree: true });
     </script>
 
     <!-- 5. RILEVATORE E NASCONDIMENTO AUTOMATICO COLONNA ORARI SU SMARTPHONE -->
@@ -1638,7 +1917,6 @@
                 if (el.id && (el.id.startsWith('modal-') || el.id.startsWith('grid-') || el.id === 'waiter-screen' || el.id === 'kds-screen')) return;
 
                 const txt = el.innerText || '';
-                // Rileva la colonna degli orari (che contiene la sequenza 19:30, 19:35/19:45, 20:00...)
                 if (txt.includes('19:30') && txt.includes('20:00') && (txt.includes('19:35') || txt.includes('19:45') || txt.includes('20:15'))) {
                     candidati.push(el);
                 }
@@ -1683,9 +1961,201 @@
             applicaStatoOrariMobile();
         };
 
-        // Controlla continuamente all'avvio e ad ogni modifica del DOM finché cassa.js non disegna gli orari
         setInterval(applicaStatoOrariMobile, 400);
         window.addEventListener('resize', applicaStatoOrariMobile);
+    </script>
+
+    <!-- 6. MOTORE DI STAMPA TERMICA AUTOMATICA PER CONSEGNA A DOMICILIO (QZ TRAY + HTML) -->
+    <script>
+        (function() {
+            const LARGHEZZA_CARTA = 42; // Standard 80mm
+            const SEPARATORE_DOPPIO = "=".repeat(LARGHEZZA_CARTA);
+            const SEPARATORE_TRATTO = "-".repeat(LARGHEZZA_CARTA);
+
+            function pulisciTestoESC(str) {
+                if (!str) return "";
+                return String(str)
+                    .replace(/[àáâãä]/g, "a'")
+                    .replace(/[èéêë]/g, "e'")
+                    .replace(/[ìíîï]/g, "i'")
+                    .replace(/[òóôõö]/g, "o'")
+                    .replace(/[ùúûü]/g, "u'")
+                    .replace(/[ÀÁÂÃÄ]/g, "A'")
+                    .replace(/[ÈÉÊË]/g, "E'")
+                    .replace(/[ÌÍÎÏ]/g, "I'")
+                    .replace(/[ÒÓÔÕÖ]/g, "O'")
+                    .replace(/[ÙÚÛÜ]/g, "U'")
+                    .replace(/€/g, "EUR ");
+            }
+
+            function wrapTestoTermica(testo, maxCols = LARGHEZZA_CARTA) {
+                const pulito = pulisciTestoESC(testo).trim();
+                if (pulito.length <= maxCols) return [pulito];
+                
+                const parole = pulito.split(/\s+/);
+                const righe = [];
+                let rigaCorrente = "";
+
+                parole.forEach(parola => {
+                    if ((rigaCorrente + " " + parola).trim().length <= maxCols) {
+                        rigaCorrente = (rigaCorrente + " " + parola).trim();
+                    } else {
+                        if (rigaCorrente) righe.push(rigaCorrente);
+                        rigaCorrente = parola.slice(0, maxCols);
+                    }
+                });
+                if (rigaCorrente) righe.push(rigaCorrente);
+                return righe;
+            }
+
+            window.generaBloccoTermicoDomicilioESC = function(ordine, isCucina = false) {
+                if (!ordine) return "";
+                const isDomicilio = ordine.tipo === 'DOMICILIO' || (ordine.indirizzo && String(ordine.indirizzo).trim() !== '');
+                if (!isDomicilio) return "";
+
+                let righe = [];
+                righe.push(SEPARATORE_DOPPIO);
+                righe.push("      *** CONSEGNA A DOMICILIO ***      ".slice(0, LARGHEZZA_CARTA));
+                righe.push(SEPARATORE_DOPPIO);
+
+                const cliente = `${ordine.cognome || ''} ${ordine.nome || ''}`.trim().toUpperCase();
+                if (cliente) {
+                    wrapTestoTermica(`CLIENTE: ${cliente}`).forEach(r => righe.push(r));
+                }
+                if (ordine.telefono) {
+                    righe.push(`TEL:     ${pulisciTestoESC(ordine.telefono)}`);
+                }
+                if (ordine.orario) {
+                    righe.push(`ORARIO:  ${pulisciTestoESC(ordine.orario)}`);
+                }
+
+                righe.push(SEPARATORE_TRATTO);
+
+                if (ordine.indirizzo) {
+                    wrapTestoTermica(`INDIRIZZO: ${ordine.indirizzo.toUpperCase()}`).forEach(r => righe.push(r));
+                }
+                if (ordine.citofono) {
+                    wrapTestoTermica(`CITOFONO:  ${ordine.citofono.toUpperCase()}`).forEach(r => righe.push(r));
+                }
+                if (ordine.zona) {
+                    wrapTestoTermica(`ZONA:      ${ordine.zona.toUpperCase()}`).forEach(r => righe.push(r));
+                }
+                if (ordine.fattorino) {
+                    righe.push(`RIDER:     ${pulisciTestoESC(ordine.fattorino).toUpperCase()}`);
+                }
+
+                const supp = parseFloat(ordine.supplemento_consegna) || 0;
+                if (!isCucina && supp > 0) {
+                    righe.push(SEPARATORE_TRATTO);
+                    righe.push(`SUPPLEMENTO CONSEGNA: EUR ${supp.toFixed(2)}`);
+                }
+
+                righe.push(SEPARATORE_DOPPIO);
+                return righe.join("\n") + "\n";
+            };
+
+            window.generaBloccoTermicoDomicilioHTML = function(ordine) {
+                if (!ordine) return "";
+                const isDomicilio = ordine.tipo === 'DOMICILIO' || (ordine.indirizzo && String(ordine.indirizzo).trim() !== '');
+                if (!isDomicilio) return "";
+
+                const supp = parseFloat(ordine.supplemento_consegna) || 0;
+                return `
+                    <div class="print-domicilio-box" style="border:2px solid #000; padding:8px; margin:8px 0; font-family:monospace; color:#000; background:#fff; text-align:left;">
+                        <div class="print-domicilio-header" style="background:#000; color:#fff; text-align:center; font-weight:900; padding:4px; margin-bottom:6px;">
+                            🛵 CONSEGNA A DOMICILIO
+                        </div>
+                        <div class="print-domicilio-row"><b>📍 INDIRIZZO:</b> ${(ordine.indirizzo || 'Non specificato').toUpperCase()}</div>
+                        ${ordine.citofono ? `<div class="print-domicilio-row"><b>🔔 CITOFONO/SCALA:</b> ${ordine.citofono.toUpperCase()}</div>` : ''}
+                        ${ordine.zona ? `<div class="print-domicilio-row"><b>🗺️ ZONA:</b> ${ordine.zona.toUpperCase()}</div>` : ''}
+                        ${ordine.telefono ? `<div class="print-domicilio-row"><b>📞 TELEFONO:</b> ${ordine.telefono}</div>` : ''}
+                        ${ordine.fattorino ? `<div class="print-domicilio-row"><b>🛵 RIDER:</b> ${ordine.fattorino.toUpperCase()}</div>` : ''}
+                        ${supp > 0 ? `<div class="print-domicilio-row" style="border-top:1px dashed #000; margin-top:4px; padding-top:4px;"><b>➕ SUPPL. CONSEGNA:</b> € ${supp.toFixed(2)}</div>` : ''}
+                    </div>
+                `;
+            };
+
+            function trovaOrdineDomicilioDaTesto(testoStampa) {
+                if (!testoStampa || !window.mappaOrdiniDomicilio) return null;
+                const upperText = String(testoStampa).toUpperCase();
+                const listaDom = Object.values(window.mappaOrdiniDomicilio);
+
+                return listaDom.find(o => {
+                    const nomeCompleto1 = `${o.cognome || ''} ${o.nome || ''}`.trim().toUpperCase();
+                    const nomeCompleto2 = `${o.nome || ''} ${o.cognome || ''}`.trim().toUpperCase();
+                    const tel = String(o.telefono || '').trim();
+
+                    const matchTel = tel.length >= 6 && upperText.includes(tel);
+                    const matchNome = (nomeCompleto1.length >= 3 && upperText.includes(nomeCompleto1)) ||
+                                      (nomeCompleto2.length >= 3 && upperText.includes(nomeCompleto2));
+
+                    return matchTel || (matchNome && (!o.orario || upperText.includes(o.orario)));
+                });
+            }
+
+            // Intercettore automatico QZ Tray (Stampa Termica IP porta 9100)
+            function agganciaInterceptorQZ() {
+                if (!window.qz || !window.qz.print || window.qz._domicilioHooked) return;
+                const origQzPrint = window.qz.print.bind(window.qz);
+
+                window.qz.print = function(config, data) {
+                    try {
+                        if (Array.isArray(data)) {
+                            const testoCompleto = data.map(item => (typeof item === 'string' ? item : (item?.data || ''))).join('\n');
+                            const ordineDom = trovaOrdineDomicilioDaTesto(testoCompleto);
+
+                            if (ordineDom && !testoCompleto.includes('CONSEGNA A DOMICILIO')) {
+                                const bloccoESC = window.generaBloccoTermicoDomicilioESC(ordineDom, false);
+
+                                data = data.map(item => {
+                                    if (typeof item === 'string') {
+                                        return item
+                                            .replace(/ASPORTO/gi, 'CONSEGNA A DOMICILIO')
+                                            .replace(/RITIRO/gi, 'DOMICILIO');
+                                    } else if (item && typeof item.data === 'string') {
+                                        item.data = item.data
+                                            .replace(/ASPORTO/gi, 'CONSEGNA A DOMICILIO')
+                                            .replace(/RITIRO/gi, 'DOMICILIO');
+                                    }
+                                    return item;
+                                });
+
+                                const indiceInserimento = data.length > 1 ? 1 : 0;
+                                data.splice(indiceInserimento, 0, bloccoESC);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Errore iniezione dati domicilio su QZ Tray:", err);
+                    }
+                    return origQzPrint(config, data);
+                };
+
+                window.qz._domicilioHooked = true;
+            }
+
+            setInterval(agganciaInterceptorQZ, 500);
+
+            // Intercettore automatico per #print-area (Stampa HTML Browser / Preconto)
+            const printAreaEl = document.getElementById('print-area');
+            if (printAreaEl) {
+                const printObs = new MutationObserver(() => {
+                    const html = printAreaEl.innerHTML || "";
+                    const text = printAreaEl.innerText || "";
+                    if (!html || html.includes('print-domicilio-box')) return;
+
+                    const ordineDom = trovaOrdineDomicilioDaTesto(text);
+                    if (ordineDom) {
+                        printAreaEl.innerHTML = printAreaEl.innerHTML
+                            .replace(/ASPORTO/gi, 'CONSEGNA A DOMICILIO')
+                            .replace(/RITIRO/gi, 'CONSEGNA A DOMICILIO');
+
+                        const boxHtml = window.generaBloccoTermicoDomicilioHTML(ordineDom);
+                        printAreaEl.insertAdjacentHTML('afterbegin', boxHtml);
+                    }
+                });
+                printObs.observe(printAreaEl, { childList: true, subtree: true });
+            }
+        })();
     </script>
 </body>
 </html>
