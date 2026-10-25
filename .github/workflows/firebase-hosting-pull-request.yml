@@ -1,0 +1,23 @@
+# Pubblica un'anteprima temporanea (7 giorni) per ogni pull request, senza toccare il sito in produzione
+name: Anteprima Firebase Hosting (pull request)
+
+on: pull_request
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    # Le PR da fork non hanno accesso ai secrets
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GESTIONALE_RISTORANTI_96C5B }}
+          expires: 7d
+          projectId: gestionale-ristoranti-96c5b
