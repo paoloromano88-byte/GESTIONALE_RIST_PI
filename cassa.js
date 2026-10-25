@@ -1,26 +1,93 @@
-import { getFirestore, collection, query, onSnapshot, doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, increment, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, increment, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
-// --- CONFIGURAZIONE NUOVO PROGETTO FIREBASE ---
+// --- CONFIGURAZIONE PROGETTO FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU", 
     authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
     projectId: "gestionale-ristoranti-96c5b",
     storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
-    messagingSenderId: "855115229099",
-    appId: "1:855115229099:web:99785936847d28016254ee"
+    messagingSenderId: "234695436534",
+    appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
-const auth = getAuth(app); 
+const auth = getAuth(app);
 
-// Variabili globali
+// --- ROUTER MULTI-TENANT AUTOMATICO (Isola ogni ristorante creato da SuperAdmin) ---
+const _urlParams = new URLSearchParams(window.location.search);
+if (_urlParams.has('locale')) {
+    window.TENANT_ID = _urlParams.get('locale') || 'default';
+    localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+} else {
+    window.TENANT_ID = window.TENANT_ID || localStorage.getItem('saas_tenant_id') || 'default';
+}
+
+const collection = (database, ...pathSegments) => {
+    if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+        return _collection(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+    }
+    return _collection(database, ...pathSegments);
+};
+
+const doc = (database, ...pathSegments) => {
+    if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+        return _doc(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+    }
+    return _doc(database, ...pathSegments);
+};
+
+window.nomeLocaleCorrenteCassa = window.TENANT_ID === 'default'
+    ? 'DA MIMMO'
+    : window.TENANT_ID.replace(/-/g, ' ').toUpperCase();
+
+// --- CONTROLLO STATO LICENZA E BLOCCO CASSA IN TEMPO REALE ---
+function attivaControlloLicenzaCassa() {
+    const licRef = doc(db, "impostazioni", "licenza");
+
+    onSnapshot(licRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            const btnTopKds = document.getElementById('btn-top-kds');
+            const lockIcon = document.getElementById('kds-lock-icon');
+            const kdsLockedUi = document.getElementById('kds-locked-ui');
+            const kdsUnlockedUi = document.getElementById('kds-unlocked-ui');
+
+            if (btnTopKds) btnTopKds.style.display = 'inline-block';
+            if (data.kds_sbloccato === false || (data.moduli && data.moduli.kds === false)) {
+                if (lockIcon) lockIcon.style.display = 'inline-block';
+                if (kdsLockedUi) kdsLockedUi.style.display = 'block';
+                if (kdsUnlockedUi) kdsUnlockedUi.style.display = 'none';
+            } else {
+                if (lockIcon) lockIcon.style.display = 'none';
+                if (kdsLockedUi) kdsLockedUi.style.display = 'none';
+                if (kdsUnlockedUi) kdsUnlockedUi.style.display = 'block';
+            }
+
+            if (data.attiva === false || (data.moduli && data.moduli.cassa === false)) {
+                const msg = data.messaggio_blocco || "Abbonamento scaduto o licenza sospesa. Contatta l'assistenza per il rinnovo.";
+                const contatto = data.contatto_assistenza || "Contatta l'amministratore";
+                const lockOverlay = document.getElementById('cassa-license-lock');
+                if (lockOverlay) {
+                    document.getElementById('cassa-lock-msg').innerText = msg;
+                    document.getElementById('cassa-lock-contact').innerText = `📞 Assistenza: ${contatto}`;
+                    lockOverlay.style.display = 'flex';
+                }
+            }
+        }
+    });
+}
+
+attivaControlloLicenzaCassa();
+
+// --- VARIABILI GLOBALI ---
 let audioOn = true, printerOn = true, ordiniCache = [], activeListener = null, currentDateView = new Date();
 window.ordiniFuturiCache = [];
+window.prezzoCopertoLocale = 2.50;
 let PRINTER_CONFIG = { pizzeria: {ip:'', cats:[]}, cucina: {ip:'', cats:[]}, bar: {ip:'', cats:[]}, conto: {ip:''}, preconto: {ip:''} };
 let printedViaCache = new Set();
 let ALL_RIMOZIONI_CACHE = [];
@@ -43,10 +110,92 @@ window.isPrintServer = localStorage.getItem('is_print_server') === 'true';
 window.orariApertiTendina = new Set();
 window.ordiniPerOrarioMap = {};
 
+// ============================================================================
+// FUNZIONI GLOBALI AGENDA -> CASSA (BADGE CARD, FOTO ALLEGATO E STAMPA 5 VOCI)
+// ============================================================================
+window.apriAllegatoAgendaInCassa = (base64Img, nomeCli) => {
+    Swal.fire({
+        title: `📎 Allegato - ${(nomeCli || 'Cliente').toUpperCase()}`,
+        html: `<img src="${base64Img}" style="max-width:100%; max-height:70vh; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.4);">`,
+        background: '#1e1e1e',
+        color: '#fff',
+        confirmButtonColor: '#2962ff',
+        confirmButtonText: 'Chiudi'
+    });
+};
+
+window.generaBadgeAgendaPerCassa = (o) => {
+    if (!o) return "";
+    let badges = [];
+
+    const serv = (o.preferenza_servizio || '').trim().toLowerCase();
+    if (serv === 'giro pizza' || serv === 'giropizza') {
+        badges.push(`<span style="background:#00c853; color:#000; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:900;">🍕 GIRO PIZZA</span>`);
+    } else if (serv === 'ristorante') {
+        badges.push(`<span style="background:#0288d1; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:900;">🍽️ RISTORANTE</span>`);
+    } else if (serv === 'pizzeria') {
+        badges.push(`<span style="background:#ff6d00; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:900;">🔥 PIZZERIA</span>`);
+    } else if (serv === 'misto') {
+        badges.push(`<span style="background:#8e24aa; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:900;">⚖️ MISTO</span>`);
+    }
+
+    if (o.area) {
+        badges.push(`<span style="background:#334155; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:800;">📍 ${o.area}</span>`);
+    }
+
+    if (Array.isArray(o.etichette) && o.etichette.length > 0) {
+        o.etichette.forEach(t => {
+            const low = String(t || '').toLowerCase();
+            if (low.includes('senza glutine') || low.includes('glutine') || low.includes('celiac') || low.includes('gf')) {
+                badges.push(`<span style="background:#ffea00; color:#b71c1c; border:1px solid #f44336; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:900;">🌾 SENZA GLUTINE</span>`);
+            } else {
+                badges.push(`<span style="background:#475569; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.73em; font-weight:700;">${t}</span>`);
+            }
+        });
+    }
+
+    if (o.allegato_base64) {
+        const safeImg = o.allegato_base64.replace(/'/g, "\\'");
+        const safeNome = (o.nome || 'Cliente').replace(/'/g, "\\'");
+        badges.push(`
+            <button onclick="event.stopPropagation(); window.apriAllegatoAgendaInCassa('${safeImg}', '${safeNome}')" 
+                    style="background:#9333ea; color:#fff; border:none; padding:3px 9px; border-radius:6px; font-size:0.75em; font-weight:900; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                <i class="fa fa-paperclip"></i> Foto
+            </button>
+        `);
+    }
+
+    return badges.length > 0 
+        ? `<div class="cassa-agenda-badges" style="display:flex; flex-wrap:wrap; gap:5px; padding:6px 10px; background:#f1f5f9; border-bottom:1px solid #cbd5e1;">${badges.join('')}</div>` 
+        : '';
+};
+
+window.getRigheStampaCucinaFiltrate = (o) => {
+    if (!o) return "";
+    let righe = [];
+    const serv = (o.preferenza_servizio || '').trim().toLowerCase();
+    if (serv === 'giro pizza' || serv === 'giropizza') righe.push("*** SERVIZIO: GIRO PIZZA ***");
+    else if (serv === 'ristorante') righe.push("*** SERVIZIO: RISTORANTE ***");
+    else if (serv === 'pizzeria') righe.push("*** SERVIZIO: PIZZERIA ***");
+    else if (serv === 'misto') righe.push("*** SERVIZIO: MISTO ***");
+
+    if (Array.isArray(o.etichette)) {
+        const haSenzaGlutine = o.etichette.some(t => {
+            const low = String(t || '').toLowerCase();
+            return low.includes('senza glutine') || low.includes('glutine') || low.includes('celiac') || low.includes('gf');
+        });
+        if (haSenzaGlutine) {
+            righe.push("================================");
+            righe.push("   ATTENZIONE: SENZA GLUTINE    ");
+            righe.push("================================");
+        }
+    }
+    return righe.length > 0 ? righe.join("\n") + "\n" : "";
+};
+
 // --- SIDEBAR ORARI ASPORTO CON TENDINA COGNOMI E NUMERO PIZZE ---
 window.generaSidebarOrari = () => {
     let orari = [];
-    // Genera gli orari dalle 19:30 alle 22:30 ogni 5 MINUTI
     for (let h = 19; h <= 22; h++) {
         for (let m = 0; m < 60; m += 5) {
             if (h === 19 && m < 30) continue;
@@ -67,7 +216,6 @@ window.generaSidebarOrari = () => {
 
     const categoriePizze = ['pizza', 'stirata', 'gf', 'speciale', 'calzone', 'focaccia', 'panino', 'covaccino'];
 
-    // Calcolo dei totali globali e raggruppamento clienti per orario
     ordiniCache.forEach(o => {
         if (o.stato !== 'Annullato' && o.tipo !== 'SALA' && !o.tavolo) {
             let pizzeInQuestoOrdine = 0;
@@ -89,7 +237,6 @@ window.generaSidebarOrari = () => {
                     totPizzeInAttesa += pizzeInQuestoOrdine;
                     const oraOrd = o.orario || '--:--';
 
-                    // Se l'orario è fuori fascia (es. pranzo), lo aggiunge alla lista
                     if (orariMap[oraOrd] === undefined) {
                         orari.push(oraOrd);
                         orariMap[oraOrd] = 0;
@@ -227,7 +374,7 @@ const ALLERGENI_DATA = [ { name: "Glutine", icon: "fa-wheat-awn" }, { name: "Lat
 const baseTables = Array.from({length: 50}, (_, i) => (i + 1).toString());
 window.biGustoData = { h1: {id:null, name:'', price:0, extraPrice:0, details:[]}, h2: {id:null, name:'', price:0, extraPrice:0, details:[]} };
 
-// --- LOGIN REALE E SICURO ---
+// --- LOGIN REALE E SICURO (Senza sovrascrivere il nome del locale) ---
 window.checkLogin = async () => {
     const email = document.getElementById('email-input').value.trim();
     const password = document.getElementById('pin-input').value.trim();
@@ -238,12 +385,13 @@ window.checkLogin = async () => {
 
     try {
         Swal.fire({ title: 'Autenticazione in corso...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        sessionStorage.removeItem('cassa_manual_logout');
         await signInWithEmailAndPassword(auth, email, password);
         
         document.getElementById('login-overlay').style.display = 'none';
         sessionStorage.setItem('operatore_corrente', 'ADMIN');
-        if(document.querySelector('.top-icons span')) {
-            document.querySelector('.top-icons span').innerText = `DA MIMMO - CASSA (ADMIN)`;
+        if(document.getElementById('nome-locale-ui')) {
+            document.getElementById('nome-locale-ui').innerText = `${window.nomeLocaleCorrenteCassa} - CASSA`;
         }
         
         if(typeof playSound === 'function') playSound(); 
@@ -258,19 +406,19 @@ window.checkLogin = async () => {
     }
 };
 
-// --- CONTROLLO AUTOMATICO SESSIONE ---
+// --- CONTROLLO AUTOMATICO SESSIONE (Rispetta sempre il nome del ristorante selezionato) ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         if (document.getElementById('login-overlay')) document.getElementById('login-overlay').style.display = 'none';
         sessionStorage.setItem('operatore_corrente', 'ADMIN');
-        if(document.querySelector('.top-icons span')) {
-            document.querySelector('.top-icons span').innerText = `DA MIMMO - CASSA (ADMIN)`;
+        if(document.getElementById('nome-locale-ui')) {
+            document.getElementById('nome-locale-ui').innerText = `${window.nomeLocaleCorrenteCassa} - CASSA`;
         }
         if (!initAvviato) init();
     } else {
         if (sessionStorage.getItem('cassa_manual_logout') !== 'true') {
             signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {
-                if (document.getElementById('login-overlay')) document.getElementById('login-overlay').style.display = 'flex';
+                if (!initAvviato) init();
             });
         } else {
             if (document.getElementById('login-overlay')) document.getElementById('login-overlay').style.display = 'flex';
@@ -408,18 +556,43 @@ NLg/qXlDavq+hN/q9BoFp6VP9e5sC0dBnMmT0WQLk7QppCI64qe3bUEYHGirnDsL
 
     ensurePalmareToggleInForm();
 
+    // Generazione automatica QR Code nel pannello Impostazioni Locale
+    const baseOrigin = window.location.origin;
+    const tParam = (window.TENANT_ID && window.TENANT_ID !== 'default') ? `?locale=${window.TENANT_ID}` : '';
+    const linkMenuQR = `${baseOrigin}/menu.html${tParam}`;
+    const linkAppQR = `${baseOrigin}/index.html${tParam}`;
+    if (document.getElementById('qr-menu-link')) document.getElementById('qr-menu-link').innerText = linkMenuQR;
+    if (document.getElementById('qr-app-link')) document.getElementById('qr-app-link').innerText = linkAppQR;
+    if (document.getElementById('qr-menu-img')) document.getElementById('qr-menu-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(linkMenuQR)}`;
+    if (document.getElementById('qr-app-img')) document.getElementById('qr-app-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(linkAppQR)}`;
+
     const docSnap = await getDoc(doc(db, "impostazioni", "stampanti")); if(docSnap.exists()) PRINTER_CONFIG = docSnap.data();
-    const docNegozio = await getDoc(doc(db, "impostazioni", "negozio"));
-    if(docNegozio.exists()) {
-        const dn = docNegozio.data();
-        if (document.getElementById('day-closed')) document.getElementById('day-closed').value = dn.giorno_riposo || '';
-        if (dn.nome && document.getElementById('nome-locale-ui')) document.getElementById('nome-locale-ui').innerText = `${dn.nome.toUpperCase()} - CASSA`;
-        if (dn.nome && document.getElementById('setting-nome-locale')) document.getElementById('setting-nome-locale').value = dn.nome;
-        if (dn.slogan && document.getElementById('setting-slogan')) document.getElementById('setting-slogan').value = dn.slogan;
-        if (dn.telefono_ordini && document.getElementById('setting-tel-ordini')) document.getElementById('setting-tel-ordini').value = dn.telefono_ordini;
-        if (dn.prezzo_coperto !== undefined && document.getElementById('setting-coperto')) document.getElementById('setting-coperto').value = dn.prezzo_coperto;
-        if (dn.logo_url && document.getElementById('setting-logo-preview')) document.getElementById('setting-logo-preview').src = dn.logo_url;
-    }
+    
+    // Ascolto in tempo reale dei dati del ristorante selezionato
+    onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
+        if(docNegozio.exists()) {
+            const dn = docNegozio.data();
+            if (document.getElementById('day-closed')) document.getElementById('day-closed').value = dn.giorno_riposo || '';
+            if (dn.nome) {
+                window.nomeLocaleCorrenteCassa = dn.nome.toUpperCase();
+                if (document.getElementById('nome-locale-ui')) document.getElementById('nome-locale-ui').innerText = `${window.nomeLocaleCorrenteCassa} - CASSA`;
+                if (document.getElementById('setting-nome-locale')) document.getElementById('setting-nome-locale').value = dn.nome;
+            }
+            if (dn.slogan && document.getElementById('setting-slogan')) document.getElementById('setting-slogan').value = dn.slogan;
+            if (dn.telefono_ordini && document.getElementById('setting-tel-ordini')) document.getElementById('setting-tel-ordini').value = dn.telefono_ordini;
+            if (dn.prezzo_coperto !== undefined) {
+                window.prezzoCopertoLocale = parseFloat(dn.prezzo_coperto) || 2.50;
+                if (document.getElementById('setting-coperto')) document.getElementById('setting-coperto').value = dn.prezzo_coperto;
+            }
+            if (dn.piva && document.getElementById('setting-piva')) document.getElementById('setting-piva').value = dn.piva;
+            if (dn.indirizzo && document.getElementById('setting-indirizzo')) document.getElementById('setting-indirizzo').value = dn.indirizzo;
+            if (dn.logo_url && document.getElementById('setting-logo-preview')) document.getElementById('setting-logo-preview').src = dn.logo_url;
+        } else {
+            if (document.getElementById('nome-locale-ui')) {
+                document.getElementById('nome-locale-ui').innerText = `${window.nomeLocaleCorrenteCassa} - CASSA`;
+            }
+        }
+    });
     
     const docForno = await getDoc(doc(db, "impostazioni", "forno"));
     if(docForno.exists() && docForno.data().limite_pizze && document.getElementById('oven-limit')) {
@@ -526,6 +699,7 @@ NLg/qXlDavq+hN/q9BoFp6VP9e5sC0dBnMmT0WQLk7QppCI64qe3bUEYHGirnDsL
     });
 }
 
+
 window.caricaSconti = async () => {
     const snap = await getDocs(collection(db, "sconti"));
     window.SCONTI_CACHE = snap.docs.map(d => ({id:d.id, ...d.data()}));
@@ -533,17 +707,25 @@ window.caricaSconti = async () => {
     if (!l) return;
     l.innerHTML = "";
     window.SCONTI_CACHE.forEach(s => {
+        const nomeSc = s.nome || s.codice || 'Sconto';
+        const valSc = s.val !== undefined ? s.val : s.valore;
         const simbolo = s.tipo === 'percent' ? '%' : '€';
-        l.innerHTML += `<div class="db-item"><b>${s.nome}</b> (${s.val}${simbolo}) <button onclick="eliminaDB('sconti','${s.id}')" style="background:red; color:white; border:none; border-radius:5px; padding:5px;"><i class="fa fa-trash"></i></button></div>`;
+        l.innerHTML += `<div class="db-item"><b>${nomeSc}</b> (${valSc}${simbolo}) <button onclick="eliminaDB('sconti','${s.id}')" style="background:red; color:white; border:none; border-radius:5px; padding:5px; cursor:pointer;"><i class="fa fa-trash"></i></button></div>`;
     });
 };
 
 window.creaSconto = async () => {
-    const nome = document.getElementById('sconto-nome').value;
+    const nome = document.getElementById('sconto-nome').value.trim();
     const val = parseFloat(document.getElementById('sconto-val').value);
     const tipo = document.getElementById('sconto-tipo').value;
-    if(nome && val) {
-        await addDoc(collection(db, "sconti"), {nome, val, tipo});
+    if(nome && !isNaN(val)) {
+        await addDoc(collection(db, "sconti"), {
+            nome: nome,
+            codice: nome.toUpperCase(),
+            val: val,
+            valore: val,
+            tipo: tipo
+        });
         caricaSconti();
         document.getElementById('sconto-nome').value = "";
         document.getElementById('sconto-val').value = "";
@@ -609,8 +791,10 @@ function renderDiscountBar() {
 
     window.SCONTI_CACHE.forEach(s => {
         const isActive = (window.activeDiscount && window.activeDiscount.id === s.id) ? 'active' : '';
+        const nomeSc = s.nome || s.codice || 'Sconto';
+        const valSc = s.val !== undefined ? s.val : s.valore;
         const simb = s.tipo === 'percent' ? '%' : '€';
-        bar.innerHTML += `<div class="btn-discount ${isActive}" onclick='applicaSconto(${JSON.stringify(s)})'>${s.nome} -${s.val}${simb}</div>`;
+        bar.innerHTML += `<div class="btn-discount ${isActive}" onclick='applicaSconto(${JSON.stringify(s)})'>${nomeSc} -${valSc}${simb}</div>`;
     });
 }
 
@@ -619,10 +803,11 @@ window.applicaSconto = (scontoObj) => {
     let finalPrice = window.currentPayTotal;
     
     if(scontoObj) {
+        const valSc = parseFloat(scontoObj.val !== undefined ? scontoObj.val : scontoObj.valore) || 0;
         if(scontoObj.tipo === 'percent') {
-            finalPrice = finalPrice - (finalPrice * (scontoObj.val / 100));
+            finalPrice = finalPrice - (finalPrice * (valSc / 100));
         } else {
-            finalPrice = finalPrice - scontoObj.val;
+            finalPrice = finalPrice - valSc;
         }
     }
     if(finalPrice < 0) finalPrice = 0;
@@ -680,8 +865,9 @@ window.confermaPagamento = async (metodo) => {
             stato: 'Consegnato', 
             totale: finalPrice, 
             metodo_pagamento: metodo,
-            sconto_applicato: window.activeDiscount ? window.activeDiscount.nome : null,
-            timestamp_chiusura: serverTimestamp()
+            sconto_applicato: window.activeDiscount ? (window.activeDiscount.nome || window.activeDiscount.codice) : null,
+            timestamp_chiusura: serverTimestamp(),
+            data_chiusura: serverTimestamp()
         };
 
         await updateDoc(doc(db, "ordini", idOrdine), updateData);
@@ -1013,10 +1199,6 @@ function renderOrdine(o, container) {
         } else {
             nomeCli = `<b style="font-size:1.1em;">${nomeCompleto}</b>`;
         }
-
-        if (o.preferenza_servizio) {
-            nomeCli += ` <span class="badge-servizio"><i class="fa fa-bell-concierge"></i> ${o.preferenza_servizio}</span>`;
-        }
         
         const telCli = o.cliente?.telefono || o.telefono || '';
         const totaleStr = o.totale ? parseFloat(o.totale).toFixed(2) : "0.00";
@@ -1075,6 +1257,8 @@ function renderOrdine(o, container) {
             }
         }
 
+        const agendaBadgesHtml = typeof window.generaBadgeAgendaPerCassa === 'function' ? window.generaBadgeAgendaPerCassa(o) : '';
+
         div.innerHTML = `
             <div class="card-time-box">
                 <span style="font-size:0.5em; margin-right:5px; flex-direction:column; display:flex; text-align:left;">
@@ -1085,6 +1269,7 @@ function renderOrdine(o, container) {
                 <i class="fa fa-trash trash-btn" onclick="eliminaOrdine('${o.id}')"></i>
             </div>
             <div class="card-client-box"><span class="client-name">${nomeCli} ${copertiHtml}</span><a href="tel:${telCli}" class="client-phone"><i class="fa fa-phone"></i> ${telCli}</a></div>
+            ${agendaBadgesHtml}
             <div class="card-body">${alertViaHtml}${itemsHtml}${orarioPrenotazioneHtml}${noteHtml}<div class="card-total-box"><span>TOTALE</span><span>€ ${totaleStr}</span></div>
             <div class="status-row"><button class="status-btn ${o.stato.includes('Pronto')?'active-pronto':''}" onclick="cambiaStato('${o.id}','Pronto')">PRONTO</button><button class="status-btn" style="background:#333; color:white;" onclick="apriPagamento('${o.id}')">PAGA & CHIUDI</button></div>
             <div class="card-actions"><button class="action-btn" style="border-left:3px solid #2962ff; background:#e3f2fd; color:#1565c0;" onclick="apriModifica('${o.id}')">✏️ MODIFICA</button><button class="action-btn" style="border-left:3px solid black;" onclick="chiediDivisioneEStampa('${o.id}')">PRECONTO</button><button class="action-btn" style="border-left:3px solid #d32f2f;" onclick="stampa('${o.id}', 'PIZZERIA')">PIZZA</button><button class="action-btn" style="border-left:3px solid #f57c00;" onclick="stampa('${o.id}', 'CUCINA')">CUCINA</button><button class="action-btn" style="border-left:3px solid #1976d2;" onclick="stampa('${o.id}', 'BAR')">BAR</button></div></div>`;
@@ -1106,13 +1291,26 @@ window.scalaScorte = async (prodottiOrdinati, segno = -1) => {
         let ciSonoModifiche = false;
         
         prodottiOrdinati.forEach(p => {
-            const prodOriginale = window.MENU.find(m => m.nome === p.nome);
-            if (prodOriginale && prodOriginale.scorta !== null && prodOriginale.scorta !== undefined && prodOriginale.scorta !== "") {
-                const prodRef = doc(db, "prodotti", prodOriginale.id);
-                const qtaDaScalare = parseFloat(p.qta) || 1;
-                batch.update(prodRef, { scorta: increment(qtaDaScalare * segno) });
-                ciSonoModifiche = true;
+            let itemsToScale = [];
+            if (p.componenti && p.componenti.length > 0) {
+                p.componenti.forEach(compId => {
+                    const prodOriginale = window.MENU.find(m => m.id === compId);
+                    if (prodOriginale) itemsToScale.push(prodOriginale);
+                });
+            } else {
+                const prodOriginale = window.MENU.find(m => m.nome === p.nome);
+                if (prodOriginale) itemsToScale.push(prodOriginale);
             }
+
+            itemsToScale.forEach(prodOriginale => {
+                if (prodOriginale && prodOriginale.scorta !== null && prodOriginale.scorta !== undefined && prodOriginale.scorta !== "") {
+                    const prodRef = doc(db, "prodotti", prodOriginale.id);
+                    let qtaDaScalare = parseFloat(p.qta) || 1;
+                    if (p.componenti) qtaDaScalare = qtaDaScalare * 0.5;
+                    batch.update(prodRef, { scorta: increment(qtaDaScalare * segno) });
+                    ciSonoModifiche = true;
+                }
+            });
         });
         
         if (ciSonoModifiche) {
@@ -1271,7 +1469,7 @@ window.renderNewOrderPreview = () => {
     if (newOrderType === 'tavolo') {
         const coperti = parseInt(document.getElementById('new-ord-coperti').value || 0);
         if(coperti > 0) {
-            const costoCoperto = coperti * 2.50;
+            const costoCoperto = coperti * (window.prezzoCopertoLocale || 2.50);
             total += costoCoperto;
             list.innerHTML += `
             <div style="display:flex; justify-content:space-between; border-top:1px dashed #ccc; padding:5px; align-items: center; margin-top:5px; color:#555;">
@@ -1317,7 +1515,7 @@ window.creaNuovoOrdine = async () => {
     tempNewOrderItems.forEach(p => totaleOrdine += (p.prezzo * p.qta));
 
     if (newOrderType === 'tavolo' && coperti > 0) {
-        totaleOrdine += (coperti * 2.50);
+        totaleOrdine += (coperti * (window.prezzoCopertoLocale || 2.50));
     }
 
     const op = sessionStorage.getItem('operatore_corrente') || 'Sconosciuto';
@@ -1358,9 +1556,13 @@ window.creaNuovoOrdine = async () => {
         Swal.fire("Errore creazione ordine: " + e.message);
     }
 };
+// ============================================================================
+// CASSA.JS - PARTE 3 DI 4
+// Modifica Ordine, Stirata Bi-Gusto, Carrello Sala e Stampe Termiche QZ Tray
+// ============================================================================
 
 window.apriModifica = (id) => {
-    const o = ordiniCache.find(x => x.id === id);
+    const o = ordiniCache.find(x => x.id === id) || window.ordiniFuturiCache.find(x => x.id === id);
     if(!o) return;
     currentEditOrderId = id;
     currentEditProducts = JSON.parse(JSON.stringify(o.prodotti || [])); 
@@ -1403,7 +1605,7 @@ window.ricalcolaTotaleEditLive = () => {
     currentEditProducts.forEach(p => t += parseFloat(p.prezzo) * parseFloat(p.qta));
     
     const nCop = parseInt(document.getElementById('edit-coperti').value || 0);
-    if(nCop > 0) t += (nCop * 2.50);
+    if(nCop > 0) t += (nCop * (window.prezzoCopertoLocale || 2.50));
 
     document.getElementById('edit-total-display').textContent = "€ " + t.toFixed(2);
 };
@@ -1728,9 +1930,9 @@ window.salvaModificheOrdine = async () => {
     });
     
     const nuoviCoperti = parseInt(document.getElementById('edit-coperti').value || 0);
-    if(nuoviCoperti > 0) newTotal += (nuoviCoperti * 2.50);
+    if(nuoviCoperti > 0) newTotal += (nuoviCoperti * (window.prezzoCopertoLocale || 2.50));
 
-    const oldOrder = ordiniCache.find(x => x.id === currentEditOrderId);
+    const oldOrder = ordiniCache.find(x => x.id === currentEditOrderId) || window.ordiniFuturiCache.find(x => x.id === currentEditOrderId);
     let messaggioTesto = null;
     let oggettiAggiunti = []; 
     let oggettiRimossi = [];
@@ -1797,6 +1999,7 @@ window.salvaModificheOrdine = async () => {
     Swal.fire({title:"Salvato!", icon:'success', timer:800, showConfirmButton:false});
     chiudiModifica();
 };
+
 window.inviaSegnaleVia = async (id, turno) => {
     Swal.fire({
         title: `📢 Chiamare TURNO ${turno}?`,
@@ -1835,7 +2038,7 @@ function processPrintQueue() {
     }, 1000); 
 }
 
-// --- GESTIONE CHIAMATA TURNI (Campanello) ---
+// --- GESTIONE CHIAMATA TURNI (Campanello) CON STAMPA ETICHETTE CUCINA ---
 function gestisciChiamataTurno(o, rep, printerIp) {
     const messaggio = o.messaggio_cucina;
     console.log(`Gestione Chiamata ${rep}:`, messaggio); 
@@ -1900,6 +2103,12 @@ function gestisciChiamataTurno(o, rep, printerIp) {
         d.push('\x1D\x21\x11\x1B\x45\x01'); 
         d.push(mixMsg + '\n');
         d.push('\x1D\x21\x00\x1B\x45\x00'); 
+    }
+
+    // Stampa diciture operative Agenda (Giro Pizza, Senza Glutine, Ristorante, Pizzeria, Misto)
+    const infoServizio = window.getRigheStampaCucinaFiltrate(o);
+    if (infoServizio) {
+        d.push('\x1B\x45\x01' + infoServizio + '\x1B\x45\x00');
     }
 
     d.push('\n');
@@ -1993,6 +2202,12 @@ window.stampaVia = (id, _u1, _u2, reparto) => {
     let headTav = o.tavolo ? 'TAVOLO ' + o.tavolo : (o.nome || 'ASPORTO');
     if (o.tavolo && o.coperti > 0) headTav += ` (Cop: ${o.coperti})`;
     data.push('\x1D\x21\x11' + headTav + '\n\x1D\x21\x00');
+
+    const infoServizio = window.getRigheStampaCucinaFiltrate(o);
+    if (infoServizio) {
+        data.push('\x1B\x45\x01' + infoServizio + '\x1B\x45\x00');
+    }
+
     data.push('Op: ' + (o.operatore || 'Cameriere') + '\n--------------------------------\n\x1B\x61\x00'); 
 
     const stampaRiga = (p, extraInfo = "") => {
@@ -2158,551 +2373,6 @@ window.esciDalGestionale = () => {
     });
 };
 
-// --- COMPRESSIONE IMMAGINI E LOGO SOTTO 1MB ---
-function comprimiImmagineBase64(file, maxSize = 350) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let w = img.width, h = img.height;
-                if (w > h) { if (w > maxSize) { h *= maxSize / w; w = maxSize; } }
-                else { if (h > maxSize) { w *= maxSize / h; h = maxSize; } }
-                canvas.width = w;
-                canvas.height = h;
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, w, h);
-                ctx.drawImage(img, 0, 0, w, h);
-                let out = canvas.toDataURL('image/webp', 0.82);
-                if (out.length > 500000) out = canvas.toDataURL('image/jpeg', 0.78);
-                resolve(out);
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
-}
-
-let tempLogoBase64 = null;
-window.anteprimaLogoLocale = async (input) => {
-    const file = input.files?.[0];
-    if (!file) return;
-    tempLogoBase64 = await comprimiImmagineBase64(file, 300);
-    const preview = document.getElementById('setting-logo-preview');
-    if (preview) preview.src = tempLogoBase64;
-};
-
-window.salvaImpostazioniLocale = async () => {
-    const payload = {};
-    if (document.getElementById('setting-nome-locale')) payload.nome = document.getElementById('setting-nome-locale').value.trim();
-    if (document.getElementById('setting-slogan')) payload.slogan = document.getElementById('setting-slogan').value.trim();
-    if (document.getElementById('setting-tel-ordini')) payload.telefono_ordini = document.getElementById('setting-tel-ordini').value.trim();
-    if (document.getElementById('setting-coperto')) payload.prezzo_coperto = parseFloat(document.getElementById('setting-coperto').value) || 0;
-    if (document.getElementById('setting-piva')) payload.piva = document.getElementById('setting-piva').value.trim();
-    if (document.getElementById('setting-indirizzo')) payload.indirizzo = document.getElementById('setting-indirizzo').value.trim();
-    if (tempLogoBase64) payload.logo_url = tempLogoBase64;
-
-    await setDoc(doc(db, "impostazioni", "negozio"), payload, { merge: true });
-    Swal.fire({ icon: 'success', title: 'Dati Locale Aggiornati!', timer: 1500, showConfirmButton: false });
-};
-
-// --- GESTIONALE E PRODOTTI CON DOPPIO SWITCH (MENU QR + PALMARE SALA) ---
-function ensurePalmareToggleInForm() {
-    if (document.getElementById('new-disponibile-palmare')) return;
-    const qrCheckbox = document.getElementById('new-mostra-tavolo');
-    if (qrCheckbox && qrCheckbox.parentElement) {
-        const wrapper = document.createElement('label');
-        wrapper.style.cssText = 'display:inline-flex; align-items:center; gap:6px; margin-left:15px; font-weight:bold; color:#00e676; cursor:pointer;';
-        wrapper.innerHTML = `<input type="checkbox" id="new-disponibile-palmare" checked> 🍽️ Visibile su Palmare Sala`;
-        qrCheckbox.parentElement.insertAdjacentElement('afterend', wrapper);
-    }
-}
-
-window.apriGestionale = () => {
-    ensurePalmareToggleInForm();
-    const modal = document.getElementById('modal-gestionale');
-    if(modal) {
-        modal.style.display = 'flex';
-        window.cambiaTab('prodotti');
-    }
-};
-
-window.chiudiGestionale = () => {
-    const modal = document.getElementById('modal-gestionale');
-    if(modal) modal.style.display = 'none';
-};
-
-window.cambiaTab = (tab) => { 
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); 
-    document.querySelectorAll('[id^="view-"]').forEach(v => v.style.display='none'); 
-    const clickedTab = document.querySelector(`.tab[onclick*="'${tab}'"]`);
-    if(clickedTab) clickedTab.classList.add('active');
-    const viewEl = document.getElementById('view-'+tab);
-    if (viewEl) viewEl.style.display='block'; 
-    if(tab === 'prodotti') { ensurePalmareToggleInForm(); caricaProdotti(); }
-    if(tab === 'stats') window.calcolaStats(); 
-    if(tab === 'ingredienti') caricaIngredienti(); 
-    if(tab === 'rimozioni') caricaRimozioni(); 
-    if(tab === 'stampanti') renderizzaConfigStampanti(); 
-    if(tab === 'sconti') caricaSconti(); 
-    if(tab === 'crm') caricaCRM(); 
-    if(tab === 'dipendenti') window.caricaDipendenti();
-    if(tab === 'cestino') window.caricaCestino();
-    if(tab === 'kdsconfig') window.renderizzaConfigKDS();
-};
-
-function caricaProdotti() {
-    const f = document.getElementById('cat-filters-container');
-    if (!f) return;
-    mappaProdotti = {};
-    prodottiPerCategoria = {};
-    
-    onSnapshot(collection(db, "prodotti"), (s) => {
-        prodottiPerCategoria = {};
-        s.forEach(d => {
-            let p = d.data();
-            p.id = d.id;
-            mappaProdotti[d.id] = p;
-            if (!prodottiPerCategoria[p.cat]) prodottiPerCategoria[p.cat] = [];
-            prodottiPerCategoria[p.cat].push(p);
-        });
-        
-        f.innerHTML = "";
-        const oc = ['ant_pizzeria', 'ant_ristorante', 'pizza', 'speciale', 'stirata', 'gf', 'primo', 'secondo', 'contorno', 'pescato', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro'];
-        oc.forEach(cat => {
-            if (prodottiPerCategoria[cat]) {
-                const lb = CATEGORY_LABELS[cat] || cat.toUpperCase();
-                f.innerHTML += `<button class="cat-filter-btn ${currentBackOfficeCat === cat ? 'active' : ''}" onclick="window.mostraCat('${cat}')">${lb}</button>`;
-            }
-        });
-        
-        if (!currentBackOfficeCat || !prodottiPerCategoria[currentBackOfficeCat]) {
-            const fk = oc.find(c => prodottiPerCategoria[c]);
-            if (fk) currentBackOfficeCat = fk;
-        }
-        renderCategoria(currentBackOfficeCat);
-    });
-}
-
-window.mostraCat = (c) => {
-    currentBackOfficeCat = c;
-    document.querySelectorAll('.cat-filter-btn').forEach(b => b.classList.remove('active'));
-    renderCategoria(c);
-};
-
-function renderCategoria(cat) {
-    const l = document.getElementById('lista-prodotti');
-    if (!l) return;
-    l.innerHTML = "";
-    const ps = prodottiPerCategoria[cat];
-    if (!ps) return;
-    ps.sort((a, b) => parseFloat(a.prezzo) - parseFloat(b.prezzo));
-    
-    ps.forEach(p => {
-        const isAttivoApp = p.attivo !== false ? 'checked' : '';
-        const isPalmare = p.disponibile_palmare !== false ? 'checked' : '';
-        const isMenuTavolo = (p.mostra_al_tavolo === true || p.disponibile_menu_qr === true) ? 'checked' : '';
-
-        l.innerHTML += `
-        <div class="db-item">
-            <div style="display:flex; align-items:center; gap: 14px; flex-wrap:wrap;">
-                
-                <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
-                    <small style="font-size:0.65em; color:#888; font-weight:bold;">APP/CASSA</small>
-                    <label class="switch">
-                        <input type="checkbox" ${isAttivoApp} onchange="toggleProdotto('${p.id}',this.checked)">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
-                    <small style="font-size:0.65em; color:#00e676; font-weight:bold;">PALMARE SALA</small>
-                    <label class="switch">
-                        <input type="checkbox" ${isPalmare} onchange="toggleVisibilitaPalmare('${p.id}',this.checked)">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
-                    <small style="font-size:0.65em; color:#d4af37; font-weight:bold;">MENU QR</small>
-                    <label class="switch">
-                        <input type="checkbox" ${isMenuTavolo} onchange="toggleVisibilitaTavolo('${p.id}',this.checked)">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div style="margin-left:10px;">
-                    <b>${p.nome}</b> ${p.isPeso ? '<span style="color:#0277bd;font-weight:bold;font-size:0.8em;">(AL KG)</span>' : ''}
-                    ${p.scorta !== null && p.scorta !== undefined ? `<span style="color:#d32f2f; font-weight:bold; font-size:0.8em; margin-left:10px;">(Scorta: ${p.scorta})</span>` : ''}
-                    <br>
-                    <small>€ ${parseFloat(p.prezzo).toFixed(2)}</small>
-                </div>
-            </div>
-            <div>
-                <button onclick="preparaModifica('${p.id}')" class="btn-edit">✏️</button>
-                <button onclick="eliminaDB('prodotti','${p.id}')" style="background:red;color:white;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;"><i class="fa fa-trash"></i></button>
-            </div>
-        </div>`;
-    });
-}
-
-window.toggleProdotto = (id, s) => updateDoc(doc(db, "prodotti", id), { attivo: s });
-window.toggleVisibilitaPalmare = (id, s) => updateDoc(doc(db, "prodotti", id), { disponibile_palmare: s });
-window.toggleVisibilitaTavolo = (id, s) => updateDoc(doc(db, "prodotti", id), { mostra_al_tavolo: s, disponibile_menu_qr: s });
-
-window.preparaModifica = (id) => {
-    ensurePalmareToggleInForm();
-    const p = mappaProdotti[id];
-    if (!p) return;
-    editingProdId = id;
-    document.getElementById('new-cat').value = p.cat;
-    document.getElementById('new-nome').value = p.nome;
-    document.getElementById('new-desc').value = p.desc || "";
-    document.getElementById('new-prezzo').value = p.prezzo;
-    document.getElementById('new-scorta').value = p.scorta !== undefined && p.scorta !== null ? p.scorta : "";
-    document.getElementById('new-is-peso').checked = p.isPeso === true;
-    
-    if(document.getElementById('new-mostra-tavolo')) {
-        document.getElementById('new-mostra-tavolo').checked = (p.mostra_al_tavolo === true || p.disponibile_menu_qr === true);
-    }
-    if(document.getElementById('new-disponibile-palmare')) {
-        document.getElementById('new-disponibile-palmare').checked = p.disponibile_palmare !== false;
-    }
-
-    document.getElementById('new-foto').value = "";
-    if (document.getElementById('btn-delete-foto')) {
-        document.getElementById('btn-delete-foto').style.display = (p.immagine_url || p.foto) ? 'block' : 'none';
-    }
-    renderGrigliaIngredienti(p.ingredienti || []);
-
-    document.querySelectorAll('input[name="allergeni"]').forEach(cb => {
-        cb.checked = Array.isArray(p.allergeni) && p.allergeni.includes(cb.value);
-    });
-    
-    const b = document.getElementById('btn-save-prod');
-    b.textContent = "SALVA MODIFICHE";
-    b.style.background = "#ff9800";
-    document.getElementById('btn-cancel-prod').style.display = "inline-block";
-};
-
-window.resetFormProdotti = () => {
-    editingProdId = null;
-    document.getElementById('new-nome').value = "";
-    document.getElementById('new-desc').value = "";
-    document.getElementById('new-prezzo').value = "";
-    document.getElementById('new-scorta').value = "";
-    document.getElementById('new-is-peso').checked = false;
-    
-    if(document.getElementById('new-mostra-tavolo')) document.getElementById('new-mostra-tavolo').checked = true;
-    if(document.getElementById('new-disponibile-palmare')) document.getElementById('new-disponibile-palmare').checked = true;
-
-    document.getElementById('new-foto').value = ""; 
-    if (document.getElementById('btn-delete-foto')) document.getElementById('btn-delete-foto').style.display = 'none';
-    renderGrigliaIngredienti([]);
-    document.querySelectorAll('input[name="allergeni"]').forEach(cb => cb.checked = false);
-    
-    const b = document.getElementById('btn-save-prod');
-    b.textContent = "AGGIUNGI";
-    b.style.background = "#2e7d32";
-    document.getElementById('btn-cancel-prod').style.display = "none";
-};
-
-window.salvaProdotto = async () => { 
-    ensurePalmareToggleInForm();
-    const nome = document.getElementById('new-nome').value.trim(); 
-    const cat = document.getElementById('new-cat').value; 
-    const desc = document.getElementById('new-desc').value; 
-    const prezzo = parseFloat(document.getElementById('new-prezzo').value); 
-    const isPeso = document.getElementById('new-is-peso').checked; 
-    const scortaInput = document.getElementById('new-scorta').value;
-    const scorta = scortaInput === "" ? null : parseInt(scortaInput);
-    
-    const mostraMenuQR = document.getElementById('new-mostra-tavolo') ? document.getElementById('new-mostra-tavolo').checked : true;
-    const dispPalmare = document.getElementById('new-disponibile-palmare') ? document.getElementById('new-disponibile-palmare').checked : true;
-
-    const fotoInput = document.getElementById('new-foto');
-    const file = fotoInput?.files?.[0];
-    let immagine_url = null; 
-    
-    const ingredientiArr = []; 
-    document.querySelectorAll('input[name="prod_ing_check"]:checked').forEach(cb => ingredientiArr.push(cb.value)); 
-    
-    const checkedAllergeni = []; 
-    document.querySelectorAll('input[name="allergeni"]:checked').forEach(cb => checkedAllergeni.push(cb.value)); 
-    
-    if(!nome || isNaN(prezzo)) return Swal.fire("Inserisci Nome e Prezzo!"); 
-    
-    try {
-        Swal.fire({title: 'Salvataggio in corso...', didOpen: () => { Swal.showLoading() }});
-
-        if (file) {
-            // Compressione rapida su Canvas (< 40KB) così funziona anche senza Storage attivo e non supera mai 1MB
-            immagine_url = await comprimiImmagineBase64(file, 400);
-        } else if (editingProdId && mappaProdotti[editingProdId]?.immagine_url) {
-            immagine_url = mappaProdotti[editingProdId].immagine_url;
-        }
-
-        const data = { 
-            nome, 
-            cat, 
-            desc, 
-            prezzo, 
-            scorta: scorta, 
-            attivo: true, 
-            mostra_al_tavolo: mostraMenuQR,
-            disponibile_menu_qr: mostraMenuQR,
-            disponibile_palmare: dispPalmare,
-            allergeni: checkedAllergeni, 
-            ingredienti: ingredientiArr, 
-            isPeso: isPeso,
-            immagine_url: immagine_url,
-            foto: immagine_url
-        }; 
-        
-        if (editingProdId) { 
-            await updateDoc(doc(db, "prodotti", editingProdId), data); 
-            resetFormProdotti(); 
-        } else { 
-            await addDoc(collection(db, "prodotti"), data); 
-            resetFormProdotti(); 
-        } 
-        
-        Swal.fire({icon: 'success', title: 'Prodotto Salvato!', timer: 1500, showConfirmButton: false});
-
-    } catch (error) {
-        console.error("Errore salvataggio:", error);
-        Swal.fire("Errore!", error.message, "error");
-    }
-};
-
-window.setPeriodo = (tipo) => {
-    const today = new Date();
-    const startInp = document.getElementById('stats-start');
-    const endInp = document.getElementById('stats-end');
-    
-    if(tipo === 'oggi') {
-        const s = today.toISOString().split('T')[0];
-        startInp.value = s; endInp.value = s;
-    } else if(tipo === 'settimana') {
-        const day = today.getDay() || 7; 
-        if(day !== 1) today.setHours(-24 * (day - 1)); 
-        startInp.value = today.toISOString().split('T')[0];
-        const end = new Date(today); end.setDate(end.getDate() + 6);
-        endInp.value = end.toISOString().split('T')[0];
-    } else if(tipo === 'mese') {
-        const y = today.getFullYear(), m = today.getMonth();
-        startInp.value = new Date(y, m, 1).toISOString().split('T')[0];
-        const lastDay = new Date(y, m + 1, 0);
-        lastDay.setMinutes(lastDay.getMinutes() - lastDay.getTimezoneOffset());
-        endInp.value = lastDay.toISOString().split('T')[0];
-    } else if(tipo === 'anno') {
-        startInp.value = `${today.getFullYear()}-01-01`;
-        endInp.value = `${today.getFullYear()}-12-31`;
-    }
-    window.calcolaStats();
-};
-
-window.calcolaStats = async () => { 
-    const dStart = document.getElementById('stats-start').value; 
-    const dEnd = document.getElementById('stats-end').value;
-    if(!dStart || !dEnd) return Swal.fire("Seleziona un periodo.");
-    const q = query(collection(db, "ordini"), where("data_ritiro", ">=", dStart), where("data_ritiro", "<=", dEnd)); 
-    try { 
-        const snap = await getDocs(q); 
-        let tot = { inc: 0, piz: 0, ord: 0, cop: 0 }; 
-        let asp = { inc: 0, piz: 0, ord: 0, cop: 0 };
-        let sala = { inc: 0, piz: 0, ord: 0, cop: 0 };
-        let statsPerCat = {}; 
-
-        snap.forEach(docSnap => { 
-            const d = docSnap.data(); 
-            if(d.stato !== 'Annullato') { 
-                const importo = parseFloat(d.totale||0);
-                const nCop = parseInt(d.coperti || 0);
-                let pizzeOrdine = 0;
-
-                if(d.prodotti) d.prodotti.forEach(p => { 
-                    let qta = parseFloat(p.qta||1); 
-                    if(['pizza','stirata','gf','speciale'].includes(p.cat)) pizzeOrdine += qta; 
-                    let catKey = p.cat || 'altro';
-                    let prodName = p.nome;
-                    if(!statsPerCat[catKey]) statsPerCat[catKey] = {};
-                    if(!statsPerCat[catKey][prodName]) statsPerCat[catKey][prodName] = 0;
-                    statsPerCat[catKey][prodName] += qta;
-                }); 
-
-                tot.inc += importo; tot.ord++; tot.piz += pizzeOrdine; tot.cop += nCop;
-                if (d.tipo === 'SALA') {
-                    sala.inc += importo; sala.ord++; sala.piz += pizzeOrdine; sala.cop += nCop;
-                } else {
-                    asp.inc += importo; asp.ord++; asp.piz += pizzeOrdine; asp.cop += nCop;
-                }
-            } 
-        }); 
-
-        document.getElementById('st-incasso').innerText = "€ " + tot.inc.toFixed(2); 
-        document.getElementById('st-pizze').innerText = Math.round(tot.piz); 
-        document.getElementById('st-ordini').innerText = tot.ord; 
-        document.getElementById('st-coperti').innerText = tot.cop;
-
-        document.getElementById('st-incasso-asp').innerText = "€ " + asp.inc.toFixed(2); 
-        document.getElementById('st-pizze-asp').innerText = Math.round(asp.piz); 
-        document.getElementById('st-ordini-asp').innerText = asp.ord; 
-        if (document.getElementById('st-coperti-asp')) document.getElementById('st-coperti-asp').innerText = asp.cop;
-
-        document.getElementById('st-incasso-sala').innerText = "€ " + sala.inc.toFixed(2); 
-        document.getElementById('st-pizze-sala').innerText = Math.round(sala.piz); 
-        document.getElementById('st-ordini-sala').innerText = sala.ord; 
-        document.getElementById('st-coperti-sala').innerText = sala.cop;
-
-        const rankingContainer = document.getElementById('ranking-container');
-        if (!rankingContainer) return;
-        rankingContainer.innerHTML = ""; 
-
-        const sortOrder = ['pizza', 'speciale', 'stirata', 'gf', 'ant_pizzeria', 'ant_ristorante', 'primo', 'secondo', 'contorno', 'pescato', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro'];
-        let foundCats = Object.keys(statsPerCat);
-        foundCats.sort((a,b) => {
-            let ia = sortOrder.indexOf(a);
-            let ib = sortOrder.indexOf(b);
-            if(ia === -1 && ib === -1) return 0;
-            if(ia === -1) return 1;
-            if(ib === -1) return -1;
-            return ia - ib;
-        });
-
-        if(foundCats.length === 0) {
-            rankingContainer.innerHTML = "<div style='padding:20px; text-align:center;'>Nessun prodotto venduto nel periodo.</div>";
-        } else {
-            foundCats.forEach(cat => {
-                let products = Object.entries(statsPerCat[cat]).sort((a,b) => b[1] - a[1]);
-                let catLabel = CATEGORY_LABELS[cat] || cat.toUpperCase();
-                let html = `<div class="cat-rank-title">${catLabel}</div><table class="ranking-table"><tbody>`;
-                products.forEach((prod, index) => {
-                    let qtyDisplay = prod[1] % 1 === 0 ? prod[1] : prod[1].toFixed(3);
-                    html += `<tr><td style="width:30px;">${index+1}</td><td>${prod[0]}</td><td style="width:50px; text-align:right;"><b>${qtyDisplay}</b></td></tr>`;
-                });
-                html += `</tbody></table>`;
-                rankingContainer.innerHTML += html;
-            });
-        }
-    } catch(e) { console.log(e); Swal.fire("Errore statistiche: " + e.message); } 
-};
-
-window.azzeraStatistiche = async () => {
-    const dStart = document.getElementById('stats-start').value;
-    const dEnd = document.getElementById('stats-end').value;
-    if(!dStart || !dEnd) return Swal.fire("Seleziona prima le date (Dal/Al).");
-
-    Swal.fire({
-        title: 'ATTENZIONE: CANCELLAZIONE',
-        text: `Stai per eliminare TUTTI gli ordini dal ${dStart} al ${dEnd}. L'operazione è IRREVERSIBILE.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d32f2f',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Sì, procedi',
-        cancelButtonText: 'Annulla'
-    }).then(async (result) => {
-        if(result.isConfirmed) {
-            Swal.fire({title: 'Cancellazione in corso...', didOpen: () => { Swal.showLoading() }});
-            const q = query(collection(db, "ordini"), where("data_ritiro", ">=", dStart), where("data_ritiro", "<=", dEnd));
-            try {
-                const snap = await getDocs(q);
-                if(snap.empty) return Swal.fire({icon: 'info', title: 'Nessun ordine trovato'});
-                const batch = writeBatch(db); 
-                let count = 0;
-                snap.forEach(d => { batch.delete(d.ref); count++; });
-                await batch.commit();
-                Swal.fire({icon: 'success', title: 'Fatto!', text: `Cancellati ${count} ordini.`});
-                calcolaStats(); 
-            } catch (e) {
-                Swal.fire({icon: 'error', title: 'Errore', text: e.message});
-            }
-        }
-    });
-};
-
-window.caricaCestino = async () => {
-    const list = document.getElementById('lista-cestino');
-    if (!list) return;
-    list.innerHTML = "<div style='text-align:center;'>Caricamento...</div>";
-    const dateStr = document.getElementById('timeline-date').value;
-    
-    const q = query(collection(db, "ordini"), where("data_ritiro", "==", dateStr));
-    try {
-        const snap = await getDocs(q);
-        list.innerHTML = "";
-        let count = 0;
-        const docs = snap.docs.map(d => ({id:d.id, ...d.data()}));
-        
-        docs.forEach(d => {
-            if(d.stato === "Annullato") {
-                count++;
-                const nomeCli = d.tavolo ? `TAVOLO ${d.tavolo}` : (d.nome + " " + (d.cognome || ''));
-                const totale = d.totale ? parseFloat(d.totale).toFixed(2) : "0.00";
-                let prodottiHtml = "";
-                if(d.prodotti && Array.isArray(d.prodotti)){
-                    prodottiHtml = d.prodotti.map(prod => `<div>${prod.qta}x ${prod.nome} <small>(${prod.dettagli||''})</small></div>`).join('');
-                }
-
-                list.innerHTML += `
-                    <div style="background:white; border:1px solid #ddd; border-left:5px solid #d32f2f; padding:10px; margin-bottom:10px; border-radius:4px; color:#222;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                            <span style="font-weight:bold; font-size:1.1em;">${d.orario} | ${nomeCli}</span>
-                            <span style="color:#d32f2f; font-weight:bold;">ANNULLATO</span>
-                        </div>
-                        <div style="color:#555; font-size:0.9em; margin-bottom:8px; padding-left:10px; border-left:2px solid #eee;">
-                            ${prodottiHtml}
-                        </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #eee; padding-top:5px;">
-                            <b>Tot: € ${totale}</b>
-                            <div>
-                                <button onclick="ripristinaOrdine('${d.id}', '${d.tipo}')" style="background:#2e7d32; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
-                                    <i class="fa fa-undo"></i> RIPRISTINA
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-        });
-        
-        if(count === 0) {
-            list.innerHTML = "<div style='padding:20px; text-align:center; color:#777;'>Nessun ordine annullato trovato per la data selezionata (" + dateStr + ").</div>";
-        }
-    } catch(e) {
-        list.innerHTML = "<div style='color:red;'>Errore: " + e.message + "</div>";
-    }
-};
-
-window.ripristinaOrdine = async (id, tipo) => {
-    try {
-        const nuovoStato = tipo === 'SALA' ? 'In forno' : 'In attesa'; 
-        await updateDoc(doc(db, "ordini", id), { stato: nuovoStato, data_annullamento: null });
-        Swal.fire({title:'Ordine Ripristinato!', icon:'success', timer:1500, showConfirmButton:false});
-        window.caricaCestino(); 
-    } catch (e) {
-        Swal.fire("Errore durante il ripristino: " + e.message);
-    }
-};
-
-window.exportToCSV = () => {
-    if(ordiniCache.length === 0) return Swal.fire('Nessun ordine da esportare.');
-    let csvContent = "data:text/csv;charset=utf-8,Data,Ora,Tipo,Tavolo/Cliente,Totale,Stato,Operatore\r\n";
-    ordiniCache.forEach(o => {
-        const operatoreNome = o.operatore || o.cameriere || '';
-        const row = `${o.data_ritiro},${o.orario},${o.tipo},"${o.nome}",${o.totale},${o.stato},${operatoreNome}`;
-        csvContent += row + "\r\n";
-    });
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "report_vendite.csv");
-    document.body.appendChild(link);
-    link.click();
-};
-
 window.renderTables = () => {};
 
 window.callCourseFromMap = async (docId, tavolo, msg) => { 
@@ -2717,7 +2387,8 @@ window.callCourseFromMap = async (docId, tavolo, msg) => {
 window.openOrder = (n) => {
     window.selT = n; const occ = window.tavoliOccupati[n];
     window.currentDocId = occ ? occ.id : null;
-    window.carrello = occ ? JSON.parse(JSON.stringify(occ.prodotti)) : [];
+    window.carrello = occ && occ.prodotti ? JSON.parse(JSON.stringify(occ.prodotti)) : [];
+    window.prodottiOriginali = occ && occ.prodotti ? JSON.parse(JSON.stringify(occ.prodotti)) : [];
     window.currentCoperti = occ ? (occ.coperti || 2) : 2;
     document.getElementById('screen-title').innerText = `TAVOLO ${n}`;
     document.getElementById('num-coperti').innerText = window.currentCoperti;
@@ -2974,7 +2645,21 @@ window.confirmStirata = () => {
     desc += `<br><b>1/2</b> ${d.h2.name}`; if(d.h2.details.length > 0) desc += ` <br>${d.h2.details.join(' ')}`;
     if(mainNote) desc += `<br><b>Note:</b> ${mainNote}`;
 
-    const newItem = { nome: "STIRATA BI-GUSTO", prezzo: finalPrice, qta: 1, cat: 'stirata', turno: 1, dettagli: desc, biGustoRaw: JSON.parse(JSON.stringify(d)), isPeso: false };
+    const componentiScorta = [];
+    if (!d.h1.manual && d.h1.id) componentiScorta.push(d.h1.id);
+    if (!d.h2.manual && d.h2.id) componentiScorta.push(d.h2.id);
+
+    const newItem = {
+        nome: "STIRATA BI-GUSTO",
+        prezzo: finalPrice,
+        qta: 1,
+        cat: 'stirata',
+        turno: 1,
+        dettagli: desc,
+        biGustoRaw: JSON.parse(JSON.stringify(d)),
+        isPeso: false,
+        componenti: componentiScorta
+    };
     
     if (window.stirataContext === 'NEW_ORDER') {
         if(window.editingProductIndex !== null) {
@@ -3023,7 +2708,7 @@ window.updateCartUI = () => {
         }
     });
 
-    const copertiCost = (window.currentCoperti || 0) * 2.50;
+    const copertiCost = (window.currentCoperti || 0) * (window.prezzoCopertoLocale || 2.50);
     const totalWithCoperto = tot + copertiCost;
 
     document.getElementById('cart-total-display').innerText = `€ ${totalWithCoperto.toFixed(2)}`;
@@ -3136,9 +2821,11 @@ window.saveOrder = async () => {
         window.carrello.sort((a,b) => (a.turno || 1) - (b.turno || 1));
 
         const totProdotti = window.carrello.reduce((s,i) => s + (i.prezzo*i.qta), 0);
-        const totCoperti = window.currentCoperti * 2.50;
+        const totCoperti = window.currentCoperti * (window.prezzoCopertoLocale || 2.50);
         const totaleFinale = totProdotti + totCoperti;
 
+        // Mantiene tutti i dati ed etichette dell'Agenda
+        const occ = window.tavoliOccupati[window.selT] || {};
         const commonData = { 
             tavolo: window.selT, 
             coperti: window.currentCoperti, 
@@ -3147,9 +2834,20 @@ window.saveOrder = async () => {
             totale: totaleFinale, 
             stato: "In forno", 
             cucina_completa: false, 
-            data_ritiro: dataLocale, 
-            nome: "TAVOLO " + window.selT, 
-            operatore: window.currentWaiterName 
+            data_ritiro: occ.data_ritiro || dataLocale, 
+            nome: occ.nome || ("TAVOLO " + window.selT),
+            cognome: occ.cognome || "",
+            telefono: occ.telefono || "",
+            orario: occ.orario || "",
+            note_ordine: occ.note_ordine || "",
+            adulti: occ.adulti || 0,
+            bambini: occ.bambini || 0,
+            seggioloni: occ.seggioloni || 0,
+            etichette: Array.isArray(occ.etichette) ? occ.etichette : [],
+            preferenza_servizio: occ.preferenza_servizio || "",
+            area: occ.area || "",
+            allegato_base64: occ.allegato_base64 || null,
+            operatore: window.currentWaiterName || sessionStorage.getItem('operatore_corrente') || 'Cassa'
         };
 
         const isFirstOrder = (!window.prodottiOriginali || window.prodottiOriginali.length === 0);
@@ -3208,9 +2906,10 @@ window.saveOrder = async () => {
         } else {
             commonData.data_invio = serverTimestamp();
             if (window.currentDocId && isFirstOrder) {
-                await deleteDoc(doc(db, "ordini", window.currentDocId));
+                await updateDoc(doc(db, "ordini", window.currentDocId), commonData);
+            } else {
+                await addDoc(collection(db, "ordini"), commonData);
             }
-            await addDoc(collection(db, "ordini"), commonData);
             if (window.scalaScorte) await window.scalaScorte(window.carrello, -1);
         }
 
@@ -3350,6 +3049,15 @@ window.stampa = (id, reparto) => {
             data.push('\x1D\x21\x11ASPORTO\n\x1D\x21\x00'); 
         }
     }
+
+    // Stampa le 5 indicazioni operative per la Cucina/Pizzeria (Giro Pizza, Senza Glutine, Ristorante, Pizzeria, Misto)
+    if (!isConto) {
+        const infoServizio = window.getRigheStampaCucinaFiltrate(o);
+        if (infoServizio) {
+            data.push('\x1B\x45\x01' + infoServizio + '\x1B\x45\x00');
+        }
+    }
+
     data.push('Op: ' + (o.operatore || 'Admin') + '\n--------------------------------\n\x1B\x61\x00'); 
 
     const byTurn = {};
@@ -3434,21 +3142,22 @@ window.stampa = (id, reparto) => {
     });
 
     if(isConto) { 
+        const copertoUnit = window.prezzoCopertoLocale || 2.50;
         if(o.coperti > 0) {
-            const copTot = o.coperti * 2.50;
+            const copTot = o.coperti * copertoUnit;
             data.push('------------------------------------------\n');
             data.push(`${o.coperti} x COPERTO` + ' '.repeat(15) + 'E ' + copTot.toFixed(2) + '\n');
         }
         data.push('------------------------------------------\n');
 
         let calcTotProdotti = (o.prodotti || []).reduce((acc, p) => acc + (parseFloat(p.prezzo) * parseFloat(p.qta)), 0);
-        let calcTotaleReale = calcTotProdotti + ((o.coperti || 0) * 2.50);
+        let calcTotaleReale = calcTotProdotti + ((o.coperti || 0) * copertoUnit);
         let totaleAttuale = parseFloat(o.totale || 0);
         let diffSconto = calcTotaleReale - totaleAttuale;
         
         let nomeSconto = o.sconto_applicato;
         if (!nomeSconto && window.currentPayOrderId === o.id && window.activeDiscount) {
-            nomeSconto = window.activeDiscount.nome;
+            nomeSconto = window.activeDiscount.nome || window.activeDiscount.codice;
         }
         
         if (diffSconto > 0.01 || nomeSconto) {
@@ -3492,6 +3201,671 @@ window.stampa = (id, reparto) => {
     }
     data.push(`\x1B\x61\x01\n${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`); 
     qz.print(qz.configs.create({ host: printerIp, port: 9100 }), data).catch(e => console.error(e));
+};
+// ============================================================================
+// CASSA.JS - PARTE 4 DI 4
+// Back-Office, Prodotti, Backup JSON, Statistiche/Z, CRM, Mappa Sala e Storico
+// ============================================================================
+
+// --- COMPRESSIONE IMMAGINI E LOGO SOTTO 1MB ---
+function comprimiImmagineBase64(file, maxSize = 350) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let w = img.width, h = img.height;
+                if (w > h) { if (w > maxSize) { h *= maxSize / w; w = maxSize; } }
+                else { if (h > maxSize) { w *= maxSize / h; h = maxSize; } }
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
+                let out = canvas.toDataURL('image/webp', 0.82);
+                if (out.length > 500000) out = canvas.toDataURL('image/jpeg', 0.78);
+                resolve(out);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+let tempLogoBase64 = null;
+window.anteprimaLogoLocale = async (input) => {
+    const file = input.files?.[0];
+    if (!file) return;
+    tempLogoBase64 = await comprimiImmagineBase64(file, 300);
+    const preview = document.getElementById('setting-logo-preview');
+    if (preview) preview.src = tempLogoBase64;
+};
+
+window.salvaImpostazioniLocale = async () => {
+    const payload = {};
+    if (document.getElementById('setting-nome-locale')) payload.nome = document.getElementById('setting-nome-locale').value.trim();
+    if (document.getElementById('setting-slogan')) payload.slogan = document.getElementById('setting-slogan').value.trim();
+    if (document.getElementById('setting-tel-ordini')) payload.telefono_ordini = document.getElementById('setting-tel-ordini').value.trim();
+    if (document.getElementById('setting-coperto')) {
+        payload.prezzo_coperto = parseFloat(document.getElementById('setting-coperto').value) || 0;
+        window.prezzoCopertoLocale = payload.prezzo_coperto;
+    }
+    if (document.getElementById('setting-piva')) payload.piva = document.getElementById('setting-piva').value.trim();
+    if (document.getElementById('setting-indirizzo')) payload.indirizzo = document.getElementById('setting-indirizzo').value.trim();
+    if (tempLogoBase64) payload.logo_url = tempLogoBase64;
+
+    await setDoc(doc(db, "impostazioni", "negozio"), payload, { merge: true });
+    if (payload.nome && document.getElementById('nome-locale-ui')) {
+        document.getElementById('nome-locale-ui').innerText = `${payload.nome.toUpperCase()} - CASSA`;
+    }
+    Swal.fire({ icon: 'success', title: 'Dati Locale Aggiornati!', timer: 1500, showConfirmButton: false });
+};
+
+// --- GESTIONALE E PRODOTTI CON DOPPIO SWITCH (MENU QR + PALMARE SALA) ---
+function ensurePalmareToggleInForm() {
+    if (document.getElementById('new-disp-palmare') || document.getElementById('new-disponibile-palmare')) return;
+    const qrCheckbox = document.getElementById('new-mostra-tavolo');
+    if (qrCheckbox && qrCheckbox.parentElement) {
+        const wrapper = document.createElement('label');
+        wrapper.style.cssText = 'display:inline-flex; align-items:center; gap:6px; margin-left:10px; padding:5px 10px; background:rgba(41, 98, 255, 0.1); border:1px solid #2962ff; border-radius:5px; font-weight:bold; color:#2962ff; cursor:pointer;';
+        wrapper.innerHTML = `<input type="checkbox" id="new-disponibile-palmare" checked style="width:18px; height:18px; cursor:pointer;"> 📱 Palmare`;
+        qrCheckbox.parentElement.insertAdjacentElement('afterend', wrapper);
+    }
+}
+
+function getPalmareCheckboxEl() {
+    return document.getElementById('new-disp-palmare') || document.getElementById('new-disponibile-palmare');
+}
+
+window.apriGestionale = () => {
+    ensurePalmareToggleInForm();
+    const modal = document.getElementById('modal-gestionale');
+    if(modal) {
+        modal.style.display = 'flex';
+        window.cambiaTab('prodotti');
+    }
+};
+
+window.chiudiGestionale = () => {
+    const modal = document.getElementById('modal-gestionale');
+    if(modal) modal.style.display = 'none';
+};
+
+window.cambiaTab = (tab) => { 
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); 
+    document.querySelectorAll('[id^="view-"]').forEach(v => v.style.display='none'); 
+    const clickedTab = document.querySelector(`.tab[onclick*="'${tab}'"]`);
+    if(clickedTab) clickedTab.classList.add('active');
+    const viewEl = document.getElementById('view-'+tab);
+    if (viewEl) viewEl.style.display='block'; 
+    if(tab === 'prodotti') { ensurePalmareToggleInForm(); caricaProdotti(); }
+    if(tab === 'stats') window.calcolaStats(); 
+    if(tab === 'ingredienti') caricaIngredienti(); 
+    if(tab === 'rimozioni') caricaRimozioni(); 
+    if(tab === 'stampanti') renderizzaConfigStampanti(); 
+    if(tab === 'sconti') caricaSconti(); 
+    if(tab === 'crm') caricaCRM(); 
+    if(tab === 'dipendenti') window.caricaDipendenti();
+    if(tab === 'cestino') window.caricaCestino();
+    if(tab === 'kdsconfig') window.renderizzaConfigKDS();
+};
+
+function caricaProdotti() {
+    const f = document.getElementById('cat-filters-container');
+    if (!f) return;
+    mappaProdotti = {};
+    prodottiPerCategoria = {};
+    
+    onSnapshot(collection(db, "prodotti"), (s) => {
+        prodottiPerCategoria = {};
+        s.forEach(d => {
+            let p = d.data();
+            p.id = d.id;
+            mappaProdotti[d.id] = p;
+            if (!prodottiPerCategoria[p.cat]) prodottiPerCategoria[p.cat] = [];
+            prodottiPerCategoria[p.cat].push(p);
+        });
+        
+        f.innerHTML = "";
+        const oc = ['ant_pizzeria', 'ant_ristorante', 'pizza', 'speciale', 'stirata', 'gf', 'primo', 'secondo', 'contorno', 'pescato', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro'];
+        oc.forEach(cat => {
+            if (prodottiPerCategoria[cat]) {
+                const lb = CATEGORY_LABELS[cat] || cat.toUpperCase();
+                f.innerHTML += `<button class="cat-filter-btn ${currentBackOfficeCat === cat ? 'active' : ''}" onclick="window.mostraCat('${cat}')">${lb}</button>`;
+            }
+        });
+        
+        if (!currentBackOfficeCat || !prodottiPerCategoria[currentBackOfficeCat]) {
+            const fk = oc.find(c => prodottiPerCategoria[c]);
+            if (fk) currentBackOfficeCat = fk;
+        }
+        renderCategoria(currentBackOfficeCat);
+    });
+}
+
+window.mostraCat = (c) => {
+    currentBackOfficeCat = c;
+    document.querySelectorAll('.cat-filter-btn').forEach(b => b.classList.remove('active'));
+    renderCategoria(c);
+};
+
+function renderCategoria(cat) {
+    const l = document.getElementById('lista-prodotti');
+    if (!l) return;
+    l.innerHTML = "";
+    const ps = prodottiPerCategoria[cat];
+    if (!ps) return;
+    ps.sort((a, b) => parseFloat(a.prezzo) - parseFloat(b.prezzo));
+    
+    ps.forEach(p => {
+        const isAttivoApp = p.attivo !== false ? 'checked' : '';
+        const isPalmare = p.disponibile_palmare !== false ? 'checked' : '';
+        const isMenuTavolo = (p.mostra_al_tavolo !== false && p.disponibile_menu_qr !== false) ? 'checked' : '';
+
+        l.innerHTML += `
+        <div class="db-item">
+            <div style="display:flex; align-items:center; gap: 14px; flex-wrap:wrap;">
+                
+                <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+                    <small style="font-size:0.65em; color:#888; font-weight:bold;">APP/CASSA</small>
+                    <label class="switch">
+                        <input type="checkbox" ${isAttivoApp} onchange="toggleProdotto('${p.id}',this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+                    <small style="font-size:0.65em; color:#2962ff; font-weight:bold;">PALMARE SALA</small>
+                    <label class="switch">
+                        <input type="checkbox" ${isPalmare} onchange="toggleVisibilitaPalmare('${p.id}',this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+                    <small style="font-size:0.65em; color:#b28900; font-weight:bold;">MENU QR</small>
+                    <label class="switch">
+                        <input type="checkbox" ${isMenuTavolo} onchange="toggleVisibilitaTavolo('${p.id}',this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div style="margin-left:10px;">
+                    <b>${p.nome}</b> ${p.isPeso ? '<span style="color:#0277bd;font-weight:bold;font-size:0.8em;">(AL KG)</span>' : ''}
+                    ${p.scorta !== null && p.scorta !== undefined && p.scorta !== "" ? `<span style="color:#d32f2f; font-weight:bold; font-size:0.8em; margin-left:10px;">(Scorta: ${p.scorta})</span>` : ''}
+                    <br>
+                    <small>€ ${parseFloat(p.prezzo).toFixed(2)}</small>
+                </div>
+            </div>
+            <div>
+                <button onclick="preparaModifica('${p.id}')" class="btn-edit">✏️</button>
+                <button onclick="eliminaDB('prodotti','${p.id}')" style="background:red;color:white;border:none;border-radius:5px;padding:5px 10px;cursor:pointer;"><i class="fa fa-trash"></i></button>
+            </div>
+        </div>`;
+    });
+}
+
+window.toggleProdotto = (id, s) => updateDoc(doc(db, "prodotti", id), { attivo: s });
+window.toggleVisibilitaPalmare = (id, s) => updateDoc(doc(db, "prodotti", id), { disponibile_palmare: s });
+window.toggleVisibilitaTavolo = (id, s) => updateDoc(doc(db, "prodotti", id), { mostra_al_tavolo: s, disponibile_menu_qr: s });
+
+window.preparaModifica = (id) => {
+    ensurePalmareToggleInForm();
+    const p = mappaProdotti[id];
+    if (!p) return;
+    editingProdId = id;
+    document.getElementById('new-cat').value = p.cat;
+    document.getElementById('new-nome').value = p.nome;
+    document.getElementById('new-desc').value = p.desc || "";
+    document.getElementById('new-prezzo').value = p.prezzo;
+    document.getElementById('new-scorta').value = p.scorta !== undefined && p.scorta !== null ? p.scorta : "";
+    document.getElementById('new-is-peso').checked = p.isPeso === true;
+    
+    if(document.getElementById('new-mostra-tavolo')) {
+        document.getElementById('new-mostra-tavolo').checked = (p.mostra_al_tavolo !== false && p.disponibile_menu_qr !== false);
+    }
+    const palmEl = getPalmareCheckboxEl();
+    if(palmEl) {
+        palmEl.checked = p.disponibile_palmare !== false;
+    }
+
+    document.getElementById('new-foto').value = "";
+    if (document.getElementById('btn-delete-foto')) {
+        document.getElementById('btn-delete-foto').style.display = (p.immagine_url || p.foto) ? 'block' : 'none';
+    }
+    renderGrigliaIngredienti(p.ingredienti || []);
+
+    document.querySelectorAll('input[name="allergeni"]').forEach(cb => {
+        cb.checked = Array.isArray(p.allergeni) && p.allergeni.includes(cb.value);
+    });
+    
+    const b = document.getElementById('btn-save-prod');
+    b.textContent = "SALVA MODIFICHE";
+    b.style.background = "#ff9800";
+    document.getElementById('btn-cancel-prod').style.display = "inline-block";
+};
+
+window.resetFormProdotti = () => {
+    editingProdId = null;
+    document.getElementById('new-nome').value = "";
+    document.getElementById('new-desc').value = "";
+    document.getElementById('new-prezzo').value = "";
+    document.getElementById('new-scorta').value = "";
+    document.getElementById('new-is-peso').checked = false;
+    
+    if(document.getElementById('new-mostra-tavolo')) document.getElementById('new-mostra-tavolo').checked = true;
+    const palmEl = getPalmareCheckboxEl();
+    if(palmEl) palmEl.checked = true;
+
+    document.getElementById('new-foto').value = ""; 
+    if (document.getElementById('btn-delete-foto')) document.getElementById('btn-delete-foto').style.display = 'none';
+    renderGrigliaIngredienti([]);
+    document.querySelectorAll('input[name="allergeni"]').forEach(cb => cb.checked = false);
+    
+    const b = document.getElementById('btn-save-prod');
+    b.textContent = "AGGIUNGI";
+    b.style.background = "#2e7d32";
+    document.getElementById('btn-cancel-prod').style.display = "none";
+};
+
+window.salvaProdotto = async () => { 
+    ensurePalmareToggleInForm();
+    const nome = document.getElementById('new-nome').value.trim(); 
+    const cat = document.getElementById('new-cat').value; 
+    const desc = document.getElementById('new-desc').value; 
+    const prezzo = parseFloat(document.getElementById('new-prezzo').value); 
+    const isPeso = document.getElementById('new-is-peso').checked; 
+    const scortaInput = document.getElementById('new-scorta').value;
+    const scorta = scortaInput === "" ? null : parseInt(scortaInput);
+    
+    const mostraMenuQR = document.getElementById('new-mostra-tavolo') ? document.getElementById('new-mostra-tavolo').checked : true;
+    const palmEl = getPalmareCheckboxEl();
+    const dispPalmare = palmEl ? palmEl.checked : true;
+
+    const fotoInput = document.getElementById('new-foto');
+    const file = fotoInput?.files?.[0];
+    let immagine_url = null; 
+    
+    const ingredientiArr = []; 
+    document.querySelectorAll('input[name="prod_ing_check"]:checked').forEach(cb => ingredientiArr.push(cb.value)); 
+    
+    const checkedAllergeni = []; 
+    document.querySelectorAll('input[name="allergeni"]:checked').forEach(cb => checkedAllergeni.push(cb.value)); 
+    
+    if(!nome || isNaN(prezzo)) return Swal.fire("Inserisci Nome e Prezzo!"); 
+    
+    try {
+        Swal.fire({title: 'Salvataggio in corso...', didOpen: () => { Swal.showLoading() }});
+
+        if (file) {
+            immagine_url = await comprimiImmagineBase64(file, 400);
+        } else if (editingProdId && (mappaProdotti[editingProdId]?.immagine_url || mappaProdotti[editingProdId]?.foto)) {
+            immagine_url = mappaProdotti[editingProdId].immagine_url || mappaProdotti[editingProdId].foto;
+        }
+
+        const data = { 
+            nome, 
+            cat, 
+            desc, 
+            prezzo, 
+            scorta: scorta, 
+            attivo: true, 
+            mostra_al_tavolo: mostraMenuQR,
+            disponibile_menu_qr: mostraMenuQR,
+            disponibile_palmare: dispPalmare,
+            allergeni: checkedAllergeni, 
+            ingredienti: ingredientiArr, 
+            isPeso: isPeso,
+            immagine_url: immagine_url,
+            foto: immagine_url
+        }; 
+        
+        if (editingProdId) { 
+            await updateDoc(doc(db, "prodotti", editingProdId), data); 
+            resetFormProdotti(); 
+        } else { 
+            await addDoc(collection(db, "prodotti"), data); 
+            resetFormProdotti(); 
+        } 
+        
+        Swal.fire({icon: 'success', title: 'Prodotto Salvato!', timer: 1500, showConfirmButton: false});
+
+    } catch (error) {
+        console.error("Errore salvataggio:", error);
+        Swal.fire("Errore!", error.message, "error");
+    }
+};
+
+// --- BACKUP E RIPRISTINO MENU IN JSON ---
+window.backupMenu = async () => {
+    try {
+        const snap = await getDocs(collection(db, "prodotti"));
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `backup_menu_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    } catch (e) {
+        Swal.fire("Errore Backup", e.message, "error");
+    }
+};
+
+window.ripristinaMenuDaBackup = () => {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.json';
+    inp.onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            const text = await file.text();
+            const items = JSON.parse(text);
+            if (!Array.isArray(items)) throw new Error("Formato file JSON non valido.");
+            Swal.fire({ title: 'Importazione in corso...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            for (const item of items) {
+                const { id, ...rest } = item;
+                if (id) await setDoc(doc(db, "prodotti", id), rest, { merge: true });
+                else await addDoc(collection(db, "prodotti"), rest);
+            }
+            Swal.fire("Completato!", `Importati ${items.length} prodotti nel menu.`, "success");
+        } catch (err) {
+            Swal.fire("Errore Importazione", err.message, "error");
+        }
+    };
+    inp.click();
+};
+
+// --- STAMPA CHIUSURA SERATA / RIEPILOGO Z ---
+window.stampaChiusuraZ = async (modalita = 'oggi') => {
+    let printerIp = PRINTER_CONFIG['conto']?.ip || PRINTER_CONFIG['preconto']?.ip;
+    if (!printerIp) return Swal.fire("Attenzione", "Configura l'IP della stampante CASSA o PRECONTO nel Gestionale.", "warning");
+
+    let dStart = document.getElementById('timeline-date')?.value || new Date().toISOString().split('T')[0];
+    let dEnd = dStart;
+    if (modalita === 'periodo') {
+        dStart = document.getElementById('stats-start')?.value || dStart;
+        dEnd = document.getElementById('stats-end')?.value || dEnd;
+    }
+
+    try {
+        const q = query(collection(db, "ordini"), where("data_ritiro", ">=", dStart), where("data_ritiro", "<=", dEnd));
+        const snap = await getDocs(q);
+        let totGen = 0, totContanti = 0, totCarta = 0, totAsporto = 0, totSala = 0, numOrd = 0, numCop = 0;
+
+        snap.forEach(d => {
+            const o = d.data();
+            if (o.stato !== 'Annullato') {
+                const imp = parseFloat(o.totale || 0);
+                totGen += imp;
+                numOrd++;
+                numCop += parseInt(o.coperti || 0);
+                if (o.tipo === 'SALA') totSala += imp; else totAsporto += imp;
+                if (o.metodo_pagamento === 'CARTA') totCarta += imp; else totContanti += imp;
+            }
+        });
+
+        let data = [];
+        data.push('\x1B\x40\x1B\x61\x01');
+        data.push('\x1D\x21\x11\x1B\x45\x01REPORT CHIUSURA Z\n\x1D\x21\x00\x1B\x45\x00');
+        data.push(`Periodo: ${dStart} -> ${dEnd}\n`);
+        data.push('--------------------------------\n\x1B\x61\x00');
+        data.push(`Ordini Totali:       ${numOrd}\n`);
+        data.push(`Coperti Sala:        ${numCop}\n`);
+        data.push('--------------------------------\n');
+        data.push(`Incasso ASPORTO:     E ${totAsporto.toFixed(2)}\n`);
+        data.push(`Incasso SALA:        E ${totSala.toFixed(2)}\n`);
+        data.push('--------------------------------\n');
+        data.push(`Totale CONTANTI:     E ${totContanti.toFixed(2)}\n`);
+        data.push(`Totale CARTA:        E ${totCarta.toFixed(2)}\n`);
+        data.push('================================\n');
+        data.push(`\x1B\x61\x01\x1D\x21\x11\x1B\x45\x01TOTALE: E ${totGen.toFixed(2)}\n\x1D\x21\x00\x1B\x45\x00`);
+        data.push(`\n${new Date().toLocaleString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`);
+
+        await qz.print(qz.configs.create({ host: printerIp, port: 9100 }), data);
+        Swal.fire({ icon: 'success', title: 'Report Z inviato in stampa!', timer: 1500, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire("Errore Stampa Z", e.message, "error");
+    }
+};
+
+window.compraModuloKDS = () => {
+    Swal.fire("Modulo KDS", "Contatta l'amministratore o usa la SaaS Master Console per abilitare il Monitor Cucina KDS.", "info");
+};
+
+window.apriPortaleStripe = () => {
+    Swal.fire("Gestione Abbonamento", "Per aggiornare il metodo di pagamento o visualizzare le fatture contatta l'assistenza.", "info");
+};
+
+window.setPeriodo = (tipo) => {
+    const today = new Date();
+    const startInp = document.getElementById('stats-start');
+    const endInp = document.getElementById('stats-end');
+    
+    if(tipo === 'oggi') {
+        const s = today.toISOString().split('T')[0];
+        startInp.value = s; endInp.value = s;
+    } else if(tipo === 'settimana') {
+        const day = today.getDay() || 7; 
+        if(day !== 1) today.setHours(-24 * (day - 1)); 
+        startInp.value = today.toISOString().split('T')[0];
+        const end = new Date(today); end.setDate(end.getDate() + 6);
+        endInp.value = end.toISOString().split('T')[0];
+    } else if(tipo === 'mese') {
+        const y = today.getFullYear(), m = today.getMonth();
+        startInp.value = new Date(y, m, 1).toISOString().split('T')[0];
+        const lastDay = new Date(y, m + 1, 0);
+        lastDay.setMinutes(lastDay.getMinutes() - lastDay.getTimezoneOffset());
+        endInp.value = lastDay.toISOString().split('T')[0];
+    } else if(tipo === 'anno') {
+        startInp.value = `${today.getFullYear()}-01-01`;
+        endInp.value = `${today.getFullYear()}-12-31`;
+    }
+    window.calcolaStats();
+};
+
+window.calcolaStats = async () => { 
+    const dStart = document.getElementById('stats-start').value; 
+    const dEnd = document.getElementById('stats-end').value;
+    if(!dStart || !dEnd) return Swal.fire("Seleziona un periodo.");
+    const q = query(collection(db, "ordini"), where("data_ritiro", ">=", dStart), where("data_ritiro", "<=", dEnd)); 
+    try { 
+        const snap = await getDocs(q); 
+        let tot = { inc: 0, piz: 0, ord: 0, cop: 0 }; 
+        let asp = { inc: 0, piz: 0, ord: 0, cop: 0 };
+        let sala = { inc: 0, piz: 0, ord: 0, cop: 0 };
+        let statsPerCat = {}; 
+
+        snap.forEach(docSnap => { 
+            const d = docSnap.data(); 
+            if(d.stato !== 'Annullato') { 
+                const importo = parseFloat(d.totale||0);
+                const nCop = parseInt(d.coperti || 0);
+                let pizzeOrdine = 0;
+
+                if(d.prodotti) d.prodotti.forEach(p => { 
+                    let qta = parseFloat(p.qta||1); 
+                    if(['pizza','stirata','gf','speciale'].includes(p.cat)) pizzeOrdine += qta; 
+                    let catKey = p.cat || 'altro';
+                    let prodName = p.nome;
+                    if(!statsPerCat[catKey]) statsPerCat[catKey] = {};
+                    if(!statsPerCat[catKey][prodName]) statsPerCat[catKey][prodName] = 0;
+                    statsPerCat[catKey][prodName] += qta;
+                }); 
+
+                tot.inc += importo; tot.ord++; tot.piz += pizzeOrdine; tot.cop += nCop;
+                if (d.tipo === 'SALA') {
+                    sala.inc += importo; sala.ord++; sala.piz += pizzeOrdine; sala.cop += nCop;
+                } else {
+                    asp.inc += importo; asp.ord++; asp.piz += pizzeOrdine; asp.cop += nCop;
+                }
+            } 
+        }); 
+
+        document.getElementById('st-incasso').innerText = "€ " + tot.inc.toFixed(2); 
+        document.getElementById('st-pizze').innerText = Math.round(tot.piz); 
+        document.getElementById('st-ordini').innerText = tot.ord; 
+        document.getElementById('st-coperti').innerText = tot.cop;
+
+        document.getElementById('st-incasso-asp').innerText = "€ " + asp.inc.toFixed(2); 
+        document.getElementById('st-pizze-asp').innerText = Math.round(asp.piz); 
+        document.getElementById('st-ordini-asp').innerText = asp.ord; 
+        if (document.getElementById('st-coperti-asp')) document.getElementById('st-coperti-asp').innerText = asp.cop;
+
+        document.getElementById('st-incasso-sala').innerText = "€ " + sala.inc.toFixed(2); 
+        document.getElementById('st-pizze-sala').innerText = Math.round(sala.piz); 
+        document.getElementById('st-ordini-sala').innerText = sala.ord; 
+        document.getElementById('st-coperti-sala').innerText = sala.cop;
+
+        const rankingContainer = document.getElementById('ranking-container');
+        if (!rankingContainer) return;
+        rankingContainer.innerHTML = ""; 
+
+        const sortOrder = ['pizza', 'speciale', 'stirata', 'gf', 'ant_pizzeria', 'ant_ristorante', 'primo', 'secondo', 'contorno', 'pescato', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro'];
+        let foundCats = Object.keys(statsPerCat);
+        foundCats.sort((a,b) => {
+            let ia = sortOrder.indexOf(a);
+            let ib = sortOrder.indexOf(b);
+            if(ia === -1 && ib === -1) return 0;
+            if(ia === -1) return 1;
+            if(ib === -1) return -1;
+            return ia - ib;
+        });
+
+        if(foundCats.length === 0) {
+            rankingContainer.innerHTML = "<div style='padding:20px; text-align:center;'>Nessun prodotto venduto nel periodo.</div>";
+        } else {
+            foundCats.forEach(cat => {
+                let products = Object.entries(statsPerCat[cat]).sort((a,b) => b[1] - a[1]);
+                let catLabel = CATEGORY_LABELS[cat] || cat.toUpperCase();
+                let html = `<div class="cat-rank-title">${catLabel}</div><table class="ranking-table"><tbody>`;
+                products.forEach((prod, index) => {
+                    let qtyDisplay = prod[1] % 1 === 0 ? prod[1] : prod[1].toFixed(3);
+                    html += `<tr><td style="width:30px;">${index+1}</td><td>${prod[0]}</td><td style="width:50px; text-align:right;"><b>${qtyDisplay}</b></td></tr>`;
+                });
+                html += `</tbody></table>`;
+                rankingContainer.innerHTML += html;
+            });
+        }
+    } catch(e) { console.log(e); Swal.fire("Errore statistiche: " + e.message); } 
+};
+
+window.azzeraStatistiche = async () => {
+    const dStart = document.getElementById('stats-start').value;
+    const dEnd = document.getElementById('stats-end').value;
+    if(!dStart || !dEnd) return Swal.fire("Seleziona prima le date (Dal/Al).");
+
+    Swal.fire({
+        title: 'ATTENZIONE: CANCELLAZIONE',
+        text: `Stai per eliminare TUTTI gli ordini dal ${dStart} al ${dEnd}. L'operazione è IRREVERSIBILE.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d32f2f',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sì, procedi',
+        cancelButtonText: 'Annulla'
+    }).then(async (result) => {
+        if(result.isConfirmed) {
+            Swal.fire({title: 'Cancellazione in corso...', didOpen: () => { Swal.showLoading() }});
+            const q = query(collection(db, "ordini"), where("data_ritiro", ">=", dStart), where("data_ritiro", "<=", dEnd));
+            try {
+                const snap = await getDocs(q);
+                if(snap.empty) return Swal.fire({icon: 'info', title: 'Nessun ordine trovato'});
+                const batch = writeBatch(db); 
+                let count = 0;
+                snap.forEach(d => { batch.delete(d.ref); count++; });
+                await batch.commit();
+                Swal.fire({icon: 'success', title: 'Fatto!', text: `Cancellati ${count} ordini.`});
+                calcolaStats(); 
+            } catch (e) {
+                Swal.fire({icon: 'error', title: 'Errore', text: e.message});
+            }
+        }
+    });
+};
+
+window.caricaCestino = async () => {
+    const list = document.getElementById('lista-cestino');
+    if (!list) return;
+    list.innerHTML = "<div style='text-align:center;'>Caricamento...</div>";
+    const dateStr = document.getElementById('timeline-date').value;
+    
+    const q = query(collection(db, "ordini"), where("data_ritiro", "==", dateStr));
+    try {
+        const snap = await getDocs(q);
+        list.innerHTML = "";
+        let count = 0;
+        const docs = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        
+        docs.forEach(d => {
+            if(d.stato === "Annullato") {
+                count++;
+                const nomeCli = d.tavolo ? `TAVOLO ${d.tavolo}` : (d.nome + " " + (d.cognome || ''));
+                const totale = d.totale ? parseFloat(d.totale).toFixed(2) : "0.00";
+                let prodottiHtml = "";
+                if(d.prodotti && Array.isArray(d.prodotti)){
+                    prodottiHtml = d.prodotti.map(prod => `<div>${prod.qta}x ${prod.nome} <small>(${prod.dettagli||''})</small></div>`).join('');
+                }
+
+                list.innerHTML += `
+                    <div style="background:white; border:1px solid #ddd; border-left:5px solid #d32f2f; padding:10px; margin-bottom:10px; border-radius:4px; color:#222;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span style="font-weight:bold; font-size:1.1em;">${d.orario} | ${nomeCli}</span>
+                            <span style="color:#d32f2f; font-weight:bold;">ANNULLATO</span>
+                        </div>
+                        <div style="color:#555; font-size:0.9em; margin-bottom:8px; padding-left:10px; border-left:2px solid #eee;">
+                            ${prodottiHtml}
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #eee; padding-top:5px;">
+                            <b>Tot: € ${totale}</b>
+                            <div>
+                                <button onclick="ripristinaOrdine('${d.id}', '${d.tipo}')" style="background:#2e7d32; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
+                                    <i class="fa fa-undo"></i> RIPRISTINA
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
+        if(count === 0) {
+            list.innerHTML = "<div style='padding:20px; text-align:center; color:#777;'>Nessun ordine annullato trovato per la data selezionata (" + dateStr + ").</div>";
+        }
+    } catch(e) {
+        list.innerHTML = "<div style='color:red;'>Errore: " + e.message + "</div>";
+    }
+};
+
+window.ripristinaOrdine = async (id, tipo) => {
+    try {
+        const nuovoStato = tipo === 'SALA' ? 'In forno' : 'In attesa'; 
+        await updateDoc(doc(db, "ordini", id), { stato: nuovoStato, data_annullamento: null });
+        Swal.fire({title:'Ordine Ripristinato!', icon:'success', timer:1500, showConfirmButton:false});
+        window.caricaCestino(); 
+    } catch (e) {
+        Swal.fire("Errore durante il ripristino: " + e.message);
+    }
+};
+
+window.exportToCSV = () => {
+    if(ordiniCache.length === 0) return Swal.fire('Nessun ordine da esportare.');
+    let csvContent = "data:text/csv;charset=utf-8,Data,Ora,Tipo,Tavolo/Cliente,Totale,Stato,Operatore\r\n";
+    ordiniCache.forEach(o => {
+        const operatoreNome = o.operatore || o.cameriere || '';
+        const row = `${o.data_ritiro},${o.orario},${o.tipo},"${o.nome}",${o.totale},${o.stato},${operatoreNome}`;
+        csvContent += row + "\r\n";
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "report_vendite.csv");
+    document.body.appendChild(link);
+    link.click();
 };
 
 // --- ELIMINAZIONE SICURA DB ---
@@ -4066,8 +4440,14 @@ window.renderMappa = () => {
     });
 
     tavoliDaMostrare.forEach(tavoloNum => {
-        let ordineAttivo = ordiniCache.find(o => o.tavolo === tavoloNum && (o.stato === 'In forno' || o.stato === 'Pronto' || o.stato === 'In attesa'));
-        let prenotazione = ordiniCache.find(o => o.tavolo === tavoloNum && o.stato === 'Prenotato');
+        let ordiniAttivi = ordiniCache.filter(o => o.tavolo === tavoloNum && (o.stato === 'In forno' || o.stato === 'Pronto' || o.stato === 'In attesa'));
+        let prenotazioni = ordiniCache.filter(o => o.tavolo === tavoloNum && o.stato === 'Prenotato').sort((a,b) => (a.orario || "00:00").localeCompare(b.orario || "00:00"));
+        
+        let ordineAttivo = ordiniAttivi[0] || null;
+        let prenotazione = prenotazioni[0] || null;
+        let totTurni = ordiniAttivi.length + prenotazioni.length;
+        let multiBadge = totTurni > 1 ? ` <span style="background:#2962ff; color:#fff; padding:1px 5px; border-radius:4px; font-size:0.75em;">+${totTurni - 1}</span>` : '';
+
         let div = document.createElement('div');
         let fontSize = tavoloNum.length > 3 ? '1.2em' : '2.5em';
         
@@ -4077,11 +4457,11 @@ window.renderMappa = () => {
             let nomeCliente = (ordineAttivo.nome || ordineAttivo.cliente?.nome || "").trim();
             if (!nomeCliente || nomeCliente.startsWith("TAVOLO")) nomeCliente = "Occupato";
             let nomeBreve = nomeCliente.split(" ")[0].toUpperCase();
-            div.innerHTML = `<span class="table-num" style="font-size: ${fontSize};">${tavoloNum}</span><div class="table-info" style="line-height: 1.2; padding-top: 3px;"><b style="font-size: 1.1em; color: #fff;">${nomeBreve}</b><br><small style="color: #ffcccc;">€ ${tot}</small></div>`;
+            div.innerHTML = `<span class="table-num" style="font-size: ${fontSize};">${tavoloNum}</span><div class="table-info" style="line-height: 1.2; padding-top: 3px;"><b style="font-size: 1.1em; color: #fff;">${nomeBreve}${multiBadge}</b><br><small style="color: #ffcccc;">€ ${tot}</small></div>`;
             div.onclick = () => { window.chiudiMappa(); window.apriModifica(ordineAttivo.id); }; 
         } else if (prenotazione) {
             div.className = 'table-box reserved';
-            div.innerHTML = `<span class="table-num" style="font-size: ${fontSize};">${tavoloNum}</span><div class="table-info">${prenotazione.orario || ''}<br>${prenotazione.nome || ''}</div>`;
+            div.innerHTML = `<span class="table-num" style="font-size: ${fontSize};">${tavoloNum}</span><div class="table-info">${prenotazione.orario || ''}${multiBadge}<br>${prenotazione.nome || ''}</div>`;
             div.onclick = () => window.gestisciPrenotazione(prenotazione);
         } else {
             div.className = 'table-box';
@@ -4250,7 +4630,8 @@ window.emettiScontrinoFiscale = async (metodoPagamento) => {
         righe.push(`VEND|${reparto}|${qta}|${prezzo}|${nome}`);
     });
 
-    if(o.coperti > 0) righe.push(`VEND|22|${o.coperti}|2,50|COPERTO`);
+    const copPrice = (window.prezzoCopertoLocale || 2.50).toFixed(2).replace('.', ',');
+    if(o.coperti > 0) righe.push(`VEND|22|${o.coperti}|${copPrice}|COPERTO`);
 
     let totaleVal = parseFloat(document.getElementById('pay-total').innerText.replace('€ ','').replace(',', '.'));
     let tipoPag = (metodoPagamento === 'CONTANTI') ? "1" : "2"; 
@@ -4377,10 +4758,15 @@ window.caricaStoricoData = async () => {
     const dataScelta = document.getElementById('storico-date').value;
 
     try {
-        const q = query(collection(db, "ordini"), where("data_ritiro", "==", dataScelta), where("stato", "in", ["Consegnato", "Pagato"]));
+        const q = query(collection(db, "ordini"), where("data_ritiro", "==", dataScelta));
         const snap = await getDocs(q);
         let ordini = [];
-        snap.forEach(d => ordini.push({id: d.id, ...d.data()}));
+        snap.forEach(d => {
+            const data = d.data();
+            if (data.stato === "Consegnato" || data.stato === "Pagato") {
+                ordini.push({id: d.id, ...data});
+            }
+        });
         
         if(ordini.length === 0) {
             const dataFormattata = dataScelta.split('-').reverse().join('/');
@@ -4389,8 +4775,8 @@ window.caricaStoricoData = async () => {
         }
 
         ordini.sort((a,b) => {
-            const timeA = a.data_chiusura ? a.data_chiusura.toMillis() : 0;
-            const timeB = b.data_chiusura ? b.data_chiusura.toMillis() : 0;
+            const timeA = a.data_chiusura?.toMillis ? a.data_chiusura.toMillis() : (a.timestamp_chiusura?.toMillis ? a.timestamp_chiusura.toMillis() : 0);
+            const timeB = b.data_chiusura?.toMillis ? b.data_chiusura.toMillis() : (b.timestamp_chiusura?.toMillis ? b.timestamp_chiusura.toMillis() : 0);
             return timeB - timeA;
         });
 
@@ -4402,7 +4788,7 @@ window.caricaStoricoData = async () => {
             <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:10px; border-left:5px solid #607d8b; display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <b style="font-size:1.2em; color:var(--gold);"><i class="fa ${icona}"></i> ${identificativo}</b><br>
-                    <small style="color:#aaa;">Orario: ${o.orario || '--:--'} | Totale: €${parseFloat(o.totale).toFixed(2)}</small>
+                    <small style="color:#aaa;">Orario: ${o.orario || '--:--'} | Totale: €${parseFloat(o.totale || 0).toFixed(2)}</small>
                 </div>
                 <div>
                     <button onclick="vediDettagliStorico('${o.id}')" style="background:#2196f3; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
@@ -4439,7 +4825,7 @@ window.vediDettagliStorico = async (id) => {
             html: `
                 <div style="color:#aaa; font-size:1em; margin-bottom:15px; padding-bottom:10px; border-bottom:1px dashed #555;">
                     ${o.tavolo ? 'TAVOLO ' + o.tavolo : (o.nome || 'Asporto')} | Ore: ${o.orario || '--:--'} <br>
-                    <b style="font-size:1.2em; color:white;">Totale Pagato: €${parseFloat(o.totale).toFixed(2)}</b>
+                    <b style="font-size:1.2em; color:white;">Totale Pagato: €${parseFloat(o.totale || 0).toFixed(2)}</b>
                 </div>
                 ${prodHtml}
             `,

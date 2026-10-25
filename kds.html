@@ -41,6 +41,16 @@
         .kds-card.status-late .kds-header { background: #f44336; color: white; }
         .kds-body { padding: 0; flex: 1; overflow-y: auto; max-height: 500px; }
         .kds-info { font-size: 1.1em; font-weight: bold; padding: 10px; background: #2c2c2c; color: #fff; text-transform: uppercase; border-bottom: 1px solid #444; }
+        
+        /* BADGE ETICHETTE FILTRATE (SOLO GIRO PIZZA, SENZA GLUTINE, RISTORANTE, PIZZERIA, MISTO) */
+        .kds-tags-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px; background: #181818; border-bottom: 1px solid #444; }
+        .kds-tag-badge { padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 900; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; }
+        .kds-tag-giro { background: #00e676; color: #000; }
+        .kds-tag-risto { background: #0288d1; color: #fff; }
+        .kds-tag-pizz { background: #ff6d00; color: #fff; }
+        .kds-tag-misto { background: #8e24aa; color: #fff; }
+        .kds-tag-gf { background: #ffea00; color: #b71c1c; border: 2px solid #f44336; animation: blink-bg 1s infinite; }
+
         .turn-section { border-bottom: 2px solid #444; padding: 5px; background: #222; }
         .turn-section.completed { background: #1b5e20; opacity: 0.7; }
         .turn-header { display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; background: #333; border-radius: 4px; margin-bottom: 5px; }
@@ -122,26 +132,44 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, onSnapshot, doc, updateDoc, where, arrayUnion, arrayRemove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, where, arrayUnion, arrayRemove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // --- SISTEMA MULTI-TENANT ---
-        const urlParams = new URLSearchParams(window.location.search);
-        window.TENANT_ID = urlParams.get('locale') || localStorage.getItem('saas_tenant_id') || 'default';
-        if (urlParams.get('locale')) localStorage.setItem('saas_tenant_id', window.TENANT_ID);
-
         const firebaseConfig = {
-  apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
-  authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
-  projectId: "gestionale-ristoranti-96c5b",
-  storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
-  messagingSenderId: "234695436534",
-  appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
-};
+            apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
+            authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+            projectId: "gestionale-ristoranti-96c5b",
+            storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+            messagingSenderId: "234695436534",
+            appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+
+        // --- ROUTER MULTI-TENANT AUTOMATICO (Isola ogni ristorante creato da SuperAdmin) ---
+        const _urlParams = new URLSearchParams(window.location.search);
+        if (_urlParams.has('locale')) {
+            window.TENANT_ID = _urlParams.get('locale') || 'default';
+            localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+        } else {
+            window.TENANT_ID = window.TENANT_ID || localStorage.getItem('saas_tenant_id') || 'default';
+        }
+
+        const collection = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _collection(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _collection(database, ...pathSegments);
+        };
+
+        const doc = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _doc(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _doc(database, ...pathSegments);
+        };
         
         let audioEnabled = true; 
         let ordiniCache = [];
@@ -155,6 +183,34 @@
             dolci: ['dolce'],
             bar: ['bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro']
         };
+
+        // === FILTRO ESCLUSIVO: SOLO GIRO PIZZA, SENZA GLUTINE, RISTORANTE, PIZZERIA, MISTO ===
+        function getEtichetteFiltrateKDS(o) {
+            let badges = [];
+
+            const serv = (o.preferenza_servizio || '').trim().toLowerCase();
+            if (serv === 'giro pizza' || serv === 'giropizza') {
+                badges.push(`<span class="kds-tag-badge kds-tag-giro">🍕 GIRO PIZZA</span>`);
+            } else if (serv === 'ristorante') {
+                badges.push(`<span class="kds-tag-badge kds-tag-risto">🍽️ RISTORANTE</span>`);
+            } else if (serv === 'pizzeria') {
+                badges.push(`<span class="kds-tag-badge kds-tag-pizz">🔥 PIZZERIA</span>`);
+            } else if (serv === 'misto') {
+                badges.push(`<span class="kds-tag-badge kds-tag-misto">⚖️ MISTO</span>`);
+            }
+
+            if (Array.isArray(o.etichette)) {
+                const haSenzaGlutine = o.etichette.some(t => {
+                    const low = String(t || '').toLowerCase();
+                    return low.includes('senza glutine') || low.includes('glutine') || low.includes('celiac') || low.includes('gf');
+                });
+                if (haSenzaGlutine) {
+                    badges.push(`<span class="kds-tag-badge kds-tag-gf">🌾 SENZA GLUTINE</span>`);
+                }
+            }
+
+            return badges.length > 0 ? `<div class="kds-tags-row">${badges.join('')}</div>` : '';
+        }
 
         // === GESTIONE LOGIN SAAS + AUTO-LOGIN CUCINA ===
         window.loginAzienda = async () => {
@@ -196,9 +252,15 @@
             } else {
                 // Se l'operatore non ha premuto volontariamente Logout, connette il KDS in automatico
                 if (sessionStorage.getItem('kds_manual_logout') !== 'true') {
-                    signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {
-                        document.getElementById('company-login-overlay').style.display = 'flex';
-                    });
+                    signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026")
+                        .then(() => {
+                            if(!isKdsInitialized) initKDS();
+                        })
+                        .catch(() => {
+                            // Avvia comunque il KDS se le regole Firestore sono aperte
+                            document.getElementById('company-login-overlay').style.display = 'none';
+                            if(!isKdsInitialized) initKDS();
+                        });
                 } else {
                     document.getElementById('company-login-overlay').style.display = 'flex';
                     isKdsInitialized = false;
@@ -246,6 +308,11 @@
         // === MOTORE KDS ===
         function initKDS() {
             isKdsInitialized = true;
+
+            const fallbackTitle = window.TENANT_ID === 'default'
+                ? 'DA MIMMO'
+                : window.TENANT_ID.replace(/-/g, ' ').toUpperCase();
+            document.getElementById('nome-locale-kds').innerText = fallbackTitle + " - KDS";
 
             // 1. White-Label Nome Locale in Tempo Reale
             onSnapshot(doc(db, "impostazioni", "negozio"), (docSnap) => {
@@ -481,6 +548,7 @@
                     <div class="kds-body" data-oid="${o.id}">
                         ${o.messaggio_cucina && o.messaggio_cucina.includes('STORNO') ? `<div class="via-badge" style="background:#f44336;color:white;">${o.messaggio_cucina}</div>` : ''}
                         <div class="kds-info">${clientInfo} <small style="color:#aaa; font-size:0.8em; float:right;">Op: ${o.operatore || o.cameriere || 'App'}</small></div>
+                        ${getEtichetteFiltrateKDS(o)}
                         ${bodyHtml}
                         ${o.note_ordine ? `<div style="background:#333; color:yellow; padding:5px; margin:5px; border-radius:4px; font-weight:bold;">NOTE: ${o.note_ordine}</div>` : ''}
                     </div>

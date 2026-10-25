@@ -9,9 +9,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
-        .container { max-width: 720px; margin: 0 auto; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: none; }
+        .container { max-width: 780px; margin: 0 auto; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: none; }
         h1 { margin-top: 0; color: #58a6ff; display: flex; align-items: center; justify-content: space-between; font-size: 1.5em; flex-wrap: wrap; gap: 10px; }
-        .tenant-bar { background: #21262d; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; border: 1px solid #30363d; }
+        .tenant-bar { background: #21262d; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; border: 1px solid #30363d; flex-wrap: wrap; }
         .status-card { padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border: 2px solid; }
         .status-active { background: rgba(46, 160, 67, 0.15); border-color: #2ea043; }
         .status-suspended { background: rgba(248, 81, 73, 0.15); border-color: #f85149; }
@@ -23,9 +23,12 @@
         .btn-save:hover { background: #2ea043; }
         .btn-toggle { padding: 10px 20px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; font-size: 1em; }
         .links-box { background: #0d1117; border: 1px dashed #30363d; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 0.9em; }
-        .links-box a { color: #58a6ff; text-decoration: none; display: block; margin: 8px 0; word-break: break-all; padding: 4px 0; border-bottom: 1px solid #161b22; }
-        .links-box a:hover { text-decoration: underline; color: #79c0ff; }
+        .links-box a { color: #58a6ff; text-decoration: none; display: block; margin: 8px 0; word-break: break-all; padding: 6px 8px; border-bottom: 1px solid #161b22; border-radius: 6px; }
+        .links-box a:hover { text-decoration: underline; color: #79c0ff; background: #161b22; }
         .section-box { background: #1c2128; border: 1px solid #30363d; border-radius: 10px; padding: 15px; margin-top: 20px; }
+        .mod-check-card { background: #0d1117; border: 1px solid #30363d; padding: 10px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: #fff; font-weight: 600; }
+        .mod-check-card:hover { border-color: #58a6ff; }
+        .tenant-id-pill { background: #0d1117; color: #f59e0b; border: 1px solid #f59e0b; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -33,11 +36,14 @@
     <div class="container" id="main-console">
         <h1>
             <span><i class="fa-solid fa-server"></i> SaaS Master Console</span>
-            <div style="display:flex; gap:8px;">
-                <button onclick="creaNuovoRistorante()" style="background:#1f6feb; color:white; border:none; padding:8px 14px; border-radius:6px; font-size:0.6em; cursor:pointer; font-weight:bold;">
-                    + NUOVO CLIENTE
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button onclick="creaNuovoRistorante()" style="background:#1f6feb; color:white; border:none; padding:9px 14px; border-radius:6px; font-size:0.6em; cursor:pointer; font-weight:bold;">
+                    <i class="fa fa-plus"></i> NUOVO RISTORANTE
                 </button>
-                <button id="btn-del-tenant" onclick="eliminaRistorante()" style="display:none; background:#da3633; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:0.6em; cursor:pointer; font-weight:bold;" title="Elimina questo cliente dalla lista">
+                <button id="btn-clone-menu" onclick="clonaListinoSuTenant()" style="display:none; background:#8b5cf6; color:white; border:none; padding:9px 12px; border-radius:6px; font-size:0.6em; cursor:pointer; font-weight:bold;" title="Copia Menu, Aggiunte e Rimozioni dal Locale Principale a questo ristorante">
+                    <i class="fa fa-copy"></i> CLONA MENU BASE
+                </button>
+                <button id="btn-del-tenant" onclick="eliminaRistorante()" style="display:none; background:#da3633; color:white; border:none; padding:9px 12px; border-radius:6px; font-size:0.6em; cursor:pointer; font-weight:bold;" title="Elimina questo cliente">
                     <i class="fa fa-trash"></i>
                 </button>
             </div>
@@ -49,12 +55,13 @@
             <select id="select-tenant" class="input" style="margin:0; flex:1; font-weight:bold;" onchange="cambiaTenant(this.value)">
                 <option value="default">📍 Locale Principale (Da Mimmo)</option>
             </select>
+            <span id="current-tenant-badge" class="tenant-id-pill">ID: default</span>
         </div>
 
-        <!-- KILL-SWITCH STATO LICENZA -->
+        <!-- STATO LICENZA E KILL-SWITCH -->
         <div id="status-box" class="status-card status-active">
             <div>
-                <div style="font-size:0.85em; color:#8b949e;">STATO LICENZA CLIENTE</div>
+                <div style="font-size:0.85em; color:#8b949e;">STATO GENERALE (CASSA + TUTTI I MODULI)</div>
                 <div id="status-text" style="font-size:1.5em; font-weight:900; color:#3fb950;">🟢 ATTIVO</div>
             </div>
             <button id="btn-switch" class="btn-toggle" style="background:#f85149; color:white;" onclick="cambiaStatoLicenza()">
@@ -62,40 +69,57 @@
             </button>
         </div>
 
-        <!-- DATI CANONE E SCADENZA -->
+        <!-- SCADENZA E CANONE -->
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <div style="flex:1; min-width:180px;">
-                <label class="label">Scadenza Canone</label>
-                <input type="date" id="lic-scadenza" class="input">
+                <label class="label">Scadenza Abbonamento (Blocco automatico a scadenza)</label>
+                <input type="date" id="lic-scadenza" class="input" onchange="salvaLicenza(true)">
             </div>
             <div style="flex:1; min-width:180px;">
-                <label class="label">Canone Mensile (€)</label>
+                <label class="label">Canone Concordato (€)</label>
                 <input type="number" id="lic-prezzo" class="input" placeholder="Es. 49.00" step="0.50">
             </div>
         </div>
 
-        <!-- MODULO KDS SBLOCCATO -->
-        <div style="display:flex; align-items:center; justify-content:space-between; background:#21262d; padding:12px 15px; border-radius:8px; margin-top:15px; border:1px solid #30363d;">
-            <div>
-                <b style="color:#fff;"><i class="fa-solid fa-tv" style="color:#58a6ff;"></i> Modulo Monitor Cucina (KDS)</b>
-                <div style="font-size:0.8em; color:#8b949e;">Abilita o blocca l'accesso al KDS per questo ristorante</div>
+        <!-- GESTIONE MODULI OPZIONALI (TIERS) -->
+        <div class="section-box">
+            <h3 style="color:#58a6ff; margin:0 0 6px 0; font-size:1.05em;"><i class="fa-solid fa-puzzle-piece"></i> Moduli Acquistati dal Ristorante (Attivazione Istantanea)</h3>
+            <p style="margin:0 0 12px 0; font-size:0.8em; color:#8b949e;">Spunta o deseleziona un modulo: la pagina corrispondente si sbloccherà o sospenderà in tempo reale per questo ristorante.</p>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                <label class="mod-check-card">
+                    <input type="checkbox" id="mod-cassa" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 🖥️ Cassa Principale
+                </label>
+                <label class="mod-check-card">
+                    <input type="checkbox" id="mod-sala" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 📱 Palmare Sala
+                </label>
+                <label class="mod-check-card">
+                    <input type="checkbox" id="mod-agenda" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 📅 Agenda Prenotazioni
+                </label>
+                <label class="mod-check-card">
+                    <input type="checkbox" id="mod-kds" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 📺 Monitor Cucina (KDS)
+                </label>
+                <label class="mod-check-card">
+                    <input type="checkbox" id="mod-menu" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 📖 Menu QR Tavoli
+                </label>
+                <label class="mod-check-card">
+                    <input type="checkbox" id="mod-telecomando" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 📟 Telecomando Ordini
+                </label>
             </div>
-            <input type="checkbox" id="lic-kds-sbloccato" checked style="width:22px; height:22px; cursor:pointer;">
         </div>
 
-        <label class="label">Messaggio di Blocco (Mostrato se sospendi la licenza)</label>
+        <label class="label">Messaggio di Blocco (Mostrato quando sospeso o scaduto)</label>
         <input type="text" id="lic-msg-blocco" class="input" placeholder="Abbonamento scaduto. Contatta l'assistenza per il rinnovo.">
 
         <label class="label">Tuo Contatto Assistenza</label>
         <input type="text" id="lic-contatto" class="input" placeholder="Es. Assistenza Paolo - 340 1234567">
 
-        <!-- IMPOSTAZIONI WHITE-LABEL RAPIDE -->
+        <!-- DATI WHITE-LABEL DEL LOCALE -->
         <div class="section-box">
-            <h3 style="color:#58a6ff; margin:0 0 12px 0; font-size:1.05em;"><i class="fa-solid fa-sliders"></i> Dati White-Label del Ristorante</h3>
+            <h3 style="color:#58a6ff; margin:0 0 12px 0; font-size:1.05em;"><i class="fa-solid fa-sliders"></i> Dati White-Label del Ristorante Selezionato</h3>
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <div style="flex:2; min-width:180px;">
                     <label class="label" style="margin-top:0;">Nome Ristorante / Pizzeria</label>
-                    <input type="text" id="wl-nome" class="input" placeholder="Es. Da Mimmo">
+                    <input type="text" id="wl-nome" class="input" placeholder="Es. Pizzeria Vesuvio">
                 </div>
                 <div style="flex:1; min-width:140px;">
                     <label class="label" style="margin-top:0;">Telefono Ordini</label>
@@ -112,18 +136,18 @@
         <div class="section-box">
             <h3 style="color:#d29922; margin:0 0 10px 0; font-size:1.05em;"><i class="fa-solid fa-bell"></i> Avviso in Cassa (Senza Bloccare)</h3>
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-                <input type="checkbox" id="lic-avviso-attivo" style="width:20px; height:20px; cursor:pointer;">
+                <input type="checkbox" id="lic-avviso-attivo" onchange="salvaLicenza(true)" style="width:20px; height:20px; cursor:pointer;">
                 <span>Mostra popup di avviso sulla Cassa del cliente</span>
             </div>
             <input type="text" id="lic-testo-avviso" class="input" placeholder="Es. ⚠️ Promemoria: l'abbonamento scade tra 3 giorni.">
         </div>
 
-        <button class="btn btn-save" onclick="salvaLicenza()"><i class="fa-solid fa-floppy-disk"></i> SALVA CONFIGURAZIONE CLIENTE</button>
+        <button class="btn btn-save" onclick="salvaLicenza(false)"><i class="fa-solid fa-floppy-disk"></i> SALVA CONFIGURAZIONE RISTORANTE</button>
 
         <!-- LINK RAPIDI DA INVIARE AL CLIENTE -->
         <div class="links-box">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <b style="color:#8b949e;">🔗 LINK DIRETTI PER QUESTO RISTORANTE:</b>
+                <b style="color:#8b949e;">🔗 LINK DIRETTI ISOLATI PER QUESTO RISTORANTE:</b>
                 <button onclick="copiaLinkWhatsApp()" style="background:#238636; color:white; border:none; padding:6px 12px; border-radius:6px; font-size:0.8em; font-weight:bold; cursor:pointer;">
                     <i class="fa-brands fa-whatsapp"></i> Copia tutti i link
                 </button>
@@ -134,10 +158,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
             authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
@@ -151,10 +174,8 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // Login silenzioso per garantire i permessi di scrittura su Firestore
         signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {});
 
-        // 🔐 PIN SEGRETO SOLO PER TE (Cambialo come preferisci)
         const MASTER_PIN = "1988"; 
 
         let currentTenant = "default";
@@ -198,40 +219,117 @@
                 const snap = await getDocs(collection(db, "saas_clienti"));
                 snap.forEach(d => {
                     const info = d.data();
-                    sel.innerHTML += `<option value="${d.id}">🍕 ${info.nome} (${d.id})</option>`;
+                    sel.innerHTML += `<option value="${d.id}">🍕 ${info.nome || d.id} (${d.id})</option>`;
                 });
             } catch(e) { console.log(e); }
         }
 
         window.creaNuovoRistorante = async () => {
-            const { value: nome } = await Swal.fire({
+            const { value: formValues } = await Swal.fire({
                 title: 'Nuovo Ristorante Cliente',
-                input: 'text',
-                inputLabel: 'Nome della Pizzeria / Ristorante',
-                inputPlaceholder: 'Es. Pizzeria Vesuvio',
+                html: `
+                    <div style="text-align:left;">
+                        <label style="font-size:0.85em; color:#8b949e; font-weight:bold;">Nome del Ristorante / Pizzeria *</label>
+                        <input id="new-tenant-name" class="swal2-input" style="margin:6px 0 15px 0; width:100%; box-sizing:border-box;" placeholder="Es. Pizzeria Bella Napoli">
+                        
+                        <label style="font-size:0.85em; color:#8b949e; font-weight:bold;">Telefono Ordini (Opz.)</label>
+                        <input id="new-tenant-phone" class="swal2-input" style="margin:6px 0 15px 0; width:100%; box-sizing:border-box;" placeholder="Es. 0965 123456">
+
+                        <label style="display:flex; align-items:center; gap:10px; background:#21262d; padding:12px; border-radius:8px; cursor:pointer; margin-top:5px;">
+                            <input type="checkbox" id="new-tenant-clone" checked style="width:18px; height:18px;">
+                            <span style="font-size:0.9em; color:#fff;">📋 Copia già il Menu Base (Pizze, Aggiunte e Rimozioni) nel nuovo ristorante</span>
+                        </label>
+                    </div>
+                `,
                 showCancelButton: true,
+                confirmButtonColor: '#238636',
+                confirmButtonText: 'Crea Ristorante',
+                cancelButtonText: 'Annulla',
                 background: '#161b22',
-                color: '#fff'
+                color: '#fff',
+                preConfirm: () => {
+                    const nome = document.getElementById('new-tenant-name').value.trim();
+                    const tel = document.getElementById('new-tenant-phone').value.trim();
+                    const clona = document.getElementById('new-tenant-clone').checked;
+                    if (!nome) {
+                        Swal.showValidationMessage('Inserisci il nome del ristorante!');
+                        return false;
+                    }
+                    return { nome, tel, clona };
+                }
             });
 
-            if (nome && nome.trim() !== "") {
-                const slug = nome.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
+            if (formValues && formValues.nome) {
+                const slug = formValues.nome.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                if (!slug || slug === 'default') {
+                    return Swal.fire("Attenzione", "Nome non valido.", "warning");
+                }
+
+                Swal.fire({ title: 'Creazione ambiente isolato...', allowOutsideClick: false, didOpen: () => Swal.showLoading(), background: '#161b22', color: '#fff' });
+
                 await setDoc(doc(db, "saas_clienti", slug), {
-                    nome: nome.trim(),
+                    nome: formValues.nome,
+                    telefono: formValues.tel || "",
                     creato_il: new Date().toISOString()
                 });
+
                 await setDoc(doc(db, "ristoranti", slug, "impostazioni", "negozio"), {
-                    nome: nome.trim(),
+                    nome: formValues.nome,
+                    slogan: "Ordina comodamente online",
+                    telefono_ordini: formValues.tel || "",
                     prezzo_coperto: 2.00
                 });
+
                 await setDoc(doc(db, "ristoranti", slug, "impostazioni", "licenza"), {
                     attiva: true,
-                    kds_sbloccato: true
+                    kds_sbloccato: true,
+                    moduli: { cassa: true, sala: true, kds: true, agenda: true, menu: true, telecomando: true },
+                    updated_at: new Date().toISOString()
                 });
+
+                if (formValues.clona) {
+                    await copiaCatalogoBaseSuTenant(slug);
+                }
+
                 await caricaListaRistoranti();
                 document.getElementById('select-tenant').value = slug;
                 window.cambiaTenant(slug);
-                Swal.fire({ icon: 'success', title: 'Cliente Creato!', text: `ID Cliente: ${slug}`, timer: 1500, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Ristorante Creato!', text: `Ambiente "${formValues.nome}" (ID: ${slug}) pronto e isolato.`, timer: 2000, showConfirmButton: false, background: '#161b22', color: '#fff' });
+            }
+        };
+
+        async function copiaCatalogoBaseSuTenant(targetSlug) {
+            const collezioniDaCopiare = ["prodotti", "ingredienti", "rimozioni"];
+            for (const colName of collezioniDaCopiare) {
+                const snap = await getDocs(collection(db, colName));
+                if (!snap.empty) {
+                    const batch = writeBatch(db);
+                    snap.forEach(d => {
+                        const targetRef = doc(db, "ristoranti", targetSlug, colName, d.id);
+                        batch.set(targetRef, d.data());
+                    });
+                    await batch.commit();
+                }
+            }
+        }
+
+        window.clonaListinoSuTenant = async () => {
+            if (currentTenant === 'default') return;
+            const res = await Swal.fire({
+                title: `Clonare il Menu Base su "${currentTenant}"?`,
+                text: "Verranno copiati Prodotti, Aggiunte e Rimozioni dal locale principale dentro questo ristorante.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#8b5cf6',
+                confirmButtonText: 'Sì, copia listino',
+                cancelButtonText: 'Annulla',
+                background: '#161b22',
+                color: '#fff'
+            });
+            if (res.isConfirmed) {
+                Swal.fire({ title: 'Copia listino in corso...', allowOutsideClick: false, didOpen: () => Swal.showLoading(), background: '#161b22', color: '#fff' });
+                await copiaCatalogoBaseSuTenant(currentTenant);
+                Swal.fire({ icon: 'success', title: 'Listino Copiato!', timer: 1500, showConfirmButton: false, background: '#161b22', color: '#fff' });
             }
         };
 
@@ -249,6 +347,8 @@
             });
             if (res.isConfirmed) {
                 await deleteDoc(doc(db, "saas_clienti", currentTenant));
+                await deleteDoc(doc(db, "ristoranti", currentTenant, "impostazioni", "licenza")).catch(() => {});
+                await deleteDoc(doc(db, "ristoranti", currentTenant, "impostazioni", "negozio")).catch(() => {});
                 await caricaListaRistoranti();
                 window.cambiaTenant('default');
             }
@@ -259,8 +359,13 @@
             if (unsubLicenza) unsubLicenza();
             if (unsubNegozio) unsubNegozio();
 
+            const badge = document.getElementById('current-tenant-badge');
+            if (badge) badge.innerText = `ID: ${tenantId}`;
+
             const btnDel = document.getElementById('btn-del-tenant');
+            const btnClone = document.getElementById('btn-clone-menu');
             if (btnDel) btnDel.style.display = tenantId === 'default' ? 'none' : 'inline-block';
+            if (btnClone) btnClone.style.display = tenantId === 'default' ? 'none' : 'inline-block';
 
             const licRef = (tenantId === 'default') 
                 ? doc(db, "impostazioni", "licenza") 
@@ -276,7 +381,15 @@
                     statoAttuale = data.attiva !== false;
                     document.getElementById('lic-scadenza').value = data.scadenza || '';
                     document.getElementById('lic-prezzo').value = data.prezzo || '';
-                    document.getElementById('lic-kds-sbloccato').checked = data.kds_sbloccato !== false;
+                    
+                    const moduli = data.moduli || {};
+                    document.getElementById('mod-cassa').checked = moduli.cassa !== false;
+                    document.getElementById('mod-sala').checked = moduli.sala !== false;
+                    document.getElementById('mod-kds').checked = moduli.kds !== false;
+                    document.getElementById('mod-agenda').checked = moduli.agenda !== false;
+                    document.getElementById('mod-menu').checked = moduli.menu !== false;
+                    document.getElementById('mod-telecomando').checked = moduli.telecomando !== false;
+
                     document.getElementById('lic-msg-blocco').value = data.messaggio_blocco || '';
                     document.getElementById('lic-contatto').value = data.contatto_assistenza || '';
                     document.getElementById('lic-avviso-attivo').checked = data.avviso_attivo === true;
@@ -285,7 +398,7 @@
                     statoAttuale = true;
                     document.getElementById('lic-scadenza').value = '';
                     document.getElementById('lic-prezzo').value = '';
-                    document.getElementById('lic-kds-sbloccato').checked = true;
+                    ['mod-cassa', 'mod-sala', 'mod-kds', 'mod-agenda', 'mod-menu', 'mod-telecomando'].forEach(id => document.getElementById(id).checked = true);
                     document.getElementById('lic-avviso-attivo').checked = false;
                 }
                 aggiornaGraficaStato();
@@ -298,13 +411,12 @@
                     document.getElementById('wl-telefono').value = nd.telefono_ordini || '';
                     document.getElementById('wl-coperto').value = nd.prezzo_coperto !== undefined ? nd.prezzo_coperto : 2.50;
                 } else {
-                    document.getElementById('wl-nome').value = tenantId === 'default' ? 'Da Mimmo' : '';
+                    document.getElementById('wl-nome').value = tenantId === 'default' ? 'Da Mimmo' : tenantId.replace(/-/g, ' ').toUpperCase();
                     document.getElementById('wl-telefono').value = '';
                     document.getElementById('wl-coperto').value = 2.50;
                 }
             });
 
-            // Genera tutti i link operativi per il ristorante
             const base = window.location.origin;
             const param = `?locale=${tenantId}`;
             document.getElementById('client-links').innerHTML = `
@@ -361,29 +473,40 @@
         window.cambiaStatoLicenza = async () => {
             statoAttuale = !statoAttuale;
             aggiornaGraficaStato();
-            await salvaLicenza();
+            await window.salvaLicenza(false);
         };
 
-        window.salvaLicenza = async () => {
-            const licRef = (currentTenant === 'default') 
-                ? doc(db, "impostazioni", "licenza") 
-                : doc(db, "ristoranti", currentTenant, "impostazioni", "licenza");
+        // --- SALVATAGGIO ISOLATO PER SINGOLO RISTORANTE (SENZA SOVRASCRIVERE IL DEFAULT) ---
+        window.salvaLicenza = async (silenzioso = false) => {
+            const moduliAbilitati = {
+                cassa: document.getElementById('mod-cassa').checked,
+                sala: document.getElementById('mod-sala').checked,
+                kds: document.getElementById('mod-kds').checked,
+                agenda: document.getElementById('mod-agenda').checked,
+                menu: document.getElementById('mod-menu').checked,
+                telecomando: document.getElementById('mod-telecomando').checked
+            };
 
-            const negRef = (currentTenant === 'default')
-                ? doc(db, "impostazioni", "negozio")
-                : doc(db, "ristoranti", currentTenant, "impostazioni", "negozio");
+            const payloadLicenza = {
+                attiva: statoAttuale,
+                scadenza: document.getElementById('lic-scadenza').value,
+                prezzo: document.getElementById('lic-prezzo').value,
+                moduli: moduliAbilitati,
+                kds_sbloccato: moduliAbilitati.kds,
+                messaggio_blocco: document.getElementById('lic-msg-blocco').value.trim(),
+                contatto_assistenza: document.getElementById('lic-contatto').value.trim(),
+                avviso_attivo: document.getElementById('lic-avviso-attivo').checked,
+                testo_avviso: document.getElementById('lic-testo-avviso').value.trim(),
+                updated_at: new Date().toISOString()
+            };
 
             try {
-                await setDoc(licRef, {
-                    attiva: statoAttuale,
-                    scadenza: document.getElementById('lic-scadenza').value,
-                    prezzo: document.getElementById('lic-prezzo').value,
-                    kds_sbloccato: document.getElementById('lic-kds-sbloccato').checked,
-                    messaggio_blocco: document.getElementById('lic-msg-blocco').value.trim(),
-                    contatto_assistenza: document.getElementById('lic-contatto').value.trim(),
-                    avviso_attivo: document.getElementById('lic-avviso-attivo').checked,
-                    testo_avviso: document.getElementById('lic-testo-avviso').value.trim()
-                }, { merge: true });
+                // Salva SOLO nel percorso del ristorante attualmente selezionato!
+                if (currentTenant === 'default') {
+                    await setDoc(doc(db, "impostazioni", "licenza"), payloadLicenza, { merge: true });
+                } else {
+                    await setDoc(doc(db, "ristoranti", currentTenant, "impostazioni", "licenza"), payloadLicenza, { merge: true });
+                }
 
                 const nomeWl = document.getElementById('wl-nome').value.trim();
                 const telWl = document.getElementById('wl-telefono').value.trim();
@@ -391,14 +514,25 @@
 
                 let negPayload = {};
                 if (nomeWl) negPayload.nome = nomeWl;
-                if (telWl) negPayload.telefono_ordini = telWl;
+                if (telWl !== undefined) negPayload.telefono_ordini = telWl;
                 if (!isNaN(copWl)) negPayload.prezzo_coperto = copWl;
 
                 if (Object.keys(negPayload).length > 0) {
-                    await setDoc(negRef, negPayload, { merge: true });
+                    if (currentTenant === 'default') {
+                        await setDoc(doc(db, "impostazioni", "negozio"), negPayload, { merge: true });
+                    } else {
+                        await setDoc(doc(db, "ristoranti", currentTenant, "impostazioni", "negozio"), negPayload, { merge: true });
+                        if (nomeWl) {
+                            await setDoc(doc(db, "saas_clienti", currentTenant), { nome: nomeWl }, { merge: true });
+                        }
+                    }
                 }
 
-                Swal.fire({ icon: 'success', title: 'Configurazione Salvata!', timer: 1200, showConfirmButton: false, background: '#161b22', color: '#fff' });
+                if (!silenzioso) {
+                    Swal.fire({ icon: 'success', title: 'Configurazione Salvata!', timer: 1000, showConfirmButton: false, background: '#161b22', color: '#fff' });
+                } else {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Aggiornato in tempo reale!', showConfirmButton: false, timer: 1000, background: '#161b22', color: '#fff' });
+                }
             } catch (e) {
                 Swal.fire("Errore", e.message, "error");
             }

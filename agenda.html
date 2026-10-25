@@ -51,36 +51,48 @@
         .calendar-tab { justify-content: center; align-items: center; background: #e2e8f0; color: var(--text-muted); border: 1px dashed #cbd5e1; min-width: 75px; }
         .calendar-tab:hover { background: #cbd5e1; color: var(--primary-color); }
 
-        /* Barra di Ricerca e Statistiche */
-        .search-stats-container { max-width: 900px; margin: 0 auto 15px auto; padding: 0 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        /* Barra di Ricerca e Statistiche Prenotati del Giorno */
+        .search-stats-container { max-width: 900px; margin: 0 auto 15px auto; padding: 0 15px; display: flex; flex-direction: column; gap: 12px; }
         
-        .search-box { flex: 1; min-width: 250px; background: var(--card-bg); padding: 12px 15px; border-radius: 8px; display: flex; align-items: center; gap: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .search-box { width: 100%; box-sizing: border-box; background: var(--card-bg); padding: 12px 15px; border-radius: 8px; display: flex; align-items: center; gap: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .search-box input { border: none; outline: none; width: 100%; font-size: 1.05em; color: var(--primary-color); font-weight: 500; background: transparent; }
         .search-box input::placeholder { color: #94a3b8; font-weight: 400; }
         .search-box i { color: var(--text-muted); font-size: 1.1em; }
 
-        .stats-badges { display: flex; gap: 15px; }
-        .badge { background: var(--card-bg); padding: 8px 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; min-width: 90px;}
-        .badge-value { font-size: 1.3em; font-weight: 700; color: var(--primary-color); }
-        .badge-label { font-size: 0.8em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+        .stats-badges { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; width: 100%; }
+        .badge { background: var(--card-bg); padding: 10px 14px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+        .badge-value { font-size: 1.4em; font-weight: 800; color: var(--primary-color); }
+        .badge-label { font-size: 0.75em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; display: flex; align-items: center; gap: 5px; }
+
+        /* BANNER PROMEMORIA CHIAMATA GRUPPI NUMEROSI (>= 10 PAX) */
+        .reminder-banner { max-width: 900px; margin: 15px auto 0 auto; padding: 0 15px; display: none; }
+        .reminder-inner { background: #fffbeb; border: 2px solid #f59e0b; border-radius: 12px; padding: 14px 16px; color: #92400e; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15); }
+        .reminder-header { font-weight: 800; font-size: 0.95em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; color: #b45309; text-transform: uppercase; }
+        .reminder-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; background: #fef3c7; border-radius: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+        .reminder-row:last-child { margin-bottom: 0; }
+        .reminder-actions { display: flex; gap: 6px; align-items: center; }
+        .btn-rem-act { border: none; padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size: 0.8em; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
 
         /* Griglia Prenotazioni */
         .container { max-width: 900px; margin: 0 auto; padding: 0 15px 30px 15px; }
         
-        .card { background: var(--card-bg); border-radius: 10px; padding: 18px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; border-left: 4px solid var(--accent-color); transition: transform 0.1s; }
+        .card { background: var(--card-bg); border-radius: 10px; padding: 18px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; border-left: 4px solid var(--accent-color); transition: transform 0.1s; gap: 10px; }
         .card:hover { transform: translateX(2px); box-shadow: 0 4px 6px rgba(0,0,0,0.08); }
         
-        .card-time { font-size: 1.5em; font-weight: 700; color: var(--primary-color); width: 80px; flex-shrink: 0; text-align: center;}
+        .card-time { font-size: 1.5em; font-weight: 700; color: var(--primary-color); width: 85px; flex-shrink: 0; text-align: center;}
         .card-time-date { font-size: 0.55em; color: var(--text-muted); display: block; margin-top: 3px; font-weight: 600; text-transform: uppercase; background: #e2e8f0; padding: 2px 5px; border-radius: 4px;}
         
-        .card-info { flex: 1; padding: 0 15px; }
+        .card-info { flex: 1; padding: 0 10px; min-width: 0; }
         .card-name { font-size: 1.15em; font-weight: 600; color: var(--primary-color); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;}
         
-        .card-pax { background: #f1f5f9; color: var(--primary-color); padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+        .card-pax { background: #f1f5f9; color: var(--primary-color); padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 700; }
+        .card-pax.big-group { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
         .card-seggioloni { background: #fef3c7; color: #b45309; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
         .card-tavolo { background: var(--success-color); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 700; }
         
-        .card-details { margin-top: 6px; font-size: 0.9em; color: var(--text-muted); display: flex; flex-direction: column; gap: 3px; }
+        .card-details { margin-top: 6px; font-size: 0.9em; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; }
+        .card-thumb-preview { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; border: 2px solid #9333ea; cursor: pointer; flex-shrink: 0; transition: transform 0.15s; }
+        .card-thumb-preview:hover { transform: scale(1.08); }
         
         .card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;}
         .btn-action { border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
@@ -90,6 +102,8 @@
         .btn-info:hover { background: var(--accent-color); color: white; }
         .btn-danger { background: #fee2e2; color: var(--danger-color); }
         .btn-danger:hover { background: var(--danger-color); color: white; }
+        .btn-attachment { background: #f3e8ff; color: #9333ea; }
+        .btn-attachment:hover { background: #9333ea; color: white; }
 
         .empty-state { text-align: center; color: var(--text-muted); padding: 60px 20px; background: var(--card-bg); border-radius: 10px; border: 1px dashed #cbd5e1; }
         
@@ -130,6 +144,16 @@
             padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0;
             border-radius: 8px; margin-bottom: 8px;
         }
+
+        /* BOTTONI ALLEGATO FOTOCAMERA / GALLERIA */
+        .attach-btn-box { display: flex; gap: 10px; margin-top: 5px; }
+        .btn-attach-choice {
+            flex: 1; padding: 10px; border-radius: 8px; border: 1px dashed #9333ea;
+            background: #faf5ff; color: #7e22ce; font-weight: 700; font-size: 0.85em;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-attach-choice:hover { background: #f3e8ff; transform: translateY(-1px); }
 
         .filter-container { max-width: 900px; margin: 0 auto 15px auto; padding: 0 15px; display: flex; gap: 10px; flex-wrap: wrap; }
         .filter-btn { background: var(--card-bg); border: 1px solid #e2e8f0; color: var(--text-muted); padding: 8px 15px; border-radius: 20px; font-weight: 600; font-size: 0.85em; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;}
@@ -187,6 +211,9 @@
     <div class="navbar">
         <h1 id="nav-title"><i class="fa-solid fa-book-bookmark"></i> Agenda</h1>
         <div style="display:flex; gap:10px; align-items:center;">
+            <button onclick="window.location.href='mappa_sala.html?locale=' + (window.TENANT_ID || 'default') + '&from=agenda'" style="background: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+    <i class="fa-solid fa-map-location-dot"></i> Mappa Sala
+</button>
             <button class="btn-primary" onclick="window.apriGestioneEtichette()" style="background:#8b5cf6; padding:10px 14px;" title="Crea o modifica Etichette">
                 <i class="fa-solid fa-tags"></i> <span style="display:inline-block;">Etichette</span>
             </button>
@@ -199,11 +226,23 @@
         </div>
     </div>
 
+    <!-- BANNER PROMEMORIA CHIAMATA GRUPPI NUMEROSI (>= 10 PERSONE A -2 GIORNI) -->
+    <div id="global-reminder-banner" class="reminder-banner">
+        <div class="reminder-inner">
+            <div class="reminder-header">
+                <i class="fa-solid fa-phone-volume fa-shake" style="font-size: 1.2em;"></i>
+                Promemoria Conferma Gruppi Numerosi (≥ 10 Persone)
+            </div>
+            <div id="global-reminder-list"></div>
+        </div>
+    </div>
+
     <div class="toolbar">
         <div class="date-tabs-container" id="date-tabs"></div>
         <input type="date" id="data-agenda" style="position: absolute; opacity: 0; width: 0; height: 0; border: none;" onchange="syncTabsAndLoad()">
     </div>
 
+    <!-- BARRA DI RICERCA E CONTEGGIO PRENOTATI DEL GIORNO -->
     <div class="search-stats-container">
         <div class="search-box">
             <i class="fa fa-search"></i>
@@ -212,12 +251,20 @@
         
         <div class="stats-badges">
             <div class="badge">
-                <span class="badge-label">Tavoli</span>
+                <span class="badge-label"><i class="fa-solid fa-chair" style="color:#64748b;"></i> Tavoli</span>
                 <span class="badge-value" id="stat-prenotazioni">0</span>
             </div>
+            <div class="badge" style="border-color:#93c5fd; background:#eff6ff;">
+                <span class="badge-label" style="color:#1d4ed8;"><i class="fa-solid fa-users"></i> Tot. Prenotati</span>
+                <span class="badge-value" id="stat-coperti" style="color: #1d4ed8;">0</span>
+            </div>
             <div class="badge">
-                <span class="badge-label">Coperti</span>
-                <span class="badge-value" id="stat-coperti" style="color: var(--accent-color);">0</span>
+                <span class="badge-label"><i class="fa-solid fa-sun" style="color:#f59e0b;"></i> Pranzo</span>
+                <span class="badge-value" id="stat-pranzo" style="color: #d97706;">0</span>
+            </div>
+            <div class="badge">
+                <span class="badge-label"><i class="fa-solid fa-moon" style="color:#3b82f6;"></i> Cena</span>
+                <span class="badge-value" id="stat-cena" style="color: #2563eb;">0</span>
             </div>
         </div>
     </div>
@@ -237,15 +284,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, onSnapshot, getDocs, getDoc, setDoc, addDoc, updateDoc, doc, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection as _collection, query, onSnapshot, getDocs, getDoc, setDoc, addDoc, updateDoc, doc as _doc, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-        // --- 1. SISTEMA MULTI-TENANT ---
-        const urlParams = new URLSearchParams(window.location.search);
-        window.TENANT_ID = urlParams.get('locale') || localStorage.getItem('saas_tenant_id') || 'default';
-        if (urlParams.get('locale')) {
-            localStorage.setItem('saas_tenant_id', window.TENANT_ID);
-        }
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -261,11 +301,37 @@
         const db = getFirestore(app);
         const auth = getAuth(app); 
 
-        window.nomeLocaleWhiteLabel = "Da Mimmo";
+        // --- ROUTER MULTI-TENANT AUTOMATICO (Isola ogni ristorante creato da SuperAdmin) ---
+        const _urlParams = new URLSearchParams(window.location.search);
+        if (_urlParams.has('locale')) {
+            window.TENANT_ID = _urlParams.get('locale') || 'default';
+            localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+        } else {
+            window.TENANT_ID = window.TENANT_ID || localStorage.getItem('saas_tenant_id') || 'default';
+        }
+
+        const collection = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _collection(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _collection(database, ...pathSegments);
+        };
+
+        const doc = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _doc(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _doc(database, ...pathSegments);
+        };
+
+        window.nomeLocaleWhiteLabel = window.TENANT_ID === 'default'
+            ? "Da Mimmo"
+            : window.TENANT_ID.replace(/-/g, ' ').toUpperCase();
         window.prezzoCopertoAgenda = 2.50;
         let agendaInizializzata = false;
         let listenersInizializzati = false;
         let activeListener = null;
+        let reminderListener = null;
         window.prenotazioniCache = [];
         window.bozzaPrenotazione = null;
         window.modalitaRiaperturaPren = false;
@@ -284,6 +350,104 @@
         ];
         window.AGENDA_TAGS = [...DEFAULT_AGENDA_TAGS];
         window.tempSelectedTags = new Set();
+        window.tempAttachmentBase64 = null;
+
+        // =========================================================
+        // COMPRESSIONE IMMAGINI E ALLEGATI (SENZA CHIUSURA DEL POPUP)
+        // =========================================================
+        function comprimiImmagineBase64(file, maxSize = 700) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onerror = () => reject(new Error("Errore lettura file"));
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onerror = () => reject(new Error("Immagine non valida"));
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width, h = img.height;
+                        if (w > h) { if (w > maxSize) { h *= maxSize / w; w = maxSize; } }
+                        else { if (h > maxSize) { w *= maxSize / h; h = maxSize; } }
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.clearRect(0, 0, w, h);
+                        ctx.drawImage(img, 0, 0, w, h);
+                        let out = canvas.toDataURL('image/webp', 0.82);
+                        if (out.length > 750000) out = canvas.toDataURL('image/jpeg', 0.72);
+                        resolve(out);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Non usa MAI Swal.fire o Swal.close per non distruggere il modale aperto!
+        window.gestisciCaricamentoAllegato = async (input) => {
+            const file = input.files?.[0];
+            if (!file) return;
+
+            const prev = document.getElementById('attachment-preview-box');
+            if (prev) {
+                prev.style.display = 'block';
+                prev.innerHTML = `<div style="padding:10px; color:var(--accent-color); font-weight:bold; font-size:0.9em;"><i class="fa-solid fa-spinner fa-spin"></i> Compressione foto in corso...</div>`;
+            }
+
+            try {
+                window.tempAttachmentBase64 = await comprimiImmagineBase64(file, 700);
+                if (prev) {
+                    prev.innerHTML = `
+                        <div style="display:inline-flex; flex-direction:column; align-items:center; background:#f8fafc; padding:8px 14px; border-radius:10px; border:1px solid #cbd5e1; margin-top:6px;">
+                            <img src="${window.tempAttachmentBase64}" style="max-height:110px; max-width:100%; border-radius:6px; object-fit:contain;">
+                            <small style="color:var(--success-color); font-weight:bold; margin-top:5px;">✓ Foto allegata pronta per il salvataggio</small>
+                            <button type="button" onclick="window.rimuoviAllegato()" style="background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; padding:4px 10px; border-radius:6px; font-size:0.75em; font-weight:bold; cursor:pointer; margin-top:6px;">
+                                <i class="fa fa-trash"></i> Rimuovi Foto
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                console.error("Errore allegato:", err);
+                if (prev) {
+                    prev.innerHTML = `<small style="color:var(--danger-color); font-weight:bold;">❌ Errore nel caricamento della foto. Riprova.</small>`;
+                }
+            }
+        };
+
+        window.rimuoviAllegato = () => {
+            window.tempAttachmentBase64 = null;
+            const cam = document.getElementById('swal-file-camera');
+            const gal = document.getElementById('swal-file-gallery');
+            if (cam) cam.value = "";
+            if (gal) gal.value = "";
+            const prev = document.getElementById('attachment-preview-box');
+            if (prev) { prev.style.display = 'none'; prev.innerHTML = ""; }
+        };
+
+        window.apriVisualizzatoreAllegato = (idPren) => {
+            const p = (window.prenotazioniCache || []).find(x => x.id === idPren);
+            if (!p || !p.allegato_base64) return;
+            Swal.fire({
+                title: `📎 Allegato - ${(p.nome || 'Cliente').toUpperCase()}`,
+                html: `
+                    <div style="text-align:center;">
+                        <img src="${p.allegato_base64}" style="max-width:100%; max-height:65vh; border-radius:10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                    </div>
+                `,
+                width: 600,
+                background: '#ffffff',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#ef4444',
+                confirmButtonText: 'Chiudi',
+                cancelButtonText: '<i class="fa fa-trash"></i> Elimina Allegato'
+            }).then(async (res) => {
+                if (res.dismiss === Swal.DismissReason.cancel) {
+                    await updateDoc(doc(db, "ordini", idPren), { allegato_base64: null });
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Allegato rimosso', showConfirmButton: false, timer: 1500 });
+                }
+            });
+        };
 
         // =========================================================
         // MOTORE CONTROLLO CONFLITTI TAVOLO E DISTANZA 40 MINUTI
@@ -347,7 +511,6 @@
                         });
                     }
                 } else if (isSeduto) {
-                    // Se il tavolo è stato aperto in Sala senza orario esplicito, lo segnala come occupato
                     conflitti.push({
                         cliente: clienteNome,
                         orario: 'IN CORSO',
@@ -397,11 +560,104 @@
             }
         };
 
+        // =========================================================
+        // PROMEMORIA AUTOMATICO GRUPPI >= 10 PERSONE (2 GIORNI PRIMA)
+        // =========================================================
+        function getLocalDateStr(d = new Date()) {
+            return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        }
+
+        window.avviaMonitorPromemoriaGruppi = () => {
+            if (reminderListener) reminderListener();
+            const oggiStr = getLocalDateStr(new Date());
+
+            // Ascolta in tempo reale tutte le prenotazioni da oggi in avanti
+            const q = query(collection(db, "ordini"), where("data_ritiro", ">=", oggiStr));
+            reminderListener = onSnapshot(q, (snap) => {
+                const banner = document.getElementById('global-reminder-banner');
+                const listEl = document.getElementById('global-reminder-list');
+                if (!banner || !listEl) return;
+
+                const oggiMidnight = new Date(oggiStr + "T00:00:00");
+                const daChiamare = [];
+
+                snap.forEach(docSnap => {
+                    const p = { id: docSnap.id, ...docSnap.data() };
+                    const isSala = p.tipo === 'SALA' || p.stato === 'Prenotato';
+                    if (!isSala || p.stato === 'Annullato' || p.stato === 'Consegnato') return;
+                    if (p.conferma_telefonica === true) return; // Già confermato telefonicamente!
+
+                    const pax = parseInt(p.coperti) || ((parseInt(p.adulti) || 0) + (parseInt(p.bambini) || 0)) || 0;
+                    if (pax >= 10 && p.data_ritiro) {
+                        const dataPren = new Date(p.data_ritiro + "T00:00:00");
+                        const diffGiorni = Math.round((dataPren - oggiMidnight) / (1000 * 60 * 60 * 24));
+
+                        // Si attiva esattamente a 2 giorni prima (e rimane visibile a -1 o 0 se non ancora chiamato)
+                        if (diffGiorni >= 0 && diffGiorni <= 2) {
+                            daChiamare.push({ ...p, pax, diffGiorni, dataPren });
+                        }
+                    }
+                });
+
+                if (daChiamare.length === 0) {
+                    banner.style.display = 'none';
+                    listEl.innerHTML = '';
+                    return;
+                }
+
+                daChiamare.sort((a, b) => a.data_ritiro.localeCompare(b.data_ritiro));
+                banner.style.display = 'block';
+
+                listEl.innerHTML = daChiamare.map(item => {
+                    const dataFmt = item.dataPren.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+                    const urgenzaBadge = item.diffGiorni === 2 
+                        ? `<span style="background:#d97706; color:#fff; padding:2px 7px; border-radius:6px; font-size:0.75em;">TRA 2 GIORNI</span>`
+                        : (item.diffGiorni === 1 
+                            ? `<span style="background:#ea580c; color:#fff; padding:2px 7px; border-radius:6px; font-size:0.75em;">DOMANI</span>`
+                            : `<span style="background:#dc2626; color:#fff; padding:2px 7px; border-radius:6px; font-size:0.75em;">OGGI</span>`);
+
+                    let numClean = (item.telefono || '').replace(/[^0-9+]/g, '');
+                    if (numClean && !numClean.startsWith('+') && !numClean.startsWith('39') && numClean.length >= 9) numClean = '39' + numClean;
+                    const msgWa = encodeURIComponent(`Ciao ${(item.nome || '').trim()}, ti contattiamo da ${window.nomeLocaleWhiteLabel} per confermare la vostra prenotazione di ${item.pax} persone per ${dataFmt} alle ore ${item.orario}. Grazie!`);
+
+                    return `
+                        <div class="reminder-row">
+                            <div style="font-size:0.92em;">
+                                ${urgenzaBadge} <b>${(item.nome || 'Cliente').toUpperCase()}</b> — <b>${item.pax} Persone</b> (${dataFmt} ore ${item.orario || '--:--'})
+                                ${item.telefono ? `<span style="margin-left:6px; color:#78350f;">📞 ${item.telefono}</span>` : `<span style="margin-left:6px; color:#dc2626;">(Senza telefono)</span>`}
+                            </div>
+                            <div class="reminder-actions">
+                                ${item.telefono ? `<a href="tel:${item.telefono}" class="btn-rem-act" style="background:#3b82f6; color:white;"><i class="fa fa-phone"></i> Chiama</a>` : ''}
+                                ${numClean ? `<a href="whatsapp://send?phone=${numClean.replace('+','')}&text=${msgWa}" class="btn-rem-act" style="background:#16a34a; color:white;"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : ''}
+                                <button onclick="window.confermaChiamataGruppo('${item.id}')" class="btn-rem-act" style="background:#10b981; color:white;">
+                                    <i class="fa fa-check"></i> Segna Confermato
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        };
+
+        window.confermaChiamataGruppo = async (idPren) => {
+            try {
+                await updateDoc(doc(db, "ordini", idPren), {
+                    conferma_telefonica: true,
+                    data_conferma_telefonica: serverTimestamp()
+                });
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Gruppo confermato!', showConfirmButton: false, timer: 1800 });
+            } catch (e) {
+                Swal.fire("Errore", e.message, "error");
+            }
+        };
+
         function avviaListenersImpostazioni() {
             if (listenersInizializzati) return;
             listenersInizializzati = true;
 
-            // 1. White-Label e Prezzo Coperto in Tempo Reale
+            document.getElementById('nav-title').innerHTML = `<i class="fa-solid fa-book-bookmark"></i> Agenda - ${window.nomeLocaleWhiteLabel}`;
+            document.getElementById('app-title').innerText = `Agenda - ${window.nomeLocaleWhiteLabel}`;
+
             onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
                 if (docNegozio.exists()) {
                     const d = docNegozio.data();
@@ -416,20 +672,21 @@
                 }
             });
 
-            // 2. Kill-Switch Licenza SaaS in Tempo Reale
             onSnapshot(doc(db, "impostazioni", "licenza"), (docLicenza) => {
                 const overlay = document.getElementById('license-blocked-overlay');
-                if (docLicenza.exists() && docLicenza.data().attiva === false) {
+                if (docLicenza.exists()) {
                     const lic = docLicenza.data();
-                    document.getElementById('license-blocked-msg').innerText = lic.messaggio_blocco || "L'abbonamento al software gestionale è scaduto. Contatta l'amministratore per il rinnovo.";
-                    document.getElementById('license-blocked-contact').innerText = `📞 Assistenza: ${lic.contatto_assistenza || 'Contatta il fornitore'}`;
-                    overlay.style.display = 'flex';
-                } else {
-                    overlay.style.display = 'none';
+                    const moduloDisattivato = (lic.moduli && lic.moduli.agenda === false);
+                    if (lic.attiva === false || moduloDisattivato) {
+                        document.getElementById('license-blocked-msg').innerText = lic.messaggio_blocco || "L'accesso al modulo Agenda è temporaneamente disabilitato. Contatta l'amministratore.";
+                        document.getElementById('license-blocked-contact').innerText = `📞 Assistenza: ${lic.contatto_assistenza || 'Contatta il fornitore'}`;
+                        overlay.style.display = 'flex';
+                        return;
+                    }
                 }
+                overlay.style.display = 'none';
             });
 
-            // 3. Sincronizzazione Etichette Personalizzate in Tempo Reale
             onSnapshot(doc(db, "impostazioni", "agenda_tags"), async (docTags) => {
                 if (docTags.exists() && Array.isArray(docTags.data().lista)) {
                     window.AGENDA_TAGS = docTags.data().lista;
@@ -460,7 +717,6 @@
             }
         }
 
-        // === GESTIONE LOGIN SAAS E AUTO-CONNESSIONE ===
         window.loginAzienda = async () => {
             const email = document.getElementById('company-email').value.trim();
             const password = document.getElementById('company-password').value.trim();
@@ -490,7 +746,6 @@
             }
         });
 
-        // === MOTORE DI LOGIN TRAMITE PIN ===
         window.verificaPinSala = async () => {
             const pinInserito = document.getElementById('pin-input-sala').value.trim();
             if(!pinInserito) return Swal.fire("Attenzione", "Inserisci il PIN", "warning");
@@ -541,15 +796,15 @@
 
         function avviaAgenda() {
             agendaInizializzata = true;
-            let now = new Date();
-            let todayStr = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            let todayStr = getLocalDateStr(new Date());
             document.getElementById('data-agenda').value = todayStr;
             window.generaTabsDate(todayStr);
             window.caricaPrenotazioni();
+            window.avviaMonitorPromemoriaGruppi();
         }
 
         // =========================================================
-        // SISTEMA GESTIONE ETICHETTE PERSONALIZZATE (CREA / MODIFICA / ELIMINA)
+        // SISTEMA GESTIONE ETICHETTE PERSONALIZZATE
         // =========================================================
         window.generaSelettoreEtichetteHTML = (etichetteAttive = []) => {
             window.tempSelectedTags = new Set(etichetteAttive || []);
@@ -577,7 +832,8 @@
                     bambini: document.getElementById('swal-bambini')?.value || 0,
                     seggioloni: document.getElementById('swal-seggioloni')?.value || 0,
                     altro: document.getElementById('swal-altro')?.value || '',
-                    etichette: Array.from(window.tempSelectedTags)
+                    etichette: Array.from(window.tempSelectedTags),
+                    allegato: window.tempAttachmentBase64
                 };
             }
             window.apriGestioneEtichette(true);
@@ -746,7 +1002,7 @@
                 let dayNum = d.getDate();
                 let monthName = d.toLocaleDateString('it-IT', {month: 'short'}).replace('.', '');
                 
-                let localDateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                let localDateStr = getLocalDateStr(d);
                 let isActive = localDateStr === selectedDateStr ? 'active' : '';
                 
                 if (isActive) dataTrovataNeiTabs = true;
@@ -837,7 +1093,7 @@
             lista.forEach(p => window.renderizzaCard(p, container, isRicerca));
         };
 
-        // === LETTURA DAL DATABASE ===
+        // === LETTURA DAL DATABASE E CONTEGGIO PRENOTATI PER TURNO ===
         window.caricaPrenotazioni = () => {
             const dataSelezionata = document.getElementById('data-agenda').value;
             if(activeListener) activeListener();
@@ -847,6 +1103,8 @@
             activeListener = onSnapshot(q, (snapshot) => {
                 let prenotazioni = [];
                 let totCoperti = 0;
+                let copertiPranzo = 0;
+                let copertiCena = 0;
                 
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
@@ -856,11 +1114,17 @@
                         let c = parseInt(data.coperti);
                         if (isNaN(c)) c = (parseInt(data.adulti) || 0) + (parseInt(data.bambini) || 0);
                         totCoperti += c;
+
+                        const isPranzo = data.turno === 'Pranzo' || (!data.turno && data.orario && data.orario < '16:30');
+                        if (isPranzo) copertiPranzo += c;
+                        else copertiCena += c;
                     }
                 });
 
                 document.getElementById('stat-prenotazioni').innerText = prenotazioni.length;
                 document.getElementById('stat-coperti').innerText = totCoperti;
+                if (document.getElementById('stat-pranzo')) document.getElementById('stat-pranzo').innerText = copertiPranzo;
+                if (document.getElementById('stat-cena')) document.getElementById('stat-cena').innerText = copertiCena;
 
                 prenotazioni.sort((a,b) => (a.orario || "23:59").localeCompare(b.orario || "23:59"));
                 window.prenotazioniCache = prenotazioni; 
@@ -887,6 +1151,7 @@
             try {
                 const snapshot = await getDocs(q);
                 let risultati = [];
+                let totPaxRicerca = 0;
                 
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
@@ -894,7 +1159,10 @@
                         let nomeTrovato = data.nome ? data.nome.toLowerCase().includes(testo) : false;
                         let telTrovato = data.telefono ? data.telefono.includes(testo) : false;
                         let tagTrovato = Array.isArray(data.etichette) && data.etichette.some(t => t.toLowerCase().includes(testo));
-                        if (nomeTrovato || telTrovato || tagTrovato) risultati.push({ id: docSnap.id, ...data });
+                        if (nomeTrovato || telTrovato || tagTrovato) {
+                            risultati.push({ id: docSnap.id, ...data });
+                            totPaxRicerca += parseInt(data.coperti) || ((parseInt(data.adulti) || 0) + (parseInt(data.bambini) || 0));
+                        }
                     }
                 });
 
@@ -905,7 +1173,9 @@
                 });
 
                 document.getElementById('stat-prenotazioni').innerText = risultati.length;
-                document.getElementById('stat-coperti').innerText = "-"; 
+                document.getElementById('stat-coperti').innerText = totPaxRicerca;
+                if (document.getElementById('stat-pranzo')) document.getElementById('stat-pranzo').innerText = "-";
+                if (document.getElementById('stat-cena')) document.getElementById('stat-cena').innerText = "-";
                 
                 window.prenotazioniCache = risultati; 
                 window.renderizzaListaDaCache(); 
@@ -913,7 +1183,7 @@
             } catch(e) { document.getElementById('lista-prenotazioni').innerHTML = `<div class="empty-state">Errore ricerca: ${e.message}</div>`; }
         };
 
-        // === FUNZIONE DI DISEGNO SCHEDA ===
+        // === FUNZIONE DI DISEGNO SCHEDA (CON ANTEPRIMA ALLEGATO E STATO CONFERMA GRUPPI) ===
         window.renderizzaCard = (p, container, mostraDataBadge = false) => {
             let telHtml = p.telefono ? `<span><i class="fa fa-phone" style="width:15px;"></i> <a href="tel:${p.telefono}" style="color:inherit; text-decoration:none;">${p.telefono}</a></span>` : '';
             let noteHtml = p.note_ordine ? `<span style="color: var(--danger-color); font-weight: 500;"><i class="fa fa-circle-exclamation" style="width:15px;"></i> ALTRO: ${p.note_ordine}</span>` : '';
@@ -930,11 +1200,22 @@
             }
             
             let stringaPax = paxArray.join(' + ');
+            let isBigGroup = totPax >= 10;
             let seggioloniHtml = (p.seggioloni && p.seggioloni > 0) ? `<span class="card-seggioloni"><i class="fa fa-baby-carriage"></i> ${p.seggioloni} Seggiolon${p.seggioloni > 1 ? 'i' : 'e'}</span>` : '';
             
             let isSeduto = (p.stato !== 'Prenotato' && p.tavolo && p.tavolo.trim() !== "");
             let haTavoloAssegnato = (p.tavolo && p.tavolo.trim() !== "");
             let tavoloBadgeHtml = haTavoloAssegnato ? `<span class="card-tavolo" style="${!isSeduto ? 'background:#f59e0b;' : ''}"><i class="fa fa-chair"></i> TAVOLO ${p.tavolo}</span>` : '';
+
+            // Badge stato conferma telefonica per gruppi >= 10 persone
+            let confermaGruppoHtml = "";
+            if (isBigGroup) {
+                if (p.conferma_telefonica === true) {
+                    confermaGruppoHtml = `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:3px 8px; border-radius:10px; font-size:0.75em; font-weight:800;">✅ CONFERMATO TEL.</span>`;
+                } else {
+                    confermaGruppoHtml = `<span onclick="window.confermaChiamataGruppo('${p.id}')" title="Clicca per segnare come confermato telefonicamente" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:3px 8px; border-radius:10px; font-size:0.75em; font-weight:800; cursor:pointer;">📞 DA CONFERMARE (-2gg)</span>`;
+                }
+            }
 
             let dataBadgeHtml = "";
             let dataGiornoTesto = "oggi";
@@ -945,7 +1226,7 @@
                     dataBadgeHtml = `<span class="card-time-date">${giornoMese}</span>`;
                 }
                 
-                let oggiStr = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                let oggiStr = getLocalDateStr(new Date());
                 if (p.data_ritiro !== oggiStr) {
                     dataGiornoTesto = "il " + dataObj.toLocaleDateString('it-IT', {day: 'numeric', month: 'long'});
                 }
@@ -962,6 +1243,16 @@
                     const bgCol = foundTag ? foundTag.colore : '#64748b';
                     return `<span class="card-custom-tag" style="background:${bgCol};">${tagName}</span>`;
                 }).join('');
+            }
+
+            let thumbHtml = "";
+            let btnAttachmentHtml = "";
+            if (p.allegato_base64) {
+                thumbHtml = `<img src="${p.allegato_base64}" class="card-thumb-preview" title="Tocca per ingrandire l'allegato" onclick="window.apriVisualizzatoreAllegato('${p.id}')">`;
+                btnAttachmentHtml = `
+                    <button class="btn-action btn-attachment" title="Visualizza Allegato" onclick="window.apriVisualizzatoreAllegato('${p.id}')">
+                        <i class="fa fa-paperclip"></i>
+                    </button>`;
             }
 
             let btnWhatsAppHtml = "";
@@ -993,11 +1284,12 @@
                     <div class="card-info">
                         <div class="card-name">
                             ${(p.nome || 'Cliente').toUpperCase()} 
-                            <span class="card-pax"><i class="fa fa-users"></i> ${stringaPax}</span>
+                            <span class="card-pax ${isBigGroup ? 'big-group' : ''}"><i class="fa fa-users"></i> ${stringaPax}</span>
                             ${seggioloniHtml}
                             ${tavoloBadgeHtml}
                             ${preferenzaBadge}
                             ${areaBadge}
+                            ${confermaGruppoHtml}
                             ${customTagsHtml}
                         </div>
                         <div class="card-details">
@@ -1005,7 +1297,9 @@
                             ${noteHtml}
                         </div>
                     </div>
+                    ${thumbHtml}
                     <div class="card-actions">
+                        ${btnAttachmentHtml}
                         ${btnWhatsAppHtml}
                         ${btnArrivatoHtml}
                         <button class="btn-action btn-info" title="Modifica" onclick="modificaPrenotazione('${p.id}')">
@@ -1019,16 +1313,49 @@
             `;
         };
 
-        // === CREAZIONE E MODIFICA PRENOTAZIONE (Con Controllo 40 Minuti e Tavolo Occupato) ===
+        // Genera il blocco HTML per Fotocamera + Galleria dentro i popup
+        function generaSezioneAllegatoHTML() {
+            return `
+                <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">
+                    <i class="fa-solid fa-paperclip"></i> Allegato Foto (Caparra, Menu, Screenshot)
+                </div>
+                <div class="attach-btn-box">
+                    <label class="btn-attach-choice" for="swal-file-camera">
+                        <i class="fa-solid fa-camera"></i> Scatta Foto
+                    </label>
+                    <input type="file" id="swal-file-camera" accept="image/*" capture="environment" style="display:none;" onchange="window.gestisciCaricamentoAllegato(this)">
+                    
+                    <label class="btn-attach-choice" for="swal-file-gallery">
+                        <i class="fa-solid fa-images"></i> Dalla Galleria
+                    </label>
+                    <input type="file" id="swal-file-gallery" accept="image/*" style="display:none;" onchange="window.gestisciCaricamentoAllegato(this)">
+                </div>
+                <div id="attachment-preview-box" style="display:${window.tempAttachmentBase64 ? 'block' : 'none'}; text-align:center; margin-top:6px;">
+                    ${window.tempAttachmentBase64 ? `
+                        <div style="display:inline-flex; flex-direction:column; align-items:center; background:#f8fafc; padding:8px 14px; border-radius:10px; border:1px solid #cbd5e1; margin-top:6px;">
+                            <img src="${window.tempAttachmentBase64}" style="max-height:110px; max-width:100%; border-radius:6px; object-fit:contain;">
+                            <small style="color:var(--success-color); font-weight:bold; margin-top:5px;">✓ Foto allegata pronta per il salvataggio</small>
+                            <button type="button" onclick="window.rimuoviAllegato()" style="background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; padding:4px 10px; border-radius:6px; font-size:0.75em; font-weight:bold; cursor:pointer; margin-top:6px;">
+                                <i class="fa fa-trash"></i> Rimuovi Foto
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // === CREAZIONE E MODIFICA PRENOTAZIONE ===
         window.nuovaPrenotazione = async (bozza = null) => {
             const dataSelezionata = document.getElementById('data-agenda').value;
             const b = bozza || {};
             const selettoreTagsHtml = window.generaSelettoreEtichetteHTML(b.etichette || []);
+            window.tempAttachmentBase64 = b.allegato || null;
             window.bozzaPrenotazione = null;
             
             const { value: formValues } = await Swal.fire({
                 title: 'Nuova Prenotazione',
-                width: 620, 
+                width: 620,
+                allowOutsideClick: false,
                 html: `
                     <div style="display:flex; gap:10px; margin-top: 15px;">
                         <div style="flex:2;">
@@ -1107,6 +1434,7 @@
                     </div>
 
                     ${selettoreTagsHtml}
+                    ${generaSezioneAllegatoHTML()}
                     
                     <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Altro (Note libere)</div>
                     <input id="swal-altro" class="swal2-input" style="margin-top:0; width:100%; box-sizing:border-box;" placeholder="Es. Vicino finestra, portano torta da fuori..." value="${b.altro || ''}">
@@ -1137,7 +1465,6 @@
                         Swal.showValidationMessage('Inserisci almeno 1 persona!'); return false;
                     }
 
-                    // CONTROLLO TAVOLO OCCUPATO E DISTANZA MINIMA 40 MINUTI
                     if (tavoloPre !== "") {
                         const esito = window.verificaConflittiTavolo(tavoloPre, ora, null);
                         if (esito.bloccato) {
@@ -1152,7 +1479,8 @@
                         adulti, bambini, seggioloni: parseInt(document.getElementById('swal-seggioloni').value) || 0,
                         altro: document.getElementById('swal-altro').value.trim(),
                         preferenza_servizio: preferenza, turno, area,
-                        etichette: Array.from(window.tempSelectedTags)
+                        etichette: Array.from(window.tempSelectedTags),
+                        allegato: window.tempAttachmentBase64
                     };
                 }
             });
@@ -1160,16 +1488,22 @@
             if (formValues) {
                 try {
                     let operatore = sessionStorage.getItem('operatore_corrente') || 'Agenda App';
+                    const totPax = formValues.adulti + formValues.bambini;
+
                     await addDoc(collection(db, "ordini"), {
                         data_ritiro: dataSelezionata, data_invio: serverTimestamp(),
                         nome: formValues.nome, telefono: formValues.tel,
                         adulti: formValues.adulti, bambini: formValues.bambini, seggioloni: formValues.seggioloni,
-                        coperti: formValues.adulti + formValues.bambini, 
+                        coperti: totPax, 
                         orario: formValues.ora, note_ordine: formValues.altro,
                         preferenza_servizio: formValues.preferenza_servizio, turno: formValues.turno, area: formValues.area,
                         etichette: formValues.etichette,
+                        allegato_base64: formValues.allegato || null,
+                        conferma_telefonica: false,
                         stato: 'Prenotato', tipo: 'SALA', tavolo: formValues.tavoloPre || "", prodotti: [], totale: 0, operatore: operatore
                     });
+
+                    window.tempAttachmentBase64 = null;
 
                     if (formValues.tel) {
                         const cleanTel = formValues.tel.replace(/\s+/g, '').replace('+39', '');
@@ -1182,7 +1516,11 @@
                         }
                     }
 
-                    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 }).fire({ icon: 'success', title: 'Prenotazione salvata' });
+                    const msgSuccess = totPax >= 10 
+                        ? `Prenotazione salvata! (Promemoria chiamata 2 giorni prima attivato)`
+                        : `Prenotazione salvata`;
+
+                    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500 }).fire({ icon: 'success', title: msgSuccess });
                 } catch (e) { Swal.fire("Errore", e.message, "error"); }
             }
         };
@@ -1194,10 +1532,12 @@
             const fallbackAdulti = p.adulti !== undefined ? p.adulti : (p.coperti || 2);
             const pref = p.preferenza_servizio || "";
             const selettoreTagsHtml = window.generaSelettoreEtichetteHTML(p.etichette || []);
+            window.tempAttachmentBase64 = p.allegato_base64 || null;
 
             const { value: formValues } = await Swal.fire({
                 title: 'Modifica Prenotazione',
-                width: 620, 
+                width: 620,
+                allowOutsideClick: false,
                 html: `
                     <div style="display:flex; gap:10px; margin-top: 15px;">
                         <div style="flex:2;">
@@ -1276,6 +1616,7 @@
                     </div>
 
                     ${selettoreTagsHtml}
+                    ${generaSezioneAllegatoHTML()}
                     
                     <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Altro (Note libere)</div>
                     <input id="swal-altro" class="swal2-input" style="margin-top:0; width:100%; box-sizing:border-box;" value="${(p.note_ordine || '').replace(/"/g, '&quot;')}">
@@ -1302,7 +1643,6 @@
                     if(!nome || !ora) { Swal.showValidationMessage('Nome e Orario obbligatori!'); return false; }
                     if(adulti + bambini === 0) { Swal.showValidationMessage('Inserisci almeno 1 persona!'); return false; }
 
-                    // CONTROLLO TAVOLO OCCUPATO E DISTANZA MINIMA 40 MINUTI
                     if (tavoloPre !== "") {
                         const esito = window.verificaConflittiTavolo(tavoloPre, ora, p.id);
                         if (esito.bloccato) {
@@ -1317,7 +1657,8 @@
                         adulti, bambini, seggioloni: parseInt(document.getElementById('swal-seggioloni').value) || 0,
                         altro: document.getElementById('swal-altro').value.trim(),
                         preferenza_servizio: preferenza, turno, area,
-                        etichette: Array.from(window.tempSelectedTags)
+                        etichette: Array.from(window.tempSelectedTags),
+                        allegato: window.tempAttachmentBase64
                     };
                 }
             });
@@ -1332,8 +1673,10 @@
                         orario: formValues.ora, note_ordine: formValues.altro,
                         preferenza_servizio: formValues.preferenza_servizio, turno: formValues.turno, area: formValues.area,
                         etichette: formValues.etichette,
+                        allegato_base64: formValues.allegato || null,
                         operatore: operatore, ultima_modifica: serverTimestamp()
                     });
+                    window.tempAttachmentBase64 = null;
                     Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 }).fire({ icon: 'success', title: 'Modifica salvata' });
                     if (document.getElementById('search-agenda').value.length >= 2) window.cercaPrenotazioniGlobale();
                 } catch (e) { Swal.fire("Errore", e.message, "error"); }
@@ -1357,7 +1700,6 @@
                     const t = document.getElementById('swal-tavolo').value.trim().toUpperCase();
                     if(!t) { Swal.showValidationMessage('Inserisci il numero o il nome del tavolo!'); return false; }
 
-                    // Controlla se quel tavolo ha già clienti seduti al tavolo in questo momento
                     const giaOccupato = (window.prenotazioniCache || []).find(altro => 
                         altro.id !== id && 
                         altro.stato !== 'Prenotato' && 
@@ -1371,7 +1713,6 @@
                         return false;
                     }
 
-                    // Controlla anche la distanza di 40 minuti da eventuali altre prenotazioni sullo stesso tavolo
                     const check = window.verificaConflittiTavolo(t, p.orario || '', id);
                     if (check.bloccato) {
                         const c = check.conflitti[0];

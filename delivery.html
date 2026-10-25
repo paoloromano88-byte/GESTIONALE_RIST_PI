@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title id="page-title">Delivery Fattorini</title>
+    <link rel="icon" href="data:,">
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --bg-dark: #0b1120;
+            --panel-bg: #1e293b;
+            --border-col: #334155;
+            --primary: #3b82f6;
+            --free: #10b981;
+            --occupied: #ef4444;
+            --reserved: #f59e0b;
+            --ready: #00e676;
+            --gold: #fbbf24;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark); color: #f8fafc;
+            height: 100vh; height: 100dvh; width: 100vw; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* TOP BAR */
+        .top-bar {
+            background: #090d16; border-bottom: 1px solid var(--border-col);
+            padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0; z-index: 100;
+        }
+        .brand-title { font-weight: 900; font-size: 1.1em; color: var(--gold); display: flex; align-items: center; gap: 8px; }
+        .driver-badge {
+            background: #1e293b; border: 1px solid #475569; padding: 6px 12px;
+            border-radius: 20px; font-size: 0.82em; font-weight: bold; color: #38bdf8;
+            cursor: pointer; display: flex; align-items: center; gap: 6px;
+        }
+
+        /* TAB FILTRI STATO */
+        .status-tabs {
+            background: #131c2e; padding: 8px 16px; border-bottom: 1px solid var(--border-col);
+            display: flex; gap: 8px; flex-shrink: 0; overflow-x: auto; scrollbar-width: none;
+        }
+        .status-tab {
+            background: #0f172a; color: #94a3b8; border: 1px solid #334155;
+            padding: 6px 14px; border-radius: 16px; font-weight: 700; font-size: 0.82em;
+            cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px;
+        }
+        .status-tab.active {
+            background: var(--primary); color: #fff; border-color: #60a5fa;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+        }
+
+        /* LISTA CONSEGNE */
+        .deliveries-container {
+            flex: 1; overflow-y: auto; padding: 12px;
+            display: flex; flex-direction: column; gap: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .delivery-card {
+            background: var(--panel-bg); border: 1px solid var(--border-col);
+            border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            position: relative; overflow: hidden;
+        }
+        .delivery-card.status-ready { border-left: 5px solid var(--ready); }
+        .delivery-card.status-delivery { border-left: 5px solid var(--gold); background: #1a233a; }
+        .delivery-card.status-done { border-left: 5px solid var(--free); opacity: 0.75; }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .client-name { font-size: 1.15em; font-weight: 900; color: #fff; }
+        .order-time { background: #0f172a; padding: 4px 8px; border-radius: 6px; font-size: 0.82em; font-weight: 800; color: var(--gold); border: 1px solid #334155; }
+
+        .address-box {
+            background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #334155;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .address-text { font-size: 1.05em; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 6px; }
+        .address-meta { font-size: 0.85em; color: #94a3b8; font-weight: bold; }
+
+        .products-summary { font-size: 0.85em; color: #cbd5e1; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; }
+
+        .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; gap: 8px; flex-wrap: wrap; }
+        .order-total { font-size: 1.1em; font-weight: 900; color: var(--ready); }
+        .driver-tag { font-size: 0.78em; background: #334155; color: #cbd5e1; padding: 3px 8px; border-radius: 6px; font-weight: bold; }
+        .payment-tag { font-size: 0.75em; padding: 3px 8px; border-radius: 6px; font-weight: 800; }
+
+        .actions-row { display: flex; gap: 8px; width: 100%; margin-top: 4px; }
+        .btn-action {
+            flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: 900;
+            font-size: 0.9em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .btn-maps { background: #0284c7; color: #fff; }
+        .btn-call { background: #0d9488; color: #fff; flex: 0.6; }
+        .btn-take { background: var(--gold); color: #000; }
+        .btn-done { background: var(--free); color: #000; }
+
+        /* LOGIN OVERLAY FATTORINO */
+        #driver-login-overlay {
+            position: fixed; inset: 0; background: rgba(11, 17, 32, 0.96);
+            z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 24px; text-align: center;
+        }
+        .login-card { background: var(--panel-bg); border: 1px solid var(--border-col); padding: 24px; border-radius: 16px; width: 100%; max-width: 360px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .login-input { width: 100%; padding: 14px; background: #0f172a; border: 1px solid #475569; color: #fff; border-radius: 10px; font-size: 1.1em; font-weight: bold; text-align: center; margin: 15px 0; outline: none; }
+        .btn-login { width: 100%; padding: 14px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: 900; font-size: 1.1em; cursor: pointer; }
+
+        .empty-state { text-align: center; padding: 50px 20px; color: #64748b; font-weight: bold; font-size: 1.05em; }
+    </style>
+</head>
+<body>
+
+    <!-- OVERLAY IDENTIFICAZIONE FATTORINO -->
+    <div id="driver-login-overlay">
+        <div class="login-card">
+            <i class="fa-solid fa-motorcycle" style="font-size:3em; color:var(--gold); margin-bottom:12px;"></i>
+            <h2 style="margin:0 0 8px 0; color:#fff;">ACCESSO FATTORINO</h2>
+            <p style="color:#94a3b8; font-size:0.9em; margin:0 0 15px 0;">Inserisci il tuo nome per visualizzare le consegne assegnate.</p>
+            <input type="text" id="driver-name-input" class="login-input" placeholder="Il tuo nome (es. Marco)">
+            <button class="btn-login" onclick="salvaNomeFattorino()">INIZIA TURNO</button>
+        </div>
+    </div>
+
+    <!-- TOP BAR -->
+    <div class="top-bar">
+        <div class="brand-title">
+            <i class="fa-solid fa-motorcycle" style="color:var(--gold);"></i> <span id="header-locale-title">DELIVERY</span>
+        </div>
+        <div class="driver-badge" onclick="cambiaFattorino()" title="Cambia Fattorino">
+            <i class="fa fa-user-circle"></i> <span id="current-driver-display">Rider</span>
+        </div>
+    </div>
+
+    <!-- TAB FILTRI STATO -->
+    <div class="status-tabs">
+        <div class="status-tab active" id="tab-attive" onclick="filtraStato('attive')">
+            <i class="fa fa-clock"></i> Da Consegnare <span id="count-attive" style="background:rgba(0,0,0,0.3); padding:1px 6px; border-radius:10px;">0</span>
+        </div>
+        <div class="status-tab" id="tab-consegnate" onclick="filtraStato('consegnate')">
+            <i class="fa fa-check-circle"></i> Consegnate Oggi <span id="count-consegnate" style="background:rgba(0,0,0,0.3); padding:1px 6px; border-radius:10px;">0</span>
+        </div>
+        <div class="status-tab" id="tab-tutte" onclick="filtraStato('tutte')">
+            <i class="fa fa-list"></i> Tutte
+        </div>
+    </div>
+
+    <!-- LISTA CONSEGNE -->
+    <div class="deliveries-container" id="deliveries-list"></div>
+
+    <script type="module">
+        import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection as _collection, doc as _doc, onSnapshot, updateDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
+            authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+            projectId: "gestionale-ristoranti-96c5b",
+            storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+            messagingSenderId: "234695436534",
+            appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+        };
+
+        const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- MULTI-TENANT ROUTER ---
+        const _urlParams = new URLSearchParams(window.location.search);
+        if (_urlParams.has('locale')) {
+            window.TENANT_ID = _urlParams.get('locale') || 'default';
+            localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+        } else {
+            window.TENANT_ID = window.TENANT_ID || localStorage.getItem('saas_tenant_id') || 'default';
+        }
+
+        const collection = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _collection(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _collection(database, ...pathSegments);
+        };
+
+        const doc = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _doc(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _doc(database, ...pathSegments);
+        };
+
+        signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {});
+
+        let currentDriver = localStorage.getItem('delivery_driver_name') || "";
+        let filtroCorrente = 'attive';
+        let ordiniCache = [];
+
+        function getTodayLocal() {
+            const d = new Date();
+            return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        }
+
+        window.salvaNomeFattorino = () => {
+            const nome = document.getElementById('driver-name-input').value.trim();
+            if (!nome) return Swal.fire("Attenzione", "Inserisci il tuo nome per continuare.", "warning");
+            currentDriver = nome;
+            localStorage.setItem('delivery_driver_name', nome);
+            document.getElementById('current-driver-display').innerText = nome;
+            document.getElementById('driver-login-overlay').style.display = 'none';
+            renderDeliveries();
+        };
+
+        window.cambiaFattorino = () => {
+            Swal.fire({
+                title: 'Cambia Fattorino',
+                input: 'text',
+                inputValue: currentDriver,
+                showCancelButton: true,
+                background: '#1e293b', color: '#fff',
+                confirmButtonText: 'Registra'
+            }).then((res) => {
+                if (res.value && res.value.trim()) {
+                    currentDriver = res.value.trim();
+                    localStorage.setItem('delivery_driver_name', currentDriver);
+                    document.getElementById('current-driver-display').innerText = currentDriver;
+                    renderDeliveries();
+                }
+            });
+        };
+
+        window.filtraStato = (stato) => {
+            filtroCorrente = stato;
+            document.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${stato}`).classList.add('active');
+            renderDeliveries();
+        };
+
+        function initDelivery() {
+            if (currentDriver) {
+                document.getElementById('driver-login-overlay').style.display = 'none';
+                document.getElementById('current-driver-display').innerText = currentDriver;
+            }
+
+            onSnapshot(doc(db, "impostazioni", "negozio"), (snap) => {
+                if (snap.exists() && snap.data().nome) {
+                    document.getElementById('header-locale-title').innerText = snap.data().nome.toUpperCase();
+                }
+            });
+
+            const today = getTodayLocal();
+            const q = query(collection(db, "ordini"), where("tipo", "==", "DOMICILIO"), where("data_ritiro", "==", today));
+            
+            onSnapshot(q, (snap) => {
+                ordiniCache = [];
+                snap.forEach(d => ordiniCache.push({ id: d.id, ...d.data() }));
+                renderDeliveries();
+            });
+        }
+
+        window.renderDeliveries = () => {
+            const container = document.getElementById('deliveries-list');
+            if (!container) return;
+
+            let countAttive = 0, countConsegnate = 0;
+            const filtered = ordiniCache.filter(o => {
+                if (o.stato === 'Annullato') return false;
+                // Usa stato_consegna indipendente dallo stato fiscale della Cassa
+                const isDone = o.stato_consegna === 'Consegnato';
+                if (isDone) countConsegnate++;
+                else countAttive++;
+
+                if (filtroCorrente === 'attive') return !isDone;
+                if (filtroCorrente === 'consegnate') return isDone;
+                return true;
+            });
+
+            document.getElementById('count-attive').innerText = countAttive;
+            document.getElementById('count-consegnate').innerText = countConsegnate;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-mug-hot" style="font-size:2.5em; margin-bottom:10px; display:block; color:#475569;"></i>Nessuna consegna trovata in questa sezione.</div>`;
+                return;
+            }
+
+            filtered.sort((a, b) => (a.orario || '00:00').localeCompare(b.orario || '00:00'));
+
+            container.innerHTML = filtered.map(o => {
+                const isDone = o.stato_consegna === 'Consegnato';
+                const isInDelivery = o.stato_consegna === 'In consegna';
+                const cardClass = isDone ? 'status-done' : (isInDelivery ? 'status-delivery' : 'status-ready');
+                
+                const nomeCompleto = `${o.cognome || ''} ${o.nome || ''}`.trim() || 'Cliente';
+                const prodottiStr = (o.prodotti || []).map(p => `${p.qta}x ${p.nome}`).join(' • ');
+                const indirizzoCompleto = `${o.indirizzo || 'Indirizzo non specificato'} ${o.zona ? '(' + o.zona + ')' : ''}`;
+                const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(indirizzoCompleto)}`;
+                const telUrl = `tel:${o.telefono || ''}`;
+
+                // Indica al fattorino se lo scontrino è già stato battuto/chiuso in cassa
+                const scontrinoBattuto = (o.stato === 'Consegnato' || o.metodo_pagamento);
+                const badgePagamento = scontrinoBattuto
+                    ? `<span class="payment-tag" style="background:#065f46; color:#6ee7b7;">🧾 Scontrino Emesso ${o.metodo_pagamento ? '(' + o.metodo_pagamento + ')' : ''}</span>`
+                    : `<span class="payment-tag" style="background:#7c2d12; color:#fdba74;">💶 Da Chiudere in Cassa</span>`;
+
+                return `
+                    <div class="delivery-card ${cardClass}">
+                        <div class="card-header">
+                            <div>
+                                <div class="client-name">${nomeCompleto.toUpperCase()}</div>
+                                <div style="font-size:0.82em; color:#94a3b8; font-weight:bold;">${o.telefono || 'Nessun telefono'}</div>
+                            </div>
+                            <div class="order-time"><i class="fa fa-clock"></i> ${o.orario || '--:--'}</div>
+                        </div>
+
+                        <div class="address-box">
+                            <div class="address-text">
+                                <i class="fa-solid fa-location-dot" style="color:#f87171;"></i>
+                                <span style="flex:1;">${indirizzoCompleto}</span>
+                            </div>
+                            ${o.citofono ? `<div class="address-meta">🔔 Citofono / Scala: <b>${o.citofono}</b></div>` : ''}
+                        </div>
+
+                        <div class="products-summary">
+                            🍕 <b>Piatti:</b> ${prodottiStr || 'Nessun dettaglio'}
+                            ${o.note_ordine ? `<div style="margin-top:4px; color:#fbbf24;">📝 Note: ${o.note_ordine}</div>` : ''}
+                        </div>
+
+                        <div class="card-footer">
+                            <div class="order-total">Totale: €${parseFloat(o.totale || 0).toFixed(2)}</div>
+                            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                ${badgePagamento}
+                                ${o.fattorino ? `<span class="driver-tag">🛵 ${o.fattorino}</span>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="actions-row">
+                            <a href="${mapsUrl}" target="_blank" class="btn-action btn-maps" style="text-decoration:none;">
+                                <i class="fa fa-map-location-dot"></i> Maps
+                            </a>
+                            <a href="${telUrl}" class="btn-action btn-call" style="text-decoration:none;">
+                                <i class="fa fa-phone"></i> Chiama
+                            </a>
+                            ${!isDone ? `
+                                ${!isInDelivery ? `
+                                    <button class="btn-action btn-take" onclick="window.assegnaFattorino('${o.id}')">
+                                        <i class="fa fa-motorcycle"></i> Prendi in Carico
+                                    </button>
+                                ` : `
+                                    <button class="btn-action btn-done" onclick="window.segnaConsegnato('${o.id}')">
+                                        <i class="fa fa-check"></i> Consegnato
+                                    </button>
+                                `}
+                            ` : `
+                                <div style="flex:1; text-align:center; color:#10b981; font-weight:bold; font-size:0.85em;">
+                                    <i class="fa fa-circle-check"></i> Consegna Completata
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.assegnaFattorino = async (docId) => {
+            if (!currentDriver) return window.cambiaFattorino();
+            await updateDoc(doc(db, "ordini", docId), {
+                stato_consegna: "In consegna",
+                fattorino: currentDriver,
+                timestamp_consegna_avvio: serverTimestamp()
+            });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ordine preso in carico!', showConfirmButton: false, timer: 1400 });
+        };
+
+        window.segnaConsegnato = async (docId) => {
+            const res = await Swal.fire({
+                title: 'Confermare consegna?',
+                text: "L'ordine verrà segnato come Consegnato al cliente.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                confirmButtonText: 'Sì, Consegnato',
+                cancelButtonText: 'Annulla',
+                background: '#1e293b', color: '#fff'
+            });
+
+            if (res.isConfirmed) {
+                await updateDoc(doc(db, "ordini", docId), {
+                    stato_consegna: "Consegnato",
+                    fattorino: currentDriver,
+                    timestamp_consegna_fine: serverTimestamp()
+                });
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Consegnato con successo!', showConfirmButton: false, timer: 1400 });
+            }
+        };
+
+        initDelivery();
+    </script>
+</body>
+</html>

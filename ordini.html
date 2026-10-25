@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Telecomando PRO v5 - Mobile Optimized</title>
+    <title id="app-title-tel">Telecomando PRO v5 - Mobile Optimized</title>
     <link rel="apple-touch-icon" href="logo.png">
     
     <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
@@ -40,12 +40,12 @@
         /* CLIENTE FORM */
         .client-form { background: #222; padding: 10px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #333; }
         .row { display: flex; gap: 8px; }
-        input, select { background: #333; border: 1px solid #444; color: white; padding: 10px; border-radius: 5px; font-size: 16px; width: 100%; outline: none; }
+        input, select { background: #333; border: 1px solid #444; color: white; padding: 10px; border-radius: 5px; font-size: 16px; width: 100%; outline: none; box-sizing: border-box; }
         input:focus { border-color: var(--primary); }
         
         /* MENU & CATEGORIE */
         .cat-scroll { display: flex; overflow-x: auto; gap: 5px; padding: 10px; background: #1a1a1a; white-space: nowrap; scrollbar-width: none; }
-        .cat-scroll::-webkit-scrollbar { display: none; } /* Nasconde scrollbar su mobile */
+        .cat-scroll::-webkit-scrollbar { display: none; }
         .cat-btn { background: #333; padding: 10px 18px; border-radius: 20px; font-size: 0.95em; font-weight: bold; color: #aaa; border: 1px solid #444; cursor: pointer; }
         .cat-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         
@@ -95,18 +95,39 @@
         .manual-toggle { background: none; border: 1px solid #666; color: #888; font-size: 0.9em; padding: 5px 10px; border-radius: 4px; cursor: pointer;}
         .manual-toggle.active { background: var(--primary); color: white; border-color: var(--primary); }
         .btn-mod-half { background: #ff9800; color: black; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px; width: 100%; margin-top: 5px; }
-        .half-mods-display { font-size: 14px; color: var(--add-color); min-height: 15px; font-style: italic; margin-top:5px; font-weight:bold; }
+        .half-mods-display { font-size: 14px; color: var(--green); min-height: 15px; font-style: italic; margin-top:5px; font-weight:bold; }
 
         /* CARRELLO LIST */
         .cart-item { background: #252525; padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary); }
         .cart-item small { display: block; color: #aaa; font-size: 0.9em; margin-top: 4px; }
         
         /* AZIONI CARRELLO */
-        .cart-actions { display: flex; gap: 8px; }
+        .cart-actions { display: flex; gap: 8px; margin-left: 10px; }
         .edit-btn { background: #ff9800; color: black; border: none; width: 40px; height: 40px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2em;}
         .del-btn { background: var(--red); color: white; border: none; width: 40px; height: 40px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2em;}
 
         .time-btn { background: #444; border: none; color: white; padding: 8px 12px; border-radius: 4px; font-size: 0.9em; margin-top: 5px; cursor: pointer;}
+
+        /* TENDINA CLIENTI NELLA SIDEBAR ORARI */
+        .slot-card {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #1a1a1a; padding: 14px 15px; margin-bottom: 8px;
+            border-radius: 12px; border: 2px solid #333; border-left: 6px solid var(--primary);
+            cursor: pointer; user-select: none; transition: 0.15s;
+        }
+        .slot-card:hover { border-color: #555; background: #222; }
+        .slot-dropdown {
+            background: #141414; border: 1px solid #333; border-top: none;
+            border-radius: 0 0 10px 10px; padding: 8px 10px;
+            margin-top: -10px; margin-bottom: 12px;
+        }
+        .slot-client-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 7px 6px; border-bottom: 1px dashed #2c2c2c;
+            font-size: 0.92em; color: #eee; cursor: pointer;
+        }
+        .slot-client-row:last-child { border-bottom: none; }
+        .slot-client-row:hover { background: #1f2430; border-radius: 6px; }
 
         /* MEDIA QUERY PER SMARTPHONE */
         @media (max-width: 800px) {
@@ -135,7 +156,7 @@
 
         <div class="sidebar" id="app-sidebar">
             <div class="sidebar-header">
-                <span><i class="fa fa-list-check"></i> RIEPILOGO OGGI</span>
+                <span><i class="fa fa-list-check"></i> <span id="sidebar-date-label">RIEPILOGO OGGI</span></span>
                 <button class="close-sidebar-btn" onclick="toggleSidebar()">&times;</button>
             </div>
             <div class="sidebar-content" id="riepilogo-body">
@@ -145,7 +166,7 @@
 
         <div class="main-content">
             <div class="header">
-                <div class="logo"><i class="fa fa-mobile-screen"></i> TELECOMANDO</div>
+                <div class="logo" id="tel-header-logo"><i class="fa fa-mobile-screen"></i> TELECOMANDO</div>
                 
                 <div style="display:flex; align-items:center; gap:10px;">
                     <button class="mobile-riepilogo-btn" onclick="toggleSidebar()"><i class="fa fa-chart-pie"></i> ORARI</button>
@@ -154,12 +175,39 @@
             </div>
 
             <div class="client-form">
+                <!-- Selettore Tipo Ordine (Asporto, Tavolo, Domicilio) -->
+                <div style="display:flex; gap:5px;">
+                    <button type="button" id="btn-tipo-asporto" onclick="setTipoOrdineTelecomando('asporto')" style="flex:1; padding:8px; background:#334155; color:#fff; border:1px solid #475569; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.9em;"><i class="fa fa-bag-shopping"></i> Asporto</button>
+                    <button type="button" id="btn-tipo-tavolo" onclick="setTipoOrdineTelecomando('tavolo')" style="flex:1; padding:8px; background:#1e293b; color:#94a3b8; border:1px solid #334155; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.9em;"><i class="fa fa-utensils"></i> Tavolo</button>
+                    <button type="button" id="btn-tipo-domicilio" onclick="setTipoOrdineTelecomando('domicilio')" style="flex:1; padding:8px; background:#1e293b; color:#94a3b8; border:1px solid #334155; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.9em;"><i class="fa fa-motorcycle"></i> Domicilio</button>
+                </div>
+
+                <!-- Campi dinamici per Domicilio -->
+                <div id="tel-fields-domicilio" style="display:none; background:#1e293b; padding:10px; border-radius:8px; border:1px solid #334155;">
+                    <div style="display:flex; gap:6px; margin-bottom:6px;">
+                        <input type="text" id="tel-indirizzo" placeholder="Indirizzo (Via e Civico) *" style="flex:2; padding:8px; background:#0f172a; border:1px solid #475569; color:#fff; border-radius:6px; font-size:14px;">
+                        <input type="text" id="tel-citofono" placeholder="Citofono" style="flex:1; padding:8px; background:#0f172a; border:1px solid #475569; color:#fff; border-radius:6px; font-size:14px;">
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <input type="text" id="tel-zona" placeholder="Zona / Quartiere" style="flex:1; padding:8px; background:#0f172a; border:1px solid #475569; color:#fff; border-radius:6px; font-size:14px;">
+                        <div style="flex:1; display:flex; align-items:center; gap:6px; background:#0f172a; padding:0 8px; border-radius:6px; border:1px solid #475569;">
+                            <span style="font-size:0.75em; color:#94a3b8; white-space:nowrap;">Suppl. (€):</span>
+                            <input type="number" id="tel-supplemento" step="0.50" value="2.00" style="width:100%; border:none; background:transparent; color:#fbbf24; font-weight:bold; outline:none; font-size:14px;" onchange="updateCartUI()" oninput="updateCartUI()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campi dinamici per Tavolo -->
+                <div id="tel-fields-tavolo" style="display:none;">
+                    <input type="text" id="tel-tavolo-num" placeholder="Numero Tavolo (es. 4)" style="padding:8px; background:#0f172a; border:1px solid #475569; color:#fff; border-radius:6px; font-size:14px;">
+                </div>
+
                 <div class="row">
-                    <input type="text" id="cli-nome" placeholder="Nome Cliente">
+                    <input type="text" id="cli-nome" placeholder="Cognome / Nome Cliente">
                     <input type="tel" id="cli-tel" placeholder="Telefono" style="width: 140px;">
                 </div>
                 <div class="row">
-                    <input type="date" id="cli-data" style="flex:1;">
+                    <input type="date" id="cli-data" style="flex:1;" onchange="window.cambiaDataRiepilogo(this.value)">
                     <input type="time" id="cli-ora" style="flex:1;">
                 </div>
                 <div class="row" style="margin-bottom: 5px;">
@@ -231,7 +279,7 @@
                     <option value="pizza">🍕 Pizzeria</option>
                     <option value="primo">👨‍🍳 Cucina</option>
                     <option value="bibita">🍺 Bar</option>
-                     <option value="pescato">🐟 Pescato del Giorno</option>
+                    <option value="pescato">🐟 Pescato del Giorno</option>
                 </select>
             </div>
             <button class="btn-full" style="background:var(--gold); color:black;" onclick="addManualProduct()">AGGIUNGI</button>
@@ -271,7 +319,7 @@
                     <button id="btn-mod-2" class="btn-mod-half" onclick="editHalf(2)" disabled>✏️ AGGIUNTE/RIMOZIONI</button>
                 </div>
                 
-                <textarea id="stirata-main-note" placeholder="Note generali..." style="width:100%; height:60px; background:#333; color:white; border:1px solid #444; margin-top:5px; padding:10px;"></textarea>
+                <textarea id="stirata-main-note" placeholder="Note generali..." style="width:100%; height:60px; background:#333; color:white; border:1px solid #444; margin-top:5px; padding:10px; box-sizing:border-box;"></textarea>
             </div>
             <button class="btn-full" id="btn-stirata-ok" style="background:var(--gold); color:black;" onclick="addStirata()" disabled>AGGIUNGI - € <span id="stirata-tot">0.00</span></button>
         </div>
@@ -285,30 +333,67 @@
             </div>
             <div class="cart-items" id="cart-list-items" style="flex:1; overflow-y:auto;"></div>
             <div style="padding-top:10px;">
-                <textarea id="ord-note" placeholder="Note generali ordine..." style="width:100%; height:70px; background:#222; color:white; border:1px solid #444; margin-bottom:10px; padding:10px;"></textarea>
+                <textarea id="ord-note" placeholder="Note generali ordine..." style="width:100%; height:70px; background:#222; color:white; border:1px solid #444; margin-bottom:10px; padding:10px; box-sizing:border-box;"></textarea>
                 <button class="send-btn" style="width:100%; padding:18px; font-size:1.3em;" onclick="inviaOrdine(event)">CONFERMA E INVIA</button>
             </div>
         </div>
     </div>
 
     <script type="module">
-        
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, onSnapshot, serverTimestamp, query, where, doc, updateDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection as _collection, addDoc, getDocs, onSnapshot, serverTimestamp, query, where, doc as _doc, setDoc, updateDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-         const firebaseConfig = {
-  apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
-  authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
-  projectId: "gestionale-ristoranti-96c5b",
-  storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
-  messagingSenderId: "234695436534",
-  appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
-};
+        // --- CONFIGURAZIONE FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
+            authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+            projectId: "gestionale-ristoranti-96c5b",
+            storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+            messagingSenderId: "234695436534",
+            appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
 
-        // 1. BUGFIX: SISTEMATO IL CALCOLO SCORTE ANCHE PER LA STIRATA BI-GUSTO
+        // --- ROUTER MULTI-TENANT AUTOMATICO ---
+        const _urlParams = new URLSearchParams(window.location.search);
+        if (_urlParams.has('locale')) {
+            window.TENANT_ID = _urlParams.get('locale') || 'default';
+            localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+        } else {
+            window.TENANT_ID = window.TENANT_ID || localStorage.getItem('saas_tenant_id') || 'default';
+        }
+
+        const collection = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _collection(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _collection(database, ...pathSegments);
+        };
+
+        const doc = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _doc(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _doc(database, ...pathSegments);
+        };
+
+        // Login automatico silenzioso per abilitare i permessi Firestore
+        signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {});
+
+        // Nome locale dinamico nell'header
+        onSnapshot(doc(db, "impostazioni", "negozio"), (snap) => {
+            if (snap.exists() && snap.data().nome) {
+                const n = snap.data().nome.toUpperCase();
+                document.getElementById('tel-header-logo').innerHTML = `<i class="fa fa-mobile-screen"></i> ${n}`;
+                document.title = `Telecomando - ${n}`;
+            }
+        });
+
+        // --- SCORTE INTELLIGENTI ANCHE PER STIRATA BI-GUSTO ---
         window.scalaScorte = async (prodottiOrdinati) => {
             if (!prodottiOrdinati || prodottiOrdinati.length === 0) return;
             try {
@@ -318,27 +403,28 @@
                 prodottiOrdinati.forEach(p => {
                     let itemsToScale = [];
                     
-                    // Se il prodotto è una stirata e ha i componenti salvati
                     if (p.componenti && p.componenti.length > 0) {
                         p.componenti.forEach(compId => {
                             const prodOriginale = MENU.find(m => m.id === compId);
                             if (prodOriginale) itemsToScale.push(prodOriginale);
                         });
                     } else {
-                        // Prodotto normale
                         const prodOriginale = MENU.find(m => m.nome === p.nome);
                         if (prodOriginale) itemsToScale.push(prodOriginale);
                     }
 
-                    // Scala dal DB per tutti i prodotti trovati
                     itemsToScale.forEach(prodOriginale => {
                         if (prodOriginale.scorta !== null && prodOriginale.scorta !== undefined && prodOriginale.scorta !== "") {
                             const prodRef = doc(db, "prodotti", prodOriginale.id);
-                            // Se è una mezza stirata, scala 0.5 dal database (oppure 1 intero a seconda delle tue preferenze, qui uso 0.5)
                             let qtaDaScalare = parseFloat(p.qta) || 1;
                             if(p.componenti) qtaDaScalare = qtaDaScalare * 0.5; 
                             
-                            batch.update(prodRef, { scorta: increment(-qtaDaScalare) });
+                            const scortaAttuale = parseFloat(prodOriginale.scorta) || 0;
+                            const nuovaScorta = Math.max(0, scortaAttuale - qtaDaScalare);
+                            batch.update(prodRef, { 
+                                scorta: nuovaScorta,
+                                attivo: nuovaScorta > 0
+                            });
                             ciSonoModifiche = true;
                         }
                     });
@@ -358,95 +444,159 @@
         let stirataData = { h1: {manual:false, details:[], extraPrice:0}, h2: {manual:false, details:[], extraPrice:0} };
         let modificationContext = 'CART'; 
         let editingIndex = null; 
+        let unsubRiepilogo = null;
+        let telecomandoTipoOrdine = 'asporto';
+
+        // Stato per le tendine degli orari nella sidebar
+        window.orariApertiTelecomando = new Set();
+        window.ordiniPerOrarioTelMap = {};
+        window.ordiniCompletiTelMap = {};
 
         const CATS = ['pizza', 'stirata', 'speciale', 'gf', 'ant_pizzeria', 'ant_ristorante', 'primo', 'secondo', 'contorno', 'bibita', 'birra'];
         const LABELS = { pizza: 'Pizze', stirata: 'Stirate', speciale: 'Speciali', gf: 'No Glutine', ant_pizzeria: 'Ant. Pizz.', ant_ristorante: 'Ant. Rist.', primo: 'Primi', secondo: 'Secondi', contorno: 'Contorni', bibita: 'Bibite', birra: 'Birre' };
+
+        window.setTipoOrdineTelecomando = (tipo) => {
+            telecomandoTipoOrdine = tipo;
+            document.getElementById('btn-tipo-asporto').style.background = tipo === 'asporto' ? '#334155' : '#1e293b';
+            document.getElementById('btn-tipo-asporto').style.color = tipo === 'asporto' ? '#fff' : '#94a3b8';
+
+            document.getElementById('btn-tipo-tavolo').style.background = tipo === 'tavolo' ? '#334155' : '#1e293b';
+            document.getElementById('btn-tipo-tavolo').style.color = tipo === 'tavolo' ? '#fff' : '#94a3b8';
+
+            document.getElementById('btn-tipo-domicilio').style.background = tipo === 'domicilio' ? '#334155' : '#1e293b';
+            document.getElementById('btn-tipo-domicilio').style.color = tipo === 'domicilio' ? '#fff' : '#94a3b8';
+
+            document.getElementById('tel-fields-domicilio').style.display = tipo === 'domicilio' ? 'block' : 'none';
+            document.getElementById('tel-fields-tavolo').style.display = tipo === 'tavolo' ? 'block' : 'none';
+
+            updateCartUI();
+        };
 
         window.toggleSidebar = () => {
             document.getElementById('app-sidebar').classList.toggle('open');
             document.getElementById('sidebar-overlay').classList.toggle('active');
         };
 
-        // 3. BUGFIX: RISVEGLIO AUTOMATICO PER EVITARE DATE VECCHIE SE L'APP RESTA APERTA
+        function getTodayStr() {
+            const now = new Date();
+            return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+        }
+
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === 'visible') {
                 const inputData = document.getElementById('cli-data');
-                const now = new Date();
-                const dataOggi = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+                const dataOggi = getTodayStr();
                 if (inputData.value < dataOggi) {
                     inputData.value = dataOggi;
+                    window.cambiaDataRiepilogo(dataOggi);
                 }
             }
         });
 
         async function init() {
             addTime(20);
-            const now = new Date();
-            const dataOggi = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+            const dataOggi = getTodayStr();
             document.getElementById('cli-data').value = dataOggi;
             
             onSnapshot(collection(db, "prodotti"), (s) => {
-                MENU = s.docs.map(d => ({...d.data(), id: d.id}));
+                MENU = s.docs
+                    .map(d => ({...d.data(), id: d.id}))
+                    .filter(p => p.disponibile_palmare !== false);
                 
-               if (MENU.length > 0) {
-    if (!window.currentCat) { window.currentCat = MENU[0].cat; }
-    renderCats(); 
-    renderMenu(); // <-- CORRETTO
-}
+                if (MENU.length > 0) {
+                    if (!currentCat) { currentCat = MENU[0].cat; }
+                    renderCats(); 
+                    renderMenu(document.getElementById('search-prod')?.value || "");
+                }
             });
 
-            listenRiepilogoOrari();
+            listenRiepilogoOrari(dataOggi);
 
-            const snapIngs = await getDocs(collection(db, "ingredienti"));
-            INGS = snapIngs.docs.map(d => d.data()).sort((a,b)=>a.nome.localeCompare(b.nome));
+            onSnapshot(collection(db, "ingredienti"), (snapIngs) => {
+                INGS = snapIngs.docs.map(d => d.data()).sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+            });
             
-            const snapRims = await getDocs(collection(db, "rimozioni"));
-            RIMS = snapRims.docs.map(d => d.data()).sort((a,b)=>a.nome.localeCompare(b.nome));
+            onSnapshot(collection(db, "rimozioni"), (snapRims) => {
+                RIMS = snapRims.docs.map(d => d.data()).sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+            });
         }
 
-        function listenRiepilogoOrari() {
-            // 1. Spostiamo la data qui dentro in modo che sia sempre aggiornata
-            const nowT = new Date();
-            const dataOggi = nowT.getFullYear() + '-' + String(nowT.getMonth()+1).padStart(2,'0') + '-' + String(nowT.getDate()).padStart(2,'0');
-            const q = query(collection(db, "ordini"), where("data_ritiro", "==", dataOggi));
+        window.cambiaDataRiepilogo = (nuovaData) => {
+            if (!nuovaData) return;
+            const oggi = getTodayStr();
+            const lbl = document.getElementById('sidebar-date-label');
+            if (lbl) {
+                if (nuovaData === oggi) lbl.innerText = "RIEPILOGO OGGI";
+                else {
+                    const [y, m, d] = nuovaData.split('-');
+                    lbl.innerText = `DEL ${d}/${m}`;
+                }
+            }
+            listenRiepilogoOrari(nuovaData);
+        };
 
-            onSnapshot(q, (snap) => {
+        function listenRiepilogoOrari(dataTarget) {
+            const dataQuery = dataTarget || getTodayStr();
+            if (unsubRiepilogo) unsubRiepilogo();
+
+            const q = query(collection(db, "ordini"), where("data_ritiro", "==", dataQuery));
+
+            unsubRiepilogo = onSnapshot(q, (snap) => {
                 const body = document.getElementById('riepilogo-body');
                 let orariMap = {};
                 let totPizzeInAttesa = 0;
                 let totPizzeAssolute = 0;
+                window.ordiniPerOrarioTelMap = {};
+                window.ordiniCompletiTelMap = {};
 
-                // FIX FONDAMENTALE: Diciamo al sistema QUALI categorie sono da considerare "Pizze"
-                const categoriePizze = ['pizza', 'stirata', 'speciale', 'gf'];
+                const categoriePizze = ['pizza', 'stirata', 'speciale', 'gf', 'calzone', 'focaccia', 'panino', 'covaccino'];
 
-                snap.forEach(doc => {
-                    const data = doc.data();
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const idOrd = docSnap.id;
                     const orario = data.orario || "N/D";
-                    
-                    if (data.stato !== "Annullato") {
-                        if (data.prodotti) {
-                            data.prodotti.forEach(p => {
-                                // Usa l'array categoriePizze per non perdere nemmeno una pizza!
-                                if (categoriePizze.includes(p.cat)) {
-                                    totPizzeAssolute += (parseFloat(p.qta) || 1);
-                                }
-                            });
-                        }
-                    }
 
-                    if (data.stato === "Completato" || data.stato === "Annullato" || data.stato === "Consegnato") return; 
+                    if (data.tipo === 'SALA' || (data.tavolo && String(data.tavolo).trim() !== "")) return;
+                    if (data.stato === "Annullato") return;
 
-                    if (!orariMap[orario]) orariMap[orario] = 0;
-                    
-                    if (data.prodotti) {
+                    let pizzeOrdine = 0;
+                    let righePizze = [];
+
+                    if (data.prodotti && Array.isArray(data.prodotti)) {
                         data.prodotti.forEach(p => {
-                            // Stesso controllo per le pizze in attesa
-                            if (categoriePizze.includes(p.cat)) {
-                                const qtaPizze = parseFloat(p.qta) || 1;
-                                orariMap[orario] += qtaPizze;
-                                totPizzeInAttesa += qtaPizze;
+                            const catClean = (p.cat || '').toLowerCase().trim();
+                            if (categoriePizze.includes(catClean)) {
+                                const q = parseFloat(p.qta) || 1;
+                                pizzeOrdine += q;
+                                righePizze.push(`${q}x ${p.nome}${p.dettagli && p.dettagli !== 'Normale' ? ` (${p.dettagli.replace(/<[^>]*>?/gm, '')})` : ''}`);
                             }
                         });
+                    }
+
+                    totPizzeAssolute += pizzeOrdine;
+
+                    if (data.stato === "Completato" || data.stato === "Consegnato") return; 
+
+                    if (pizzeOrdine > 0) {
+                        if (!orariMap[orario]) orariMap[orario] = 0;
+                        if (!window.ordiniPerOrarioTelMap[orario]) window.ordiniPerOrarioTelMap[orario] = [];
+
+                        orariMap[orario] += pizzeOrdine;
+                        totPizzeInAttesa += pizzeOrdine;
+
+                        const nomeCliente = ((data.cognome || '') + ' ' + (data.nome || '')).trim() || 'Cliente';
+                        const objInfo = {
+                            id: idOrd,
+                            cliente: nomeCliente,
+                            telefono: data.telefono || '',
+                            orario: orario,
+                            pizze: Math.round(pizzeOrdine),
+                            righe: righePizze,
+                            note: data.note_ordine || '',
+                            totale: parseFloat(data.totale || 0).toFixed(2)
+                        };
+                        window.ordiniPerOrarioTelMap[orario].push(objInfo);
+                        window.ordiniCompletiTelMap[idOrd] = objInfo;
                     }
                 });
 
@@ -456,11 +606,11 @@
                 <div style="display:flex; gap:10px; margin-bottom:20px;">
                     <div style="flex:1; text-align:center; background: #222; padding: 10px; border-radius: 10px; border: 2px solid var(--primary);">
                         <div style="font-size:0.8em; color:#aaa; font-weight:bold;">TOT. OGGI</div>
-                        <div style="font-size:2.2em; font-weight:900; color:white;">${totPizzeAssolute}</div>
+                        <div style="font-size:2.2em; font-weight:900; color:white;">${Math.round(totPizzeAssolute)}</div>
                     </div>
                     <div style="flex:1; text-align:center; background: var(--gold); padding: 10px; border-radius: 10px; box-shadow: 0 4px 10px rgba(255,234,0,0.2);">
                         <div style="font-size:0.8em; color:black; font-weight:bold;">DA FARE</div>
-                        <div style="font-size:2.2em; font-weight:900; color:black;">${totPizzeInAttesa}</div>
+                        <div style="font-size:2.2em; font-weight:900; color:black;">${Math.round(totPizzeInAttesa)}</div>
                     </div>
                 </div>`;
 
@@ -471,25 +621,97 @@
                 
                 sortedOrari.forEach(ora => {
                     if(orariMap[ora] > 0) {
+                        const safeId = ora.replace(/[^a-zA-Z0-9]/g, '_');
+                        const isOpen = window.orariApertiTelecomando.has(ora);
+                        const clientiList = window.ordiniPerOrarioTelMap[ora] || [];
+                        const numColor = orariMap[ora] >= 10 ? 'var(--red)' : (orariMap[ora] >= 6 ? '#ff9800' : 'var(--green)');
+
                         html += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; background:#1a1a1a; padding:15px; margin-bottom:12px; border-radius:12px; border: 2px solid #333; border-left: 6px solid var(--primary);">
+                        <div class="slot-card" onclick="window.toggleTendinaOrarioTel('${ora}')">
                             <div style="display:flex; align-items:center; gap: 8px;">
-                                <i class="fa fa-clock" style="color: #666; font-size: 1.2em;"></i>
-                                <span style="font-size:1.8em; font-weight:900; color:var(--gold);">${ora}</span>
+                                <i class="fa fa-clock" style="color: #888; font-size: 1.1em;"></i>
+                                <span style="font-size:1.7em; font-weight:900; color:var(--gold);">${ora}</span>
+                                <i id="tel-arrow-${safeId}" class="fa-solid fa-chevron-${isOpen ? 'up' : 'down'}" style="color:#888; font-size:0.85em; margin-left:4px;"></i>
                             </div>
                             <div style="text-align: right; line-height: 1;">
-                                <span style="font-size:2.2em; font-weight:900; color:var(--green);">${orariMap[ora]}</span>
-                                <div style="font-size:0.8em; font-weight:bold; color:#aaa; text-transform: uppercase;">Pz</div>
+                                <span style="font-size:2.1em; font-weight:900; color:${numColor};">${Math.round(orariMap[ora])}</span>
+                                <div style="font-size:0.75em; font-weight:bold; color:#aaa; text-transform: uppercase;">Pz</div>
                             </div>
+                        </div>
+                        <div id="tel-tendina-${safeId}" class="slot-dropdown" style="display:${isOpen ? 'block' : 'none'};">
+                            ${clientiList.map(c => `
+                                <div class="slot-client-row" onclick="window.mostraDettaglioOrdineTel('${c.id}')">
+                                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:190px;">
+                                        👤 <b>${c.cliente}</b>
+                                    </span>
+                                    <span style="background:var(--gold); color:#000; font-weight:900; padding:2px 8px; border-radius:6px; font-size:0.85em;">
+                                        🍕 ${c.pizze}
+                                    </span>
+                                </div>
+                            `).join('')}
+                            <button onclick="window.selezionaOrarioDaSidebar('${ora}')" style="width:100%; margin-top:6px; background:#2962ff; color:white; border:none; padding:6px; border-radius:6px; font-weight:bold; font-size:0.8em; cursor:pointer;">
+                                🕒 Usa orario ${ora} per nuovo ordine
+                            </button>
                         </div>`;
                     }
                 });
                 
                 body.innerHTML = html;
-            }, (error) => {
+            }, () => {
                 document.getElementById('riepilogo-body').innerHTML = "<div style='color:var(--red); text-align:center;'>Errore di sync</div>";
             });
         }
+
+        window.toggleTendinaOrarioTel = (ora) => {
+            const safeId = ora.replace(/[^a-zA-Z0-9]/g, '_');
+            const box = document.getElementById(`tel-tendina-${safeId}`);
+            const arrow = document.getElementById(`tel-arrow-${safeId}`);
+            if (!box) return;
+
+            if (window.orariApertiTelecomando.has(ora)) {
+                window.orariApertiTelecomando.delete(ora);
+                box.style.display = 'none';
+                if (arrow) arrow.className = 'fa-solid fa-chevron-down';
+            } else {
+                window.orariApertiTelecomando.add(ora);
+                box.style.display = 'block';
+                if (arrow) arrow.className = 'fa-solid fa-chevron-up';
+            }
+        };
+
+        window.selezionaOrarioDaSidebar = (ora) => {
+            if (ora && ora.includes(':')) {
+                const inputOra = document.getElementById('cli-ora');
+                inputOra.type = 'time';
+                inputOra.value = ora;
+                if (window.innerWidth <= 800) window.toggleSidebar();
+                Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: `Orario impostato: ${ora}`, showConfirmButton: false, timer: 1000 });
+            }
+        };
+
+        window.mostraDettaglioOrdineTel = (idOrd) => {
+            const info = window.ordiniCompletiTelMap[idOrd];
+            if (!info) return;
+
+            Swal.fire({
+                title: `👤 ${info.cliente} (${info.orario})`,
+                html: `
+                    <div style="text-align:left; background:#161b22; padding:12px; border-radius:10px; border:1px solid #30363d; color:#fff; font-size:0.95em;">
+                        ${info.telefono ? `<div style="margin-bottom:8px;">📞 <a href="tel:${info.telefono}" style="color:#58a6ff; text-decoration:none; font-weight:bold;">${info.telefono}</a></div>` : ''}
+                        <div style="color:var(--gold); font-weight:bold; margin-bottom:6px;">🍕 Pizze in ordine (${info.pizze}):</div>
+                        <ul style="margin:0; padding-left:18px; line-height:1.5;">
+                            ${info.righe.map(r => `<li>${r}</li>`).join('')}
+                        </ul>
+                        ${info.note ? `<div style="margin-top:10px; padding:6px 8px; background:#332b00; border-left:3px solid var(--gold); color:#ffea00; font-size:0.9em;">📝 Note: ${info.note}</div>` : ''}
+                        <div style="margin-top:10px; text-align:right; font-weight:900; color:var(--green); font-size:1.1em;">Totale: € ${info.totale}</div>
+                    </div>
+                `,
+                background: '#1e1e1e',
+                color: '#fff',
+                confirmButtonColor: '#2962ff',
+                confirmButtonText: 'Chiudi'
+            });
+        };
 
         window.renderCats = () => {
             const div = document.getElementById('cat-list');
@@ -500,8 +722,8 @@
 
         window.renderMenu = (search = "") => {
             const list = document.getElementById('menu-list'); list.innerHTML = "";
-            let items = search ? MENU.filter(p => p.nome.toLowerCase().includes(search.toLowerCase())) : MENU.filter(p => p.cat === currentCat);
-            items.sort((a,b) => a.nome.localeCompare(b.nome));
+            let items = search ? MENU.filter(p => (p.nome || '').toLowerCase().includes(search.toLowerCase())) : MENU.filter(p => p.cat === currentCat);
+            items.sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
 
             items.forEach(p => {
                 const isScortaEsaurita = p.scorta !== null && p.scorta !== undefined && p.scorta !== "" && p.scorta <= 0;
@@ -551,7 +773,10 @@
                 if (isNaN(quantita) || quantita < 1) quantita = 1;
             }
 
-            CARRELLO.push({ nome: p.nome, prezzo: parseFloat(p.prezzo), qta: quantita, cat: p.cat, dettagli: 'Normale', turno: 1 });
+            let details = 'Normale';
+            if (p.cat === 'gf') details = '❌🌾 GLUTEN FREE';
+
+            CARRELLO.push({ nome: p.nome, prezzo: parseFloat(p.prezzo), qta: quantita, cat: p.cat, dettagli: details, turno: 1 });
             updateCartUI();
             if(qtyInput) qtyInput.value = "1";
 
@@ -572,121 +797,110 @@
         };
 
         window.editCartItem = (index) => {
-    const item = CARRELLO[index];
-    let originalItem = MENU.find(m => m.nome === item.nome);
-    tempItem = originalItem ? { ...originalItem } : { ...item };
-    modificationContext = 'CART_EDIT'; editingIndex = index;
-    tempAdds.clear(); tempRems.clear();
-    let notesArray = [];
+            const item = CARRELLO[index];
+            let originalItem = MENU.find(m => m.nome === item.nome);
+            tempItem = originalItem ? { ...originalItem } : { ...item };
+            modificationContext = 'CART_EDIT'; editingIndex = index;
+            tempAdds.clear(); tempRems.clear();
+            let notesArray = [];
 
-    if (item.dettagli && item.dettagli !== 'Normale') {
-        const parts = item.dettagli.split(','); // Divide in base alla virgola
-        parts.forEach(part => {
-            let p = part.trim();
-            
-            if (p.startsWith('+')) {
-                // È un'aggiunta
-                tempAdds.add(p.substring(1).trim()); 
-                
-            } else if (p.startsWith('NO ')) {
-                // RICONOSCE LA PAROLA "NO" e preleva solo il nome dell'ingrediente
-                tempRems.add(p.substring(3).trim());
-                
-            } else if (p.startsWith('-')) {
-                // Lasciamo questo per retrocompatibilità (se apri un ordine vecchio)
-                tempRems.add(p.substring(1).trim());
-                
-            } else {
-                // È una nota scritta a mano
-                notesArray.push(p);
+            if (item.dettagli && item.dettagli !== 'Normale') {
+                const parts = item.dettagli.split(',');
+                parts.forEach(part => {
+                    let p = part.trim();
+                    if (p.startsWith('+')) {
+                        tempAdds.add(p.substring(1).trim()); 
+                    } else if (p.startsWith('NO ')) {
+                        tempRems.add(p.substring(3).trim());
+                    } else if (p.startsWith('-')) {
+                        tempRems.add(p.substring(1).trim());
+                    } else {
+                        notesArray.push(p);
+                    }
+                });
             }
-        });
-    }
 
-    document.getElementById('m-title').innerText = "Modifica: " + item.nome;
-    document.getElementById('m-notes').value = notesArray.join(', ');
-    document.getElementById('ing-filter').value = "";
-    if(document.getElementById('mod-qty')) document.getElementById('mod-qty').value = item.qta;
-    document.getElementById('modal-qty-container').style.display = 'flex';
-    renderIngs();
-    document.getElementById('modal-cart').style.display = 'none';
-    document.getElementById('modal-prod').style.display = 'flex';
-};
+            document.getElementById('m-title').innerText = "Modifica: " + item.nome;
+            document.getElementById('m-notes').value = notesArray.join(', ');
+            document.getElementById('ing-filter').value = "";
+            if(document.getElementById('mod-qty')) document.getElementById('mod-qty').value = item.qta;
+            document.getElementById('modal-qty-container').style.display = 'flex';
+            renderIngs();
+            document.getElementById('modal-cart').style.display = 'none';
+            document.getElementById('modal-prod').style.display = 'flex';
+        };
 
         window.renderIngs = (filter = "") => {
             const addDiv = document.getElementById('grid-add');
             const remDiv = document.getElementById('grid-rem');
             
-            const fIngs = INGS.filter(i => i.nome.toLowerCase().includes(filter.toLowerCase()));
+            const fIngs = INGS.filter(i => (i.nome || '').toLowerCase().includes(filter.toLowerCase()));
             addDiv.innerHTML = fIngs.map(i => {
                 const active = tempAdds.has(i.nome) ? 'add' : '';
-                return `<div class="ing-btn ${active}" onclick="toggleAdd('${i.nome}')">${i.nome}</div>`;
+                return `<div class="ing-btn ${active}" onclick="toggleAdd('${i.nome.replace(/'/g, "\\'")}')">${i.nome}</div>`;
             }).join('');
 
             let baseRims = [...RIMS];
             if(tempItem.ingredienti) tempItem.ingredienti.forEach(ing => { if(!baseRims.find(r=>r.nome===ing)) baseRims.push({nome:ing, prezzo:0}); });
             
-            const fRims = baseRims.filter(r => r.nome.toLowerCase().includes(filter.toLowerCase()));
+            const fRims = baseRims.filter(r => (r.nome || '').toLowerCase().includes(filter.toLowerCase()));
             remDiv.innerHTML = fRims.map(r => {
                 const active = tempRems.has(r.nome) ? 'rem' : '';
-                return `<div class="ing-btn ${active}" onclick="toggleRem('${r.nome}')">${r.nome}</div>`;
+                return `<div class="ing-btn ${active}" onclick="toggleRem('${r.nome.replace(/'/g, "\\'")}')">${r.nome}</div>`;
             }).join('');
         };
 
         window.toggleAdd = (name) => { if(tempAdds.has(name)) tempAdds.delete(name); else tempAdds.add(name); renderIngs(document.getElementById('ing-filter').value); };
         window.toggleRem = (name) => { if(tempRems.has(name)) tempRems.delete(name); else tempRems.add(name); renderIngs(document.getElementById('ing-filter').value); };
 
-       window.saveModifier = () => {
-    let det = [], extra = 0;
-    
-    // Aggiungiamo un comodo spazio dopo il + per renderlo più leggibile
-    tempAdds.forEach(n => { 
-        det.push(`+ ${n}`); 
-        const i = INGS.find(x => x.nome.trim().toLowerCase() === n.trim().toLowerCase()); 
-        if(i) extra += parseFloat(i.prezzo || 0); 
-    });
-    
-    // QUI LA MAGIA: Inserisce automaticamente la parola "NO " davanti all'ingrediente
-    tempRems.forEach(n => { 
-        det.push(`NO ${n}`); 
-        const r = RIMS.find(x => x.nome.trim().toLowerCase() === n.trim().toLowerCase()); 
-        if(r) extra -= Math.abs(parseFloat(r.prezzo || 0)); 
-    });
-    
-    const note = document.getElementById('m-notes').value; 
-    if(note) det.push(note);
-    
-    if (modificationContext.startsWith('BG_')) {
-        const halfNum = modificationContext === 'BG_1' ? 1 : 2;
-        const halfKey = 'h' + halfNum;
-        stirataData[halfKey].details = det; stirataData[halfKey].extraPrice = extra;
-        document.getElementById(`bg-mods-${halfNum}`).innerHTML = det.join(', '); // Unito da virgola
-        updateBiGustoPrice();
-        document.getElementById('modal-prod').style.display = 'none';
-        document.getElementById('modal-stirata').style.display = 'flex';
-        return;
-    }
+        window.saveModifier = () => {
+            let det = [], extra = 0;
+            
+            tempAdds.forEach(n => { 
+                det.push(`+ ${n}`); 
+                const i = INGS.find(x => x.nome.trim().toLowerCase() === n.trim().toLowerCase()); 
+                if(i) extra += parseFloat(i.prezzo || 0); 
+            });
+            
+            tempRems.forEach(n => { 
+                det.push(`NO ${n}`); 
+                const r = RIMS.find(x => x.nome.trim().toLowerCase() === n.trim().toLowerCase()); 
+                if(r) extra -= Math.abs(parseFloat(r.prezzo || 0)); 
+            });
+            
+            const note = document.getElementById('m-notes').value; 
+            if(note) det.push(note);
+            
+            if (modificationContext.startsWith('BG_')) {
+                const halfNum = modificationContext === 'BG_1' ? 1 : 2;
+                const halfKey = 'h' + halfNum;
+                stirataData[halfKey].details = det; stirataData[halfKey].extraPrice = extra;
+                document.getElementById(`bg-mods-${halfNum}`).innerHTML = det.join(', ');
+                updateBiGustoPrice();
+                document.getElementById('modal-prod').style.display = 'none';
+                document.getElementById('modal-stirata').style.display = 'flex';
+                return;
+            }
 
-    let qtyInput = document.getElementById('mod-qty');
-    let finalQta = qtyInput ? parseFloat(qtyInput.value) : 1;
-    if(isNaN(finalQta) || finalQta < 1) finalQta = 1;
+            let qtyInput = document.getElementById('mod-qty');
+            let finalQta = qtyInput ? parseFloat(qtyInput.value) : 1;
+            if(isNaN(finalQta) || finalQta < 1) finalQta = 1;
 
-    // Unisce tutto con la virgola
-    const finalDet = det.length > 0 ? det.join(', ') : 'Normale';
-    
-    let basePrice = parseFloat(tempItem.prezzo);
-    const finalPrice = basePrice + extra;
+            const finalDet = det.length > 0 ? det.join(', ') : 'Normale';
+            
+            let basePrice = parseFloat(tempItem.prezzo);
+            const finalPrice = basePrice + extra;
 
-    const newItem = { nome: tempItem.nome, prezzo: finalPrice, qta: finalQta, cat: tempItem.cat, dettagli: finalDet, turno: 1 };
+            const newItem = { nome: tempItem.nome, prezzo: finalPrice, qta: finalQta, cat: tempItem.cat, dettagli: finalDet, turno: 1 };
 
-    if (modificationContext === 'CART_EDIT' && editingIndex !== null) {
-        CARRELLO[editingIndex] = newItem; editingIndex = null; modificationContext = 'CART'; 
-        document.getElementById('modal-prod').style.display = 'none'; document.getElementById('modal-cart').style.display = 'flex';
-    } else {
-        CARRELLO.push(newItem); closeModal('modal-prod');
-    }
-    updateCartUI();
-};
+            if (modificationContext === 'CART_EDIT' && editingIndex !== null) {
+                CARRELLO[editingIndex] = newItem; editingIndex = null; modificationContext = 'CART'; 
+                document.getElementById('modal-prod').style.display = 'none'; document.getElementById('modal-cart').style.display = 'flex';
+            } else {
+                CARRELLO.push(newItem); closeModal('modal-prod');
+            }
+            updateCartUI();
+        };
 
         window.openManualModal = () => {
             document.getElementById('man-name').value = ""; document.getElementById('man-price').value = "";
@@ -790,7 +1004,6 @@
             desc += `<br><b>1/2</b> ${n2}`; if(d.h2.details.length > 0) desc += ` <br>${d.h2.details.join(' ')}`;
             if(mainNote) desc += `<br><b>Note:</b> ${mainNote}`;
             
-            // Salviamo gli ID reali nel carrello per poter scalare le scorte dopo
             const componentiScorta = [];
             if (!d.h1.manual && d.h1.id) componentiScorta.push(d.h1.id);
             if (!d.h2.manual && d.h2.id) componentiScorta.push(d.h2.id);
@@ -802,7 +1015,7 @@
                 cat: 'stirata', 
                 dettagli: desc, 
                 turno: 1,
-                componenti: componentiScorta // <-- Questo risolve il BUG!
+                componenti: componentiScorta
             });
             
             closeModal('modal-stirata'); updateCartUI();
@@ -814,13 +1027,19 @@
             if(id === 'modal-prod' && modificationContext === 'CART_EDIT') document.getElementById('modal-cart').style.display = 'flex';
         };
         
-        // 2. BUGFIX: OTTIMIZZATA LA VELOCITÀ DEL CARRELLO
+        // --- CARRELLO CON SUPPORTO SUPPLEMENTO DOMICILIO ---
         window.updateCartUI = () => {
-            document.getElementById('cart-count').innerText = CARRELLO.length;
-            document.getElementById('cart-tot').innerText = "€ " + CARRELLO.reduce((a,b) => a + (b.prezzo*b.qta), 0).toFixed(2);
+            const totArticoli = CARRELLO.reduce((acc, item) => acc + (parseFloat(item.qta) || 1), 0);
+            document.getElementById('cart-count').innerText = totArticoli;
+            
+            let totProdotti = CARRELLO.reduce((a,b) => a + (b.prezzo * b.qta), 0);
+            let supplemento = telecomandoTipoOrdine === 'domicilio' ? (parseFloat(document.getElementById('tel-supplemento')?.value) || 0) : 0;
+            let totaleGenerale = totProdotti + supplemento;
+
+            document.getElementById('cart-tot').innerText = "€ " + totaleGenerale.toFixed(2);
             
             const list = document.getElementById('cart-list-items'); 
-            let htmlString = ""; // Usiamo una stringa per velocizzare il rendering
+            let htmlString = "";
             
             CARRELLO.forEach((p, i) => {
                 const detDisplay = (p.dettagli === 'Normale' || p.dettagli === 'Manuale') ? '' : p.dettagli;
@@ -828,7 +1047,8 @@
                     <div class="cart-item">
                         <div style="flex:1;">
                             <div style="display:flex; justify-content:space-between; width:100%;">
-                                <b>${p.qta}x ${p.nome}</b> <span style="color:var(--gold);">€${(p.prezzo * p.qta).toFixed(2)}</span>
+                                <b>${p.qta}x ${p.nome}</b>
+                                <span style="color:var(--gold); font-weight:bold;">€ ${(p.prezzo * p.qta).toFixed(2)}</span>
                             </div>
                             <small>${detDisplay}</small>
                         </div>
@@ -856,35 +1076,67 @@
             const nome = document.getElementById('cli-nome').value.trim(); 
             const ora = document.getElementById('cli-ora').value;
             const dataScelta = document.getElementById('cli-data').value; 
-            const tel = document.getElementById('cli-tel').value; 
+            const tel = document.getElementById('cli-tel').value.trim(); 
             const note = document.getElementById('ord-note').value;
 
             if(!nome) return Swal.fire("Inserisci il nome!"); 
             if(!dataScelta) return Swal.fire("Inserisci la data!");
             if(CARRELLO.length === 0) return Swal.fire("Carrello vuoto!");
 
-            const tot = CARRELLO.reduce((a,b) => a + (b.prezzo*b.qta), 0); 
+            let totProdotti = CARRELLO.reduce((a,b) => a + (b.prezzo * b.qta), 0);
+            let supplemento = telecomandoTipoOrdine === 'domicilio' ? (parseFloat(document.getElementById('tel-supplemento')?.value) || 0) : 0;
+            let tot = totProdotti + supplemento;
 
             const ordData = {
                 nome: nome, telefono: tel, orario: ora, note_ordine: note, data_ritiro: dataScelta, data_invio: serverTimestamp(),
-                prodotti: CARRELLO, totale: tot, stato: "In attesa", tipo: "ASPORTO", operatore: "Telecomando"
+                prodotti: CARRELLO, totale: tot, stato: "In forno", 
+                tipo: telecomandoTipoOrdine === 'domicilio' ? 'DOMICILIO' : (telecomandoTipoOrdine === 'tavolo' ? 'SALA' : 'ASPORTO'), 
+                operatore: "Telecomando"
             };
 
-            Swal.fire({title:'Invio...', didOpen:()=>{Swal.showLoading()}});
+            if (telecomandoTipoOrdine === 'domicilio') {
+                ordData.indirizzo = document.getElementById('tel-indirizzo').value.trim();
+                ordData.citofono = document.getElementById('tel-citofono').value.trim();
+                ordData.zona = document.getElementById('tel-zona').value.trim();
+                ordData.supplemento_consegna = supplemento;
+            } else if (telecomandoTipoOrdine === 'tavolo') {
+                ordData.tavolo = document.getElementById('tel-tavolo-num').value.trim().toUpperCase();
+            }
+
+            Swal.fire({title:'Invio...', allowOutsideClick: false, didOpen:()=>{Swal.showLoading()}});
             
-            await addDoc(collection(db, "ordini"), ordData);
-            await window.scalaScorte(CARRELLO);
-            
-            CARRELLO = []; 
-            document.getElementById('cli-nome').value = ""; 
-            document.getElementById('cli-tel').value = ""; 
-            document.getElementById('ord-note').value = "";
-            
-            const now = new Date();
-            document.getElementById('cli-data').value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-            
-            updateCartUI(); closeModal('modal-cart');
-            Swal.fire({icon:'success', title:'Inviato!', timer:1500});
+            try {
+                await addDoc(collection(db, "ordini"), ordData);
+                await window.scalaScorte(CARRELLO);
+
+                // Salva/Aggiorna anche il cliente in rubrica CRM
+                if (tel) {
+                    const cleanTel = tel.replace(/\s+/g, '').replace('+39', '');
+                    if (cleanTel.length >= 8) {
+                        setDoc(doc(db, "clienti", cleanTel), {
+                            nome: nome,
+                            telefono: cleanTel,
+                            totaleSpeso: increment(tot),
+                            numOrdini: increment(1),
+                            ultimaData: dataScelta
+                        }, { merge: true }).catch(() => {});
+                    }
+                }
+                
+                CARRELLO = []; 
+                document.getElementById('cli-nome').value = ""; 
+                document.getElementById('cli-tel').value = ""; 
+                document.getElementById('ord-note').value = "";
+                
+                const dataOggi = getTodayStr();
+                document.getElementById('cli-data').value = dataOggi;
+                window.cambiaDataRiepilogo(dataOggi);
+                
+                updateCartUI(); closeModal('modal-cart');
+                Swal.fire({icon:'success', title:'Inviato!', timer:1500, showConfirmButton: false});
+            } catch (err) {
+                Swal.fire("Errore invio", err.message, "error");
+            }
         };
 
         init();

@@ -218,6 +218,8 @@
             padding: 20px 15px;
             display: none; 
             animation: fadeContent 0.4s ease; 
+            max-width: 850px;
+            margin: 0 auto;
         }
         .menu-section.active-section {
             display: block; 
@@ -313,10 +315,17 @@
             gap: 6px;
             flex-wrap: wrap;
         }
-        .allergen-icon {
-            color: #ff5252;
-            font-size: 0.9em;
-            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.8));
+        .allergen-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 82, 82, 0.12);
+            border: 1px solid rgba(255, 82, 82, 0.35);
+            color: #ff8a80;
+            font-size: 0.72em;
+            padding: 2px 7px;
+            border-radius: 12px;
+            font-weight: 600;
         }
 
         /* LIGHTBOX */
@@ -382,7 +391,7 @@
         <p id="restaurant-subtitle">Il Menu Digitale</p>
         
         <div style="margin-top: 15px; display: inline-block; background: rgba(212, 175, 55, 0.15); border: 1px solid var(--gold); color: var(--gold); padding: 6px 18px; border-radius: 30px; font-size: 0.9em; font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-            <i class="fa-solid fa-utensils" style="margin-right: 5px;"></i> <span id="restaurant-coperto">Caricamento...</span>
+            <i class="fa-solid fa-utensils" style="margin-right: 5px;"></i> <span id="restaurant-coperto">Coperto: € 2.50</span>
         </div>
         
         <p style="margin-top: 15px; font-size: 0.85em; color: #bbb; max-width: 90%; margin-left: auto; margin-right: auto; line-height: 1.4;">
@@ -436,31 +445,61 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, where, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection as _collection, onSnapshot, doc as _doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+        // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
-  apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
-  authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
-  projectId: "gestionale-ristoranti-96c5b",
-  storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
-  messagingSenderId: "234695436534",
-  appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
-};
-
+            apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
+            authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+            projectId: "gestionale-ristoranti-96c5b",
+            storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+            messagingSenderId: "234695436534",
+            appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- SISTEMA MULTI-TENANT (Con fallback sicuro per QR esistenti) ---
-        const urlParams = new URLSearchParams(window.location.search);
-        window.TENANT_ID = urlParams.get('locale') || 'default';
+        // --- ROUTER MULTI-TENANT AUTOMATICO (Isola ogni ristorante creato da SuperAdmin) ---
+        const _urlParams = new URLSearchParams(window.location.search);
+        if (_urlParams.has('locale')) {
+            window.TENANT_ID = _urlParams.get('locale') || 'default';
+            localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+        } else {
+            window.TENANT_ID = window.TENANT_ID || localStorage.getItem('saas_tenant_id') || 'default';
+        }
+
+        const collection = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _collection(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _collection(database, ...pathSegments);
+        };
+
+        const doc = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _doc(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _doc(database, ...pathSegments);
+        };
+
+        // Timer di sicurezza per sbloccare sempre il caricamento entro 2 secondi
+        setTimeout(() => {
+            const loader = document.getElementById('loader-overlay');
+            if (loader) loader.style.display = 'none';
+        }, 2000);
+
+        let activeCategoryMemory = null;
+        const defaultFallbackName = window.TENANT_ID === 'default'
+            ? "Da Mimmo"
+            : window.TENANT_ID.replace(/-/g, ' ').toUpperCase();
 
         // --- 1. WHITE-LABEL E COPERTO IN TEMPO REALE ---
         onSnapshot(doc(db, "impostazioni", "negozio"), (docSnap) => {
             const loader = document.getElementById('loader-overlay');
             if (docSnap.exists()) {
                 const dati = docSnap.data();
-                const nomeLocale = dati.nome || "IL MIO LOCALE";
+                const nomeLocale = dati.nome || defaultFallbackName;
                 
                 document.title = `Menu - ${nomeLocale}`;
                 document.getElementById('app-window-title').innerText = `Menu - ${nomeLocale}`;
@@ -480,20 +519,21 @@
 
                 const copertoVal = dati.prezzo_coperto !== undefined ? parseFloat(dati.prezzo_coperto).toFixed(2) : "2.50";
                 document.getElementById('restaurant-coperto').innerText = `Coperto: € ${copertoVal}`;
-                
-                if (loader) loader.style.display = 'none';
             } else {
-                document.getElementById('restaurant-name').innerText = "MENU DIGITALE";
+                document.title = `Menu - ${defaultFallbackName}`;
+                document.getElementById('app-window-title').innerText = `Menu - ${defaultFallbackName}`;
+                document.getElementById('restaurant-name').innerText = defaultFallbackName;
                 document.getElementById('restaurant-coperto').innerText = "Coperto: € 2.50";
-                if (loader) loader.style.display = 'none';
             }
+            if (loader) loader.style.display = 'none';
         }, (error) => {
-            console.error("Errore lettura dati negozio:", error);
+            console.warn("Lettura dati negozio:", error);
+            document.getElementById('restaurant-name').innerText = defaultFallbackName;
             const loader = document.getElementById('loader-overlay');
             if (loader) loader.style.display = 'none';
         });
 
-        // --- 2. KILL-SWITCH LICENZA (Versione elegante per i Clienti al Tavolo) ---
+        // --- 2. KILL-SWITCH LICENZA ---
         onSnapshot(doc(db, "impostazioni", "licenza"), (docSnap) => {
             let overlayCli = document.getElementById('servizio-chiuso-overlay');
             if (docSnap.exists() && docSnap.data().attiva === false) {
@@ -534,20 +574,27 @@
             'vino': 'I Vini', 'amaro': 'Amari e Caffè'
         };
 
-        // --- 3. CARICAMENTO PRODOTTI IN TEMPO REALE ---
-        const q = query(collection(db, "prodotti"), where("attivo", "==", true));
-        
-        onSnapshot(q, (snapshot) => {
+        // --- 3. CARICAMENTO PRODOTTI IN TEMPO REALE CON FILTRO VISIBILITÀ MENU QR ---
+        onSnapshot(collection(db, "prodotti"), (snapshot) => {
             const prodotti = [];
             snapshot.forEach(docSnap => {
                 const p = docSnap.data();
-                if (p.mostra_al_tavolo === true) {
+                
+                // Controllo stato generale e scorta
+                const isAttivo = p.attivo !== false;
+                const scortaOk = p.scorta === null || p.scorta === undefined || p.scorta === "" || parseFloat(p.scorta) > 0;
+
+                // Controllo interruttore Menu QR (se spento in Cassa non viene mostrato al tavolo)
+                const visibileSuMenuQR = (p.mostra_al_tavolo !== false && p.disponibile_menu_qr !== false);
+
+                if (isAttivo && scortaOk && visibileSuMenuQR) {
                     prodotti.push({ id: docSnap.id, ...p });
                 }
             });
 
             const grouped = {};
             prodotti.forEach(p => {
+                if (!p.cat) return;
                 if (!grouped[p.cat]) grouped[p.cat] = [];
                 grouped[p.cat].push(p);
             });
@@ -557,59 +604,82 @@
             navContainer.innerHTML = '';
             menuContainer.innerHTML = '';
 
-            let isFirst = true;
+            // Lista ordinata delle categorie disponibili
+            const availableCats = CAT_ORDER.filter(c => grouped[c] && grouped[c].length > 0);
+            Object.keys(grouped).forEach(c => {
+                if (!availableCats.includes(c) && grouped[c].length > 0) availableCats.push(c);
+            });
 
-            CAT_ORDER.forEach(cat => {
-                if (grouped[cat] && grouped[cat].length > 0) {
-                    grouped[cat].sort((a, b) => parseFloat(a.prezzo) - parseFloat(b.prezzo));
+            if (availableCats.length === 0) {
+                menuContainer.innerHTML = `
+                    <div style="text-align:center; padding:50px 20px; color:#ccc;">
+                        <i class="fa-solid fa-book-open" style="font-size:2.5em; color:var(--gold); margin-bottom:15px;"></i>
+                        <p>Nessun piatto abilitato sul Menu QR in questo momento.</p>
+                    </div>
+                `;
+                return;
+            }
 
-                    const catTitle = CAT_LABELS[cat] || cat.toUpperCase();
-                    const btn = document.createElement('div');
-                    btn.className = 'cat-btn' + (isFirst ? ' active' : '');
-                    btn.innerText = catTitle;
-                    
-                    btn.onclick = () => {
-                        document.querySelectorAll('.menu-section').forEach(s => s.classList.remove('active-section'));
-                        document.getElementById('sez-' + cat).classList.add('active-section');
-                        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                        btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                        window.scrollTo({ top: navContainer.offsetTop, behavior: 'auto' });
-                    };
-                    
-                    navContainer.appendChild(btn);
+            if (!activeCategoryMemory || !availableCats.includes(activeCategoryMemory)) {
+                activeCategoryMemory = availableCats[0];
+            }
 
-                    let htmlSezione = `
-                        <div id="sez-${cat}" class="menu-section ${isFirst ? 'active-section' : ''}">
-                            <h2 class="section-title">${catTitle}</h2>
-                    `;
+            availableCats.forEach(cat => {
+                grouped[cat].sort((a, b) => parseFloat(a.prezzo) - parseFloat(b.prezzo));
 
-                    grouped[cat].forEach(p => {
-                        let iconsHtml = p.allergeni ? p.allergeni.map(a => `<i class="fa-solid ${ALLERGENI_ICONS[a] || 'fa-circle-exclamation'} allergen-icon" title="${a}"></i>`).join('') : '';
-                        let imgHtml = p.immagine_url 
-                            ? `<img src="${p.immagine_url}" class="product-img" alt="${p.nome}" loading="lazy" onclick="window.ingrandisciFoto('${p.immagine_url}')">` 
-                            : ``; 
-                        let infoPeso = p.isPeso ? '<span style="font-size:0.7em; color:#ddd;">(all\'etto/kg)</span>' : '';
+                const isCurrentActive = (cat === activeCategoryMemory);
+                const catTitle = CAT_LABELS[cat] || cat.toUpperCase();
+                const btn = document.createElement('div');
+                btn.className = 'cat-btn' + (isCurrentActive ? ' active' : '');
+                btn.innerText = catTitle;
+                
+                btn.onclick = () => {
+                    activeCategoryMemory = cat;
+                    document.querySelectorAll('.menu-section').forEach(s => s.classList.remove('active-section'));
+                    document.getElementById('sez-' + cat)?.classList.add('active-section');
+                    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    window.scrollTo({ top: navContainer.offsetTop, behavior: 'auto' });
+                };
+                
+                navContainer.appendChild(btn);
 
-                        htmlSezione += `
-                            <div class="product-card">
-                                ${imgHtml}
-                                <div class="product-content">
-                                    <div class="product-header">
-                                        <h3 class="product-name">${p.nome}</h3>
-                                        <div class="product-price notranslate">€ ${parseFloat(p.prezzo).toFixed(2)} ${infoPeso}</div>
-                                    </div>
-                                    ${p.desc ? `<p class="product-desc">${p.desc}</p>` : ''}
-                                    ${iconsHtml ? `<div class="allergens">${iconsHtml}</div>` : ''}
+                let htmlSezione = `
+                    <div id="sez-${cat}" class="menu-section ${isCurrentActive ? 'active-section' : ''}">
+                        <h2 class="section-title">${catTitle}</h2>
+                `;
+
+                grouped[cat].forEach(p => {
+                    let iconsHtml = Array.isArray(p.allergeni) && p.allergeni.length > 0
+                        ? p.allergeni.map(a => `<span class="allergen-pill"><i class="fa-solid ${ALLERGENI_ICONS[a] || 'fa-circle-exclamation'}"></i> ${a}</span>`).join('')
+                        : '';
+
+                    const imgUrl = p.immagine_url || p.foto;
+                    const safeImgUrl = imgUrl ? imgUrl.replace(/'/g, "\\'") : '';
+                    let imgHtml = imgUrl 
+                        ? `<img src="${imgUrl}" class="product-img" alt="${p.nome}" loading="lazy" onclick="window.ingrandisciFoto('${safeImgUrl}')">` 
+                        : ``; 
+                    let infoPeso = p.isPeso ? '<span style="font-size:0.7em; color:#ddd;">(all\'etto/kg)</span>' : '';
+                    const descText = p.desc || (Array.isArray(p.ingredienti) && p.ingredienti.length > 0 ? p.ingredienti.join(', ') : '');
+
+                    htmlSezione += `
+                        <div class="product-card">
+                            ${imgHtml}
+                            <div class="product-content">
+                                <div class="product-header">
+                                    <h3 class="product-name">${p.nome}</h3>
+                                    <div class="product-price notranslate">€ ${parseFloat(p.prezzo).toFixed(2)} ${infoPeso}</div>
                                 </div>
+                                ${descText ? `<p class="product-desc">${descText}</p>` : ''}
+                                ${iconsHtml ? `<div class="allergens">${iconsHtml}</div>` : ''}
                             </div>
-                        `;
-                    });
+                        </div>
+                    `;
+                });
 
-                    htmlSezione += `</div>`;
-                    menuContainer.innerHTML += htmlSezione;
-                    isFirst = false; 
-                }
+                htmlSezione += `</div>`;
+                menuContainer.innerHTML += htmlSezione;
             });
         });
 

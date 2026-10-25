@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title id="app-window-title">Da Mimmo - App Cliente V8.8 (Definitiva)</title>
+    <title id="app-window-title">Ordina Online - App Cliente V8.8</title>
     <link rel="apple-touch-icon" href="logo.png">
     
     <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
@@ -186,7 +186,7 @@
         </div>
 
         <div class="main-card">
-            <img id="home-logo-img" src="logo.png" alt="Da Mimmo" class="logo-home" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3132/3132693.png'">
+            <img id="home-logo-img" src="logo.png" alt="Logo" class="logo-home" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3132/3132693.png'">
             <h1 id="home-title-txt" style="margin:0; font-weight:800; text-transform:uppercase;">Da Mimmo</h1>
             <p id="home-slogan-txt" style="margin-top:10px; font-weight:500; color:#ccc;">La vera pizza, direttamente a casa tua.</p>
             
@@ -338,7 +338,7 @@
             
             <div class="modal-scroll-area" style="height: 50vh; padding: 0; margin-bottom: 20px; font-size: 0.85em; color: var(--col-text-muted); line-height: 1.5; text-align: left;">
                 <p><strong>1. Titolare del Trattamento</strong><br>
-                Il Titolare del trattamento dei dati è "Da Mimmo - Restaurant & Pizza".</p>
+                Il Titolare del trattamento dei dati è "<span id="privacy-owner-name">Da Mimmo - Restaurant & Pizza</span>".</p>
                 
                 <p><strong>2. Finalità del Trattamento</strong><br>
                 I dati personali forniti (Nome, Cognome, Telefono) vengono utilizzati esclusivamente per la gestione e l'evasione dell'ordine, e per contattarti in caso di necessità riguardanti la consegna o il ritiro.</p>
@@ -347,7 +347,7 @@
                 I dati verranno conservati nel nostro database sicuro al fine di facilitare i tuoi ordini futuri e per farti partecipare alla raccolta punti (Fidelity Card). Non cederemo né venderemo MAI i tuoi dati a terzi.</p>
                 
                 <p><strong>4. Diritti dell'Utente</strong><br>
-                Hai il diritto in qualunque momento di richiedere la cancellazione, la modifica o la visione dei tuoi dati contattandoci telefonicamente o recandoti in pizzeria.</p>
+                Hai il diritto in qualunque momento di richiedere la cancellazione, la modifica o la visione dei tuoi dati contattandoci telefonicamente o recandoti presso il locale.</p>
             </div>
             
             <button class="btn-confirm" style="position:relative; bottom:0; left:0; transform:none; width:100%;" onclick="document.getElementById('modal-privacy').style.display='none'">HO CAPITO</button>
@@ -405,17 +405,17 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc, getDoc, query, where, orderBy, limit, setDoc, writeBatch, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection as _collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc as _doc, getDoc, query, where, orderBy, limit, setDoc, writeBatch, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithPhoneNumber, RecaptchaVerifier, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // --- CONFIGURAZIONE NUOVO PROGETTO FIREBASE ---
+        // --- CONFIGURAZIONE PROGETTO FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU", 
             authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
             projectId: "gestionale-ristoranti-96c5b",
             storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
-            messagingSenderId: "855115229099",
-            appId: "1:855115229099:web:99785936847d28016254ee"
+            messagingSenderId: "234695436534",
+            appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -423,8 +423,41 @@
         const auth = getAuth(app);
         auth.languageCode = 'it'; 
 
+        // --- ROUTER MULTI-TENANT AUTOMATICO ---
+        const _urlParams = new URLSearchParams(window.location.search);
+        if (_urlParams.has('locale')) {
+            window.TENANT_ID = _urlParams.get('locale') || 'default';
+            localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+        } else {
+            window.TENANT_ID = window.TENANT_ID || localStorage.getItem('saas_tenant_id') || 'default';
+        }
+
+        const collection = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _collection(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _collection(database, ...pathSegments);
+        };
+
+        const doc = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _doc(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _doc(database, ...pathSegments);
+        };
+
+        // Chiavi LocalStorage isolate per singolo ristorante
+        const CART_STORAGE_KEY = `mimmo_cart_${window.TENANT_ID}`;
+        const SESSION_STORAGE_KEY = `mimmo_user_session_${window.TENANT_ID}`;
+        const LAST_ORDER_STORAGE_KEY = `mimmo_last_order_${window.TENANT_ID}`;
+
+        function getTodayLocalStr() {
+            const now = new Date();
+            return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+        }
+
         let MENU = [], INGREDIENTI = [], RIMOZIONI = [], SCONTI = [], carrello = [];
-        const savedCart = localStorage.getItem('mimmo_cart');
+        const savedCart = localStorage.getItem(CART_STORAGE_KEY);
         if (savedCart) {
             try {
                 carrello = JSON.parse(savedCart);
@@ -461,7 +494,7 @@
 
         function impostaUtenteLoggato(data) {
             currentUserData = data;
-            localStorage.setItem('mimmo_user_session', JSON.stringify(data));
+            localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
             const btnHome = document.getElementById('btn-auth-home');
             if(btnHome) btnHome.innerHTML = `<i class="fa-solid fa-user-check"></i> CIAO ${(data.nome || 'CLIENTE').toUpperCase()}`;
             
@@ -480,7 +513,7 @@
 
         function logoutUI() {
             currentUserData = null;
-            localStorage.removeItem('mimmo_user_session');
+            localStorage.removeItem(SESSION_STORAGE_KEY);
             const btnHome = document.getElementById('btn-auth-home');
             if(btnHome) btnHome.innerHTML = `<i class="fa-solid fa-user"></i> ACCEDI`;
             const fidContainer = document.getElementById('fidelity-container');
@@ -489,7 +522,7 @@
         }
 
         // Ripristina eventuale sessione locale salvata
-        const savedSession = localStorage.getItem('mimmo_user_session');
+        const savedSession = localStorage.getItem(SESSION_STORAGE_KEY);
         if (savedSession) {
             try {
                 const parsedUser = JSON.parse(savedSession);
@@ -572,7 +605,6 @@
             } catch (e) {
                 console.warn("Verifica cliente diretta:", e);
             }
-            // Se il numero è nuovo, passa allo step 3 (Nome e Cognome)
             document.getElementById('auth-step-1').style.display = 'none';
             document.getElementById('auth-step-2').style.display = 'none';
             document.getElementById('auth-step-3').style.display = 'block';
@@ -599,9 +631,8 @@
                     document.getElementById('auth-step-1').style.display = 'none';
                     document.getElementById('auth-step-2').style.display = 'block';
                 }).catch((error) => {
-                    console.warn("SMS Auth non attivo o regione bloccata, attivo accesso diretto CRM:", error.code);
+                    console.warn("SMS Auth non attivo, attivo accesso diretto CRM:", error.code);
                     Swal.close();
-                    // Fallback automatico: non blocca mai il cliente se gli SMS non sono attivi su Firebase
                     accessoDirettoSenzaSMS(tel);
                 });
         };
@@ -654,7 +685,7 @@
                         document.getElementById('auth-step-3').style.display = 'block';
                     }
                 }
-            }).catch((error) => {
+            }).catch(() => {
                 Swal.fire("Codice Errato", "Il codice inserito non è corretto o è scaduto.", "error");
             });
         };
@@ -686,7 +717,7 @@
                         nome: `${nome} ${cognome}`.trim(),
                         cognome: cognome,
                         telefono: tel,
-                        ultimaData: new Date().toISOString().split('T')[0]
+                        ultimaData: getTodayLocalStr()
                     }, { merge: true });
                 }
             } catch (e) {
@@ -890,6 +921,13 @@
         window.apriLegenda = () => { document.getElementById('modal-legenda').style.display='flex'; };
 
         async function init() {
+            // Nome fallback immediato se è un nuovo locale Multi-Tenant
+            if (window.TENANT_ID && window.TENANT_ID !== 'default') {
+                const fallbackName = window.TENANT_ID.replace(/-/g, ' ').toUpperCase();
+                document.getElementById('home-title-txt').innerText = fallbackName;
+                document.getElementById('app-window-title').innerText = `${fallbackName} - Ordina Online`;
+            }
+
             // 1. Impostazioni Negozio (White-Label in tempo reale + Giorno Chiusura)
             onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
                 if(docNegozio.exists()) {
@@ -898,6 +936,8 @@
                     if (dn.nome) {
                         document.getElementById('app-window-title').innerText = `${dn.nome} - Ordina Online`;
                         document.getElementById('home-title-txt').innerText = dn.nome;
+                        const privOwner = document.getElementById('privacy-owner-name');
+                        if (privOwner) privOwner.innerText = dn.nome;
                     }
                     if (dn.slogan) document.getElementById('home-slogan-txt').innerText = dn.slogan;
                     if (dn.telefono_ordini) {
@@ -909,6 +949,27 @@
                         document.getElementById('home-logo-img').src = dn.logo_url;
                         document.getElementById('menu-logo-img').src = dn.logo_url;
                     }
+                }
+            });
+
+            // 2. Kill-Switch Licenza SaaS
+            onSnapshot(doc(db, "impostazioni", "licenza"), (docLic) => {
+                let overlayBlock = document.getElementById('app-sospesa-overlay');
+                if (docLic.exists() && docLic.data().attiva === false) {
+                    if (!overlayBlock) {
+                        overlayBlock = document.createElement('div');
+                        overlayBlock.id = 'app-sospesa-overlay';
+                        overlayBlock.style.cssText = 'position:fixed; inset:0; background:#121212; z-index:999999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; padding:30px;';
+                        document.body.appendChild(overlayBlock);
+                    }
+                    overlayBlock.innerHTML = `
+                        <i class="fa-solid fa-store-slash" style="font-size:4em; color:var(--col-gold); margin-bottom:20px;"></i>
+                        <h2 style="color:var(--col-gold); margin:0 0 10px 0;">Ordini Online Non Disponibili</h2>
+                        <p style="color:#aaa; max-width:400px; line-height:1.5;">Il servizio di ordinazione tramite app è temporaneamente sospeso. Vi invitiamo a contattare direttamente il locale.</p>
+                    `;
+                    overlayBlock.style.display = 'flex';
+                } else if (overlayBlock) {
+                    overlayBlock.style.display = 'none';
                 }
             });
 
@@ -945,9 +1006,7 @@
                 snap.forEach(d => SCONTI.push(d.data()));
             });
             
-            const now = new Date();
-            const dataLocale = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-            document.getElementById('data-ritiro').value = dataLocale;
+            document.getElementById('data-ritiro').value = getTodayLocalStr();
             window.aggiornaOrari();
 
             const legContainer = document.getElementById('legenda-container');
@@ -1124,7 +1183,9 @@
             let details = `<b>1/2</b> ${d.h1.name}`; if(d.h1.details.length > 0) details += ` <br>${d.h1.details.join(' ')}`;
             details += `<br><b>1/2</b> ${d.h2.name}`; if(d.h2.details.length > 0) details += ` <br>${d.h2.details.join(' ')}`;
             if(note) details += `<br><b>Note:</b> ${note}`;
-            pushToCart({ nome: "STIRATA BI-GUSTO", prezzo: price, qta: 1, dettagli: details, cat: 'stirata', isPeso: false }); document.getElementById('modal-bigusto').style.display='none';
+            const componentiScorta = [d.h1.id, d.h2.id].filter(Boolean);
+            pushToCart({ nome: "STIRATA BI-GUSTO", prezzo: price, qta: 1, dettagli: details, cat: 'stirata', isPeso: false, componenti: componentiScorta });
+            document.getElementById('modal-bigusto').style.display='none';
         };
 
         function pushToCart(newItem) {
@@ -1161,7 +1222,7 @@
             let totFin = calcolaTotaleConSconto(tot);
             document.getElementById('btn-invia').innerText = `CONFERMA - € ${totFin.toFixed(2)}`; document.getElementById('btn-invia').disabled = carrello.length<=0; 
             if(document.getElementById('data-ritiro').value !== "") window.aggiornaOrari();
-            localStorage.setItem('mimmo_cart', JSON.stringify(carrello));
+            localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(carrello));
         }
 
         window.delItem = (i) => { carrello.splice(i,1); updateCartUI(); };
@@ -1192,7 +1253,7 @@
             const snap = await getDocs(query(collection(db, "ordini"), where("data_ritiro", "==", dateInput))); const slotCounts = {}; 
             snap.forEach(docSnap => { const o = docSnap.data(); if(o.stato !== 'Annullato' && o.prodotti) { let pizzeCount = 0; o.prodotti.forEach(p => { if(['pizza', 'stirata', 'gf', 'speciale'].includes(p.cat)) pizzeCount += parseFloat(p.qta || 0); }); if(o.orario) slotCounts[o.orario] = (slotCounts[o.orario] || 0) + pizzeCount; } });
             let myCartPizzas = 0; carrello.forEach(p => { if(['pizza', 'stirata', 'gf', 'speciale'].includes(p.cat)) myCartPizzas += parseFloat(p.qta || 0); });
-            sel.innerHTML="<option value=''>Orario...</option>"; const now = new Date(); const isToday = (dateInput === now.toISOString().split('T')[0]);
+            sel.innerHTML="<option value=''>Orario...</option>"; const now = new Date(); const isToday = (dateInput === getTodayLocalStr());
             for(let h=19;h<23;h++) {
                 for(let m=0;m<60;m+=15) {
                     if(isToday && (h < now.getHours() || (h === now.getHours() && m < now.getMinutes()))) continue; 
@@ -1217,7 +1278,6 @@
             if(!priv) return Swal.fire("Attenzione", "Devi accettare la Privacy Policy per continuare.", "warning");
             if(carrello.length === 0) return Swal.fire("Attenzione", "Il carrello è vuoto!", "warning");
 
-            // Se l'utente non aveva ancora effettuato l'accesso in alto, salviamo la sua sessione automaticamente
             if (!currentUserData || !currentUserData.telefono) {
                 impostaUtenteLoggato({ nome, cognome, telefono: tel });
             }
@@ -1235,7 +1295,7 @@
         };
 
         window.inviaOrdineEffettivo = async () => {
-            const lastTime = localStorage.getItem('mimmo_last_order'); if (lastTime) { const diff = Date.now() - parseInt(lastTime); if (diff < 60000) { return Swal.fire("Attendi...", `Hai appena inviato un ordine! Attendi qualche secondo.`, "info"); } }
+            const lastTime = localStorage.getItem(LAST_ORDER_STORAGE_KEY); if (lastTime) { const diff = Date.now() - parseInt(lastTime); if (diff < 60000) { return Swal.fire("Attendi...", `Hai appena inviato un ordine! Attendi qualche secondo.`, "info"); } }
             const btn = document.getElementById('btn-invia'); const nome = document.getElementById('nome').value.trim(); const cognome = document.getElementById('cognome').value.trim(); const tel = document.getElementById('telefono').value.trim(); const ora = document.getElementById('orario').value; 
             
             let totBase = 0;
@@ -1264,18 +1324,31 @@
                     user_agent: navigator.userAgent
                 });
 
-                // Scala Scorte Zero-Click e aggiorna CRM Cliente
+                // Scala Scorte Zero-Click (inclusa Stirata Bi-Gusto) e aggiorna CRM Cliente
                 try {
                     const batch = writeBatch(db);
                     carrello.forEach(item => {
-                        const prodOrig = MENU.find(m => m.nome === item.nome);
-                        if (prodOrig && prodOrig.scorta !== null && prodOrig.scorta !== undefined && prodOrig.scorta !== "") {
-                            const nuovaScorta = Math.max(0, parseFloat(prodOrig.scorta) - parseFloat(item.qta || 1));
-                            batch.update(doc(db, "prodotti", prodOrig.id), {
-                                scorta: nuovaScorta,
-                                attivo: nuovaScorta > 0
+                        let itemsToScale = [];
+                        if (item.componenti && item.componenti.length > 0) {
+                            item.componenti.forEach(cId => {
+                                const m = MENU.find(x => x.id === cId);
+                                if (m) itemsToScale.push({ prod: m, factor: 0.5 });
                             });
+                        } else {
+                            const prodOrig = MENU.find(m => m.nome === item.nome);
+                            if (prodOrig) itemsToScale.push({ prod: prodOrig, factor: 1 });
                         }
+
+                        itemsToScale.forEach(({ prod, factor }) => {
+                            if (prod.scorta !== null && prod.scorta !== undefined && prod.scorta !== "") {
+                                const qtaDaScalare = (parseFloat(item.qta) || 1) * factor;
+                                const nuovaScorta = Math.max(0, parseFloat(prod.scorta) - qtaDaScalare);
+                                batch.update(doc(db, "prodotti", prod.id), {
+                                    scorta: nuovaScorta,
+                                    attivo: nuovaScorta > 0
+                                });
+                            }
+                        });
                     });
                     if (tel) {
                         batch.set(doc(db, "clienti", tel), {
@@ -1292,8 +1365,8 @@
                     console.warn("Aggiornamento scorte/CRM:", errBatch);
                 }
 
-                localStorage.setItem('mimmo_last_order', Date.now());
-                localStorage.removeItem('mimmo_cart');
+                localStorage.setItem(LAST_ORDER_STORAGE_KEY, Date.now());
+                localStorage.removeItem(CART_STORAGE_KEY);
                 Swal.fire({title: "Ordine Inviato!", text: "Il tuo ordine è stato ricevuto.", icon: "success"}).then(() => { location.reload(); });
             } catch(e) {
                 Swal.fire("Errore di Rete", "Non è stato possibile inviare l'ordine: " + e.message, "error");

@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title id="page-title">Mappa Sale PRO</title>
+    <link rel="icon" href="data:,">
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --bg-dark: #0b1120;
+            --panel-bg: #1e293b;
+            --border-col: #334155;
+            --primary: #3b82f6;
+            --free: #10b981;
+            --occupied: #ef4444;
+            --reserved: #f59e0b;
+            --paying: #a855f7;
+            --ready: #00e676;
+            --gold: #fbbf24;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark); color: #f8fafc;
+            height: 100vh; height: 100dvh; width: 100vw; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* TOP BAR COMPATTA */
+        .top-bar {
+            background: #090d16; border-bottom: 1px solid var(--border-col);
+            padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;
+            gap: 8px; z-index: 100; flex-shrink: 0;
+        }
+        .brand-box { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .btn-back {
+            background: #1e293b; color: #fff; border: 1px solid #334155;
+            padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 800;
+            display: flex; align-items: center; gap: 6px; font-size: 0.85em; white-space: nowrap;
+        }
+        .brand-title {
+            font-weight: 900; font-size: 1em; color: var(--gold);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .top-actions { display: flex; align-items: center; gap: 6px; }
+        .date-box {
+            display: flex; align-items: center; gap: 4px; background: #1e293b;
+            padding: 6px 8px; border-radius: 8px; border: 1px solid #334155;
+        }
+        .date-box input {
+            background: transparent; border: none; color: #fff;
+            font-weight: bold; font-size: 0.82em; outline: none; width: 105px;
+        }
+
+        .mode-switch-btn {
+            background: #334155; color: #fff; border: 1px solid #475569;
+            padding: 8px 12px; border-radius: 8px; font-weight: 800; cursor: pointer;
+            display: flex; align-items: center; gap: 6px; font-size: 0.82em; white-space: nowrap;
+        }
+        .mode-switch-btn.editor-active {
+            background: #f59e0b; color: #000; border-color: #fbbf24;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+        }
+
+        /* BARRA SALE SCORREVOLE */
+        .rooms-bar {
+            background: #131c2e; padding: 6px 12px; border-bottom: 1px solid var(--border-col);
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 8px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0;
+        }
+        .rooms-bar::-webkit-scrollbar { display: none; }
+        .rooms-tabs { display: flex; gap: 6px; align-items: center; }
+        .room-tab {
+            background: #0f172a; color: #94a3b8; border: 1px solid #334155;
+            padding: 6px 14px; border-radius: 18px; font-weight: 700; font-size: 0.82em;
+            cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px;
+        }
+        .room-tab.active {
+            background: var(--primary); color: #fff; border-color: #60a5fa;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+        }
+        .room-admin-btns { display: none; gap: 5px; align-items: center; }
+        .btn-room-sm {
+            background: #334155; color: #fff; border: none; padding: 6px 10px;
+            border-radius: 6px; font-weight: 700; font-size: 0.78em; cursor: pointer; white-space: nowrap;
+        }
+
+        /* WORKSPACE PRINCIPALE */
+        .workspace { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+        /* CONTENITORE MAPPA SCORREVOLE E ZOOMABILE */
+        .floor-Wrapper {
+            flex: 1; position: relative; overflow: auto;
+            background: #080d1a;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px;
+        }
+        .canvas-scaler {
+            position: relative;
+            margin: 0 auto;
+            transform-origin: top left;
+        }
+        .floor-canvas {
+            position: absolute; top: 0; left: 0;
+            width: 1200px; height: 800px;
+            background-color: #131c2e;
+            border: 3px solid #2dd4bf44;
+            border-radius: 16px;
+            box-shadow: inset 0 0 60px rgba(0,0,0,0.6), 0 8px 25px rgba(0,0,0,0.5);
+            overflow: hidden;
+            transform-origin: top left;
+        }
+        .floor-canvas.editor-grid {
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            border: 3px dashed #f59e0b;
+        }
+
+        /* BADGE MISURE SALA E MANIGLIA RIDIMENSIONAMENTO PERIMETRO */
+        .room-size-badge {
+            position: absolute; top: 8px; right: 12px; z-index: 30;
+            background: rgba(15, 23, 42, 0.85); color: #fbbf24;
+            border: 1px solid #f59e0b; padding: 4px 10px; border-radius: 8px;
+            font-size: 0.78em; font-weight: 800; pointer-events: none;
+            display: none;
+        }
+        .floor-canvas.editor-grid .room-size-badge { display: block; }
+
+        .room-resize-handle {
+            position: absolute; right: 0; bottom: 0; z-index: 40;
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, transparent 40%, #f59e0b 40%);
+            border-radius: 0 0 12px 0;
+            cursor: nwse-resize; touch-action: none;
+            display: none; align-items: flex-end; justify-content: flex-end;
+            padding: 4px; color: #000; font-size: 0.9em; font-weight: 900;
+        }
+        .floor-canvas.editor-grid .room-resize-handle { display: flex; }
+
+        /* CONTROLLI ZOOM FLOTTANTI */
+        .zoom-controls {
+            position: fixed; right: 14px; bottom: 52px; z-index: 80;
+            display: flex; flex-direction: column; gap: 6px;
+            background: rgba(15, 23, 42, 0.9); padding: 6px;
+            border-radius: 12px; border: 1px solid #334155;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .btn-zoom {
+            width: 38px; height: 38px; border-radius: 8px; border: 1px solid #475569;
+            background: #1e293b; color: #fff; font-size: 1em; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-zoom:active { background: var(--primary); }
+
+        /* ELEMENTI STRUTTURALI (BANCONE, MURO, INGRESSO, FORNO, CASSA) */
+        .map-fixture-el {
+            position: absolute; z-index: 1;
+            display: flex; align-items: center; justify-content: center;
+            text-align: center; font-weight: 900; letter-spacing: 1px;
+            font-size: 0.78em; color: #fff; overflow: hidden;
+            pointer-events: none;
+        }
+        .floor-canvas.editor-grid .map-fixture-el {
+            pointer-events: auto;
+            cursor: move;
+            touch-action: none;
+        }
+        .map-fixture-el.selected-edit {
+            outline: 3px solid var(--gold) !important;
+            box-shadow: 0 0 22px rgba(251, 191, 36, 0.75) !important;
+            z-index: 15;
+        }
+
+        .fixture-bancone {
+            background: repeating-linear-gradient(45deg, #78350f, #78350f 12px, #92400e 12px, #92400e 24px);
+            border: 3px solid #f59e0b; border-radius: 10px;
+            color: #fef3c7; text-shadow: 0 2px 4px #000;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.6);
+        }
+        .fixture-muro {
+            background: repeating-linear-gradient(-45deg, #334155, #334155 8px, #475569 8px, #475569 16px);
+            border: 2px solid #94a3b8; border-radius: 4px;
+            color: #cbd5e1; font-size: 0.68em;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .fixture-ingresso {
+            background: rgba(6, 182, 212, 0.18);
+            border: 2px dashed #22d3ee; border-radius: 8px;
+            color: #67e8f9; text-shadow: 0 1px 3px #000;
+        }
+        .fixture-forno {
+            background: linear-gradient(135deg, #7c2d12, #c2410c);
+            border: 3px solid #fb923c; border-radius: 12px;
+            color: #ffedd5; text-shadow: 0 2px 4px #000;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.6);
+        }
+        .fixture-cassa {
+            background: linear-gradient(135deg, #312e81, #4338ca);
+            border: 2px solid #818cf8; border-radius: 10px;
+            color: #e0e7ff; text-shadow: 0 2px 4px #000;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.6);
+        }
+
+        /* TAVOLO SULLA MAPPA */
+        .map-table-wrapper {
+            position: absolute; z-index: 5;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        .floor-canvas.editor-grid .map-table-wrapper {
+            touch-action: none;
+        }
+        .map-table-wrapper.selected-edit .table-surface {
+            outline: 4px solid var(--gold) !important;
+            box-shadow: 0 0 25px rgba(251, 191, 36, 0.7) !important;
+        }
+
+        .table-surface {
+            position: relative; z-index: 2;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: linear-gradient(145deg, #065f46, #047857);
+            border: 3px solid var(--free);
+            color: #fff; text-align: center; padding: 4px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.55);
+        }
+        .table-surface.shape-rotondo { border-radius: 50%; }
+        .table-surface.shape-quadrato { border-radius: 14px; }
+        .table-surface.shape-rettangolare { border-radius: 14px; }
+
+        .state-occupied .table-surface { background: linear-gradient(145deg, #7f1d1d, #991b1b); border-color: var(--occupied); }
+        .state-reserved .table-surface { background: linear-gradient(145deg, #78350f, #b45309); border-color: var(--reserved); }
+        .state-paying .table-surface { background: linear-gradient(145deg, #4c1d95, #6d28d9); border-color: var(--paying); animation: pulse-border 1.5s infinite; }
+        .state-ready .table-surface { background: linear-gradient(145deg, #064e3b, #059669); border-color: var(--ready); box-shadow: 0 0 20px var(--ready); }
+
+        @keyframes pulse-border { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+        .t-label-num { font-weight: 900; font-size: 1.3em; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .t-label-client {
+            font-size: 0.75em; font-weight: 800; color: #fde047;
+            max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px;
+        }
+        .t-label-meta { font-size: 0.68em; color: #e2e8f0; font-weight: 700; margin-top: 1px; }
+
+        .chair-dot {
+            position: absolute; z-index: 1;
+            width: 18px; height: 18px;
+            background: #334155; border: 2px solid #94a3b8; border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .state-free .chair-dot { border-color: #34d399; background: #064e3b; }
+        .state-occupied .chair-dot { border-color: #f87171; background: #450a0a; }
+        .state-reserved .chair-dot { border-color: #fbbf24; background: #451a03; }
+
+        /* SIDEBAR EDITOR (DIVENTA CASSETTO BOTTOM-SHEET SU SMARTPHONE) */
+        .editor-sidebar {
+            width: 340px; background: var(--panel-bg); border-left: 2px solid var(--border-col);
+            padding: 14px; display: none; flex-direction: column; gap: 10px; overflow-y: auto; z-index: 90;
+        }
+        .editor-sidebar.open { display: flex; }
+
+        .drawer-handle {
+            display: none; text-align: center; padding: 4px 0 8px 0; cursor: pointer;
+            border-bottom: 1px solid #334155; margin-bottom: 4px;
+        }
+        .drawer-pill { width: 42px; height: 5px; background: #64748b; border-radius: 5px; margin: 0 auto 4px auto; }
+
+        .panel-box { background: #0f172a; border: 1px solid var(--border-col); padding: 12px; border-radius: 10px; }
+        .panel-title { font-size: 0.78em; font-weight: 800; color: var(--gold); text-transform: uppercase; margin: 0 0 8px 0; }
+        .shape-btns-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .struct-btns-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 6px; }
+        .btn-add-shape {
+            background: #1e293b; color: #fff; border: 1px solid #475569;
+            padding: 8px 4px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.74em;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        .btn-add-shape:active { border-color: var(--gold); background: #334155; }
+
+        .ctrl-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+        .ctrl-label { font-size: 0.8em; color: #94a3b8; font-weight: 700; }
+        .ctrl-input {
+            background: #1e293b; border: 1px solid #475569; color: #fff;
+            padding: 6px 8px; border-radius: 6px; font-weight: 800; font-size: 0.92em; width: 120px; text-align: center;
+        }
+        .qty-stepper { display: flex; align-items: center; gap: 6px; }
+        .btn-step {
+            width: 34px; height: 34px; border-radius: 8px; border: 1px solid #475569;
+            background: #1e293b; color: #fff; font-weight: 900; font-size: 1.1em; cursor: pointer;
+        }
+
+        /* LEGENDA COMPATTA IN BASSO */
+        .legend-bar {
+            background: #090d16; border-top: 1px solid var(--border-col);
+            padding: 6px 12px; display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.75em; color: #94a3b8; flex-wrap: wrap; gap: 6px; flex-shrink: 0;
+        }
+        .legend-items { display: flex; gap: 10px; align-items: center; overflow-x: auto; white-space: nowrap; }
+        .leg-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+        /* OTTIMIZZAZIONE RESPONSIVE SMARTPHONE */
+        @media (max-width: 768px) {
+            .brand-title span { display: none; }
+            .mode-switch-btn span { display: none; }
+            .mode-switch-btn::after { content: 'EDITOR'; }
+            .mode-switch-btn.editor-active::after { content: 'FINE'; }
+
+            .workspace { flex-direction: column; }
+            .editor-sidebar {
+                position: fixed; left: 0; right: 0; bottom: 0;
+                width: 100%; max-height: 58dvh;
+                border-left: none; border-top: 2px solid var(--gold);
+                border-radius: 18px 18px 0 0;
+                box-shadow: 0 -10px 30px rgba(0,0,0,0.85);
+                padding: 8px 12px 14px 12px;
+                transition: max-height 0.25s ease;
+            }
+            .editor-sidebar.minimized { max-height: 46px; overflow: hidden; }
+            .drawer-handle { display: block; }
+            .zoom-controls { bottom: 45px; right: 10px; }
+            .editor-sidebar.open ~ .zoom-controls { bottom: 60dvh; }
+        }
+    </style>
+</head>
+<body>
+
+   <!-- BARRA SUPERIORE -->
+    <div class="top-bar">
+        <div class="brand-box">
+            <button class="btn-back" onclick="window.tornaIndietroIntelligente()" style="display:flex; align-items:center; gap:6px;">
+                <i class="fa fa-arrow-left"></i> <span id="btn-back-text">Indietro</span>
+            </button>
+            <span class="brand-title" id="header-locale-name"><i class="fa-solid fa-map-location-dot"></i> MAPPA SALE</span>
+        </div>
+
+        <div class="top-actions">
+            <div class="date-box">
+                <input type="date" id="map-date-picker" onchange="window.cambiaDataMappa(this.value)">
+            </div>
+            <button id="btn-toggle-editor" class="mode-switch-btn" onclick="window.toggleEditorMode()">
+                <i class="fa-solid fa-compass-drafting"></i> <span>DISEGNA SALA</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- BARRA SELEZIONE SALE (TABS) -->
+    <div class="rooms-bar">
+        <div class="rooms-tabs" id="rooms-tabs-container"></div>
+        <div class="room-admin-btns" id="room-admin-controls">
+            <button class="btn-room-sm" style="background:#2563eb;" onclick="window.creaNuovaSala()"><i class="fa fa-plus"></i> Sala</button>
+            <button class="btn-room-sm" onclick="window.rinominaSalaCorrente()"><i class="fa fa-pen"></i></button>
+            <button class="btn-room-sm" style="background:#dc2626;" onclick="window.eliminaSalaCorrente()"><i class="fa fa-trash"></i></button>
+        </div>
+    </div>
+
+    <!-- AREA CENTRALE -->
+    <div class="workspace">
+        <div class="floor-Wrapper" id="floor-wrapper">
+            <div id="canvas-scaler" class="canvas-scaler">
+                <div id="floor-canvas" class="floor-canvas"></div>
+            </div>
+        </div>
+
+        <!-- PULSANTI ZOOM FLOTTANTI -->
+        <div class="zoom-controls">
+            <button class="btn-zoom" onclick="window.cambiaZoom(0.12)" title="Ingrandisci"><i class="fa fa-plus"></i></button>
+            <button class="btn-zoom" onclick="window.adattaMappaAlloSchermo()" title="Adatta allo schermo" style="font-size:0.75em; color:var(--gold);">FIT</button>
+            <button class="btn-zoom" onclick="window.cambiaZoom(-0.12)" title="Rimpicciolisci"><i class="fa fa-minus"></i></button>
+        </div>
+
+        <!-- SIDEBAR / BOTTOM-SHEET EDITOR -->
+        <div id="editor-sidebar" class="editor-sidebar">
+            <div class="drawer-handle" onclick="window.toggleMinimizeDrawer()">
+                <div class="drawer-pill"></div>
+                <span style="font-size:0.72em; color:#94a3b8; font-weight:bold;">Tocca qui per abbassare / alzare il pannello</span>
+            </div>
+
+            <!-- BOX AGGIUNTA TAVOLI E STRUTTURA -->
+            <div class="panel-box">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <h4 class="panel-title" style="margin:0;"><i class="fa fa-plus-circle"></i> Aggiungi Tavoli & Struttura</h4>
+                    <button onclick="window.salvaPlanimetriaSuFirebase()" style="background:#10b981; color:#000; border:none; padding:6px 12px; border-radius:6px; font-weight:900; font-size:0.8em; cursor:pointer;">
+                        <i class="fa fa-floppy-disk"></i> SALVA MAPPA
+                    </button>
+                </div>
+
+                <!-- TAVOLI -->
+                <div class="shape-btns-grid">
+                    <button class="btn-add-shape" onclick="window.aggiungiTavoloMappa('rotondo')">
+                        <i class="fa-regular fa-circle" style="font-size:1.4em; color:#38bdf8;"></i> Rotondo
+                    </button>
+                    <button class="btn-add-shape" onclick="window.aggiungiTavoloMappa('quadrato')">
+                        <i class="fa-regular fa-square" style="font-size:1.4em; color:#4ade80;"></i> Quadrato
+                    </button>
+                    <button class="btn-add-shape" onclick="window.aggiungiTavoloMappa('rettangolare')">
+                        <i class="fa-solid fa-vector-square" style="font-size:1.4em; color:#f472b6;"></i> Rettang.
+                    </button>
+                </div>
+
+                <!-- ELEMENTI STRUTTURALI (BANCONE, MURO, INGRESSO, FORNO, CASSA) -->
+                <div class="struct-btns-grid">
+                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('bancone')">
+                        <i class="fa-solid fa-martini-glass-citrus" style="font-size:1.2em; color:#f59e0b;"></i> Bancone
+                    </button>
+                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('muro')">
+                        <i class="fa-solid fa-grip-lines" style="font-size:1.2em; color:#94a3b8;"></i> Muro
+                    </button>
+                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('ingresso')">
+                        <i class="fa-solid fa-door-open" style="font-size:1.2em; color:#22d3ee;"></i> Ingresso
+                    </button>
+                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('forno')">
+                        <i class="fa-solid fa-fire-burner" style="font-size:1.2em; color:#fb923c;"></i> Forno
+                    </button>
+                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('cassa')">
+                        <i class="fa-solid fa-cash-register" style="font-size:1.2em; color:#818cf8;"></i> Cassa
+                    </button>
+                </div>
+            </div>
+
+            <!-- BOX REGOLAZIONE PERIMETRO SALA CORRENTE -->
+            <div class="panel-box">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <h4 class="panel-title" style="margin:0;"><i class="fa fa-expand"></i> Perimetro Sala Corrente</h4>
+                    <button onclick="window.espandiRapidoPerimetro()" style="background:#334155; color:#fbbf24; border:1px solid #f59e0b; padding:3px 8px; border-radius:6px; font-size:0.72em; font-weight:bold; cursor:pointer;">
+                        +200px Spazio
+                    </button>
+                </div>
+
+                <div style="margin-bottom:6px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.76em; color:#94a3b8; font-weight:bold;">
+                        <span>↔️ Larghezza Sala</span>
+                        <span id="lbl-room-w">1200 px</span>
+                    </div>
+                    <input type="range" id="inp-room-w" min="600" max="3000" step="50" value="1200" style="width:100%; accent-color:#10b981; cursor:pointer;" oninput="window.modificaPerimetroSala('w', this.value)">
+                </div>
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.76em; color:#94a3b8; font-weight:bold;">
+                        <span>↕️ Altezza Sala</span>
+                        <span id="lbl-room-h">800 px</span>
+                    </div>
+                    <input type="range" id="inp-room-h" min="500" max="2500" step="50" value="800" style="width:100%; accent-color:#10b981; cursor:pointer;" oninput="window.modificaPerimetroSala('h', this.value)">
+                </div>
+                <small style="color:#64748b; font-size:0.7em; display:block; margin-top:2px;">Puoi anche trascinare l'angolo giallo ↘️ in basso a destra sulla mappa.</small>
+            </div>
+
+            <!-- 1. PROPRIETÀ DEL TAVOLO SELEZIONATO -->
+            <div id="selected-table-panel" class="panel-box" style="display:none;">
+                <h4 class="panel-title"><i class="fa fa-chair"></i> Modifica Tavolo Selezionato</h4>
+
+                <div class="ctrl-row">
+                    <span class="ctrl-label">Numero / Nome:</span>
+                    <input type="text" id="inp-t-num" class="ctrl-input" oninput="window.aggiornaPropTavolo('numero', this.value)">
+                </div>
+
+                <div class="ctrl-row">
+                    <span class="ctrl-label">Forma:</span>
+                    <select id="inp-t-shape" class="ctrl-input" style="width:130px;" onchange="window.aggiornaPropTavolo('forma', this.value)">
+                        <option value="rotondo">⚪ Rotondo</option>
+                        <option value="quadrato">🟩 Quadrato</option>
+                        <option value="rettangolare">▭ Rettangolare</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-row">
+                    <span class="ctrl-label">Sedie (Posti):</span>
+                    <div class="qty-stepper">
+                        <button class="btn-step" onclick="window.cambiaSedieTavolo(-1)">-</button>
+                        <span id="lbl-t-chairs" style="font-size:1.2em; font-weight:900; min-width:26px; text-align:center;">4</span>
+                        <button class="btn-step" onclick="window.cambiaSedieTavolo(1)">+</button>
+                    </div>
+                </div>
+
+                <div style="margin-top:8px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.78em; color:#94a3b8; font-weight:bold; margin-bottom:2px;">
+                        <span>📏 Grandezza (+ Sedie auto)</span>
+                        <span id="lbl-t-scale">100%</span>
+                    </div>
+                    <input type="range" id="inp-t-scale" min="70" max="220" step="10" value="100" style="width:100%; accent-color:var(--gold); cursor:pointer;" oninput="window.ridimensionaTavoloConSedie(this.value)">
+                </div>
+
+                <div style="display:flex; gap:6px; margin-top:10px;">
+                    <button onclick="window.ruotaSelezionato()" style="flex:1; background:#334155; color:#fff; border:none; padding:9px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                        <i class="fa fa-rotate-right"></i> Ruota 90°
+                    </button>
+                    <button onclick="window.duplicaSelezionato()" style="flex:1; background:#0284c7; color:#fff; border:none; padding:9px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                        <i class="fa fa-copy"></i> Duplica
+                    </button>
+                    <button onclick="window.eliminaSelezionato()" style="background:#dc2626; color:#fff; border:none; padding:9px 12px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. PROPRIETÀ DELL'ELEMENTO STRUTTURALE SELEZIONATO (BANCONE, MURO, INGRESSO) -->
+            <div id="selected-fixture-panel" class="panel-box" style="display:none;">
+                <h4 class="panel-title"><i class="fa fa-ruler-combined"></i> Modifica Struttura / Muro</h4>
+
+                <div class="ctrl-row">
+                    <span class="ctrl-label">Scritta (Opz.):</span>
+                    <input type="text" id="inp-f-label" class="ctrl-input" style="width:155px;" placeholder="Es. BANCONE, INGRESSO" oninput="window.aggiornaPropStruttura('label', this.value)">
+                </div>
+
+                <div style="margin-top:6px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.78em; color:#94a3b8; font-weight:bold;">
+                        <span>↔️ Lunghezza / Larghezza</span>
+                        <span id="lbl-f-w">180 px</span>
+                    </div>
+                    <input type="range" id="inp-f-w" min="16" max="1200" step="10" value="180" style="width:100%; accent-color:#38bdf8; cursor:pointer;" oninput="window.aggiornaPropStruttura('w', this.value)">
+                </div>
+
+                <div style="margin-top:6px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.78em; color:#94a3b8; font-weight:bold;">
+                        <span>↕️ Altezza / Spessore</span>
+                        <span id="lbl-f-h">50 px</span>
+                    </div>
+                    <input type="range" id="inp-f-h" min="14" max="900" step="6" value="50" style="width:100%; accent-color:#38bdf8; cursor:pointer;" oninput="window.aggiornaPropStruttura('h', this.value)">
+                </div>
+
+                <div style="display:flex; gap:6px; margin-top:10px;">
+                    <button onclick="window.ruotaSelezionato()" style="flex:1; background:#334155; color:#fff; border:none; padding:9px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                        <i class="fa fa-rotate-right"></i> Ruota 90°
+                    </button>
+                    <button onclick="window.duplicaSelezionato()" style="flex:1; background:#0284c7; color:#fff; border:none; padding:9px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                        <i class="fa fa-copy"></i> Duplica
+                    </button>
+                    <button onclick="window.eliminaSelezionato()" style="background:#dc2626; color:#fff; border:none; padding:9px 12px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LEGENDA IN BASSO -->
+    <div class="legend-bar">
+        <div class="legend-items">
+            <span><span class="leg-dot" style="background:var(--free);"></span>Libero</span>
+            <span><span class="leg-dot" style="background:var(--occupied);"></span>Occupato</span>
+            <span><span class="leg-dot" style="background:var(--reserved);"></span>Prenotato</span>
+            <span><span class="leg-dot" style="background:var(--ready);"></span>Pronto</span>
+        </div>
+        <div id="live-room-summary" style="font-weight:bold; color:#e2e8f0;"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection as _collection, doc as _doc, onSnapshot, setDoc, addDoc, updateDoc, query, where, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
+            authDomain: "gestionale-ristoranti-96c5b.firebaseapp.com",
+            projectId: "gestionale-ristoranti-96c5b",
+            storageBucket: "gestionale-ristoranti-96c5b.firebasestorage.app",
+            messagingSenderId: "234695436534",
+            appId: "1:234695436534:web:2d4cfc9ddbc1f1de9824d7"
+        };
+
+        const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- ROUTER MULTI-TENANT AUTOMATICO ---
+        const _tenantUrlParams = new URLSearchParams(window.location.search);
+        if (_tenantUrlParams.has('locale')) {
+            window.TENANT_ID = _tenantUrlParams.get('locale') || 'default';
+            localStorage.setItem('saas_tenant_id', window.TENANT_ID);
+        } else {
+            window.TENANT_ID = window.TENANT_ID || localStorage.getItem('saas_tenant_id') || 'default';
+        }
+
+        const collection = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _collection(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _collection(database, ...pathSegments);
+        };
+
+        const doc = (database, ...pathSegments) => {
+            if (window.TENANT_ID && window.TENANT_ID !== 'default' && pathSegments[0] !== 'ristoranti' && pathSegments[0] !== 'saas_clienti') {
+                return _doc(database, 'ristoranti', window.TENANT_ID, ...pathSegments);
+            }
+            return _doc(database, ...pathSegments);
+        };
+
+        signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {});
+
+        let currentZoom = 1;
+        let isEditorMode = false;
+        let selectedItemId = null;
+        let selectedItemCategory = null; // 'table' oppure 'fixture'
+        let currentRoomId = 'sala_grande';
+        let ordiniGiornoMap = {};
+        let unsubOrdini = null;
+        let prezzoCopertoLocale = 2.50;
+
+        let LAYOUT_DATA = {
+            sale: [
+                { id: 'sala_grande', nome: 'Sala Grande', w: 1200, h: 800 },
+                { id: 'saletta', nome: 'Saletta', w: 1000, h: 700 },
+                { id: 'veranda', nome: 'Veranda', w: 1200, h: 800 }
+            ],
+            tavoli: [
+                { id: 't1', numero: '1', sala: 'sala_grande', forma: 'quadrato', sedie: 4, scale: 100, rot: 0, x: 70, y: 110 },
+                { id: 't2', numero: '2', sala: 'sala_grande', forma: 'quadrato', sedie: 4, scale: 100, rot: 0, x: 260, y: 110 },
+                { id: 't3', numero: '3', sala: 'sala_grande', forma: 'rotondo', sedie: 6, scale: 110, rot: 0, x: 470, y: 110 },
+                { id: 't4', numero: '4', sala: 'sala_grande', forma: 'rettangolare', sedie: 8, scale: 120, rot: 0, x: 90, y: 310 },
+                { id: 't5', numero: '5', sala: 'sala_grande', forma: 'rotondo', sedie: 4, scale: 100, rot: 0, x: 450, y: 320 }
+            ],
+            elementi: [
+                { id: 'el_ing', tipo: 'ingresso', sala: 'sala_grande', label: '🚪 INGRESSO', w: 120, h: 30, x: 60, y: 15 },
+                { id: 'el_ban', tipo: 'bancone', sala: 'sala_grande', label: '🍺 BANCONE BAR', w: 240, h: 65, x: 690, y: 40 },
+                { id: 'el_cas', tipo: 'cassa', sala: 'sala_grande', label: '🖥️ CASSA', w: 100, h: 60, x: 830, y: 130 }
+            ]
+        };
+
+        // --- DIMENSIONI DINAMICHE DELLA SALA ATTIVA ---
+        function getSalaCorrenteObj() {
+            let s = (LAYOUT_DATA.sale || []).find(x => x.id === currentRoomId);
+            if (!s && LAYOUT_DATA.sale && LAYOUT_DATA.sale.length > 0) s = LAYOUT_DATA.sale[0];
+            return s || { id: 'default', nome: 'Sala', w: 1200, h: 800 };
+        }
+
+        function getRoomW() {
+            return Math.max(600, Math.min(3000, parseInt(getSalaCorrenteObj().w) || 1200));
+        }
+
+        function getRoomH() {
+            return Math.max(500, Math.min(2500, parseInt(getSalaCorrenteObj().h) || 800));
+        }
+
+        function aggiornaControlliPerimetroUI() {
+            const w = getRoomW();
+            const h = getRoomH();
+            const inpW = document.getElementById('inp-room-w');
+            const inpH = document.getElementById('inp-room-h');
+            const lblW = document.getElementById('lbl-room-w');
+            const lblH = document.getElementById('lbl-room-h');
+            if (inpW) inpW.value = w;
+            if (inpH) inpH.value = h;
+            if (lblW) lblW.innerText = `${w} px`;
+            if (lblH) lblH.innerText = `${h} px`;
+
+            const badge = document.getElementById('room-size-badge-el');
+            if (badge) badge.innerText = `📐 ${w} × ${h} px`;
+        }
+
+        window.modificaPerimetroSala = (dim, valore) => {
+            const sala = getSalaCorrenteObj();
+            const v = parseInt(valore) || 1000;
+            if (dim === 'w') sala.w = Math.max(600, Math.min(3000, v));
+            if (dim === 'h') sala.h = Math.max(500, Math.min(2500, v));
+            aggiornaControlliPerimetroUI();
+            applicaZoom(currentZoom);
+        };
+
+        window.espandiRapidoPerimetro = () => {
+            const sala = getSalaCorrenteObj();
+            sala.w = Math.min(3000, getRoomW() + 200);
+            sala.h = Math.min(2500, getRoomH() + 200);
+            aggiornaControlliPerimetroUI();
+            applicaZoom(currentZoom);
+        };
+
+        function getTodayLocal() {
+            const d = new Date();
+            return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        }
+
+        window.tornaAlPalmare = () => {
+            window.location.href = `sala.html?locale=${window.TENANT_ID}`;
+        };
+
+        window.toggleMinimizeDrawer = () => {
+            document.getElementById('editor-sidebar').classList.toggle('minimized');
+        };
+
+        // --- GESTIONE ZOOM E AUTO-FIT BASATO SUL PERIMETRO DELLA SALA ---
+        function applicaZoom(z) {
+            currentZoom = Math.max(0.22, Math.min(1.5, z));
+            const roomW = getRoomW();
+            const roomH = getRoomH();
+            const canvas = document.getElementById('floor-canvas');
+            const scaler = document.getElementById('canvas-scaler');
+            canvas.style.width = `${roomW}px`;
+            canvas.style.height = `${roomH}px`;
+            canvas.style.transform = `scale(${currentZoom})`;
+            scaler.style.width = `${Math.round(roomW * currentZoom)}px`;
+            scaler.style.height = `${Math.round(roomH * currentZoom)}px`;
+        }
+
+        window.cambiaZoom = (delta) => {
+            applicaZoom(currentZoom + delta);
+        };
+
+        window.adattaMappaAlloSchermo = () => {
+            const wrapper = document.getElementById('floor-wrapper');
+            if (!wrapper) return;
+            const availW = wrapper.clientWidth - 28;
+            const availH = wrapper.clientHeight - 28;
+
+            const roomW = getRoomW();
+            const roomH = getRoomH();
+
+            const scaleX = availW / roomW;
+            const scaleY = availH / roomH;
+            const bestScale = Math.min(scaleX, scaleY, 1);
+            applicaZoom(bestScale);
+        };
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth <= 768) window.adattaMappaAlloSchermo();
+        });
+
+        async function initMappa() {
+            const today = getTodayLocal();
+            document.getElementById('map-date-picker').value = today;
+
+            onSnapshot(doc(db, "impostazioni", "negozio"), (snap) => {
+                if (snap.exists()) {
+                    const d = snap.data();
+                    if (d.nome) {
+                        document.getElementById('header-locale-name').innerHTML = `<i class="fa-solid fa-map-location-dot"></i> <span>${d.nome.toUpperCase()}</span>`;
+                        document.title = `Mappa - ${d.nome}`;
+                    }
+                    if (d.prezzo_coperto !== undefined) prezzoCopertoLocale = parseFloat(d.prezzo_coperto) || 2.50;
+                }
+            });
+
+            let firstMapRender = true;
+            onSnapshot(doc(db, "impostazioni", "mappa_sala"), (snap) => {
+                if (snap.exists() && snap.data().sale && snap.data().tavoli) {
+                    if (!isEditorMode) {
+                        const raw = snap.data();
+                        LAYOUT_DATA = {
+                            sale: (raw.sale || []).map(s => ({ ...s, w: s.w || 1200, h: s.h || 800 })),
+                            tavoli: raw.tavoli || [],
+                            elementi: Array.isArray(raw.elementi) ? raw.elementi : []
+                        };
+                        if (!LAYOUT_DATA.sale.some(s => s.id === currentRoomId) && LAYOUT_DATA.sale.length > 0) {
+                            currentRoomId = LAYOUT_DATA.sale[0].id;
+                        }
+                        renderRoomTabs();
+                        renderFloorPlan();
+                        if (firstMapRender) {
+                            firstMapRender = false;
+                            setTimeout(() => window.adattaMappaAlloSchermo(), 100);
+                        }
+                    }
+                } else {
+                    renderRoomTabs();
+                    renderFloorPlan();
+                    if (firstMapRender) {
+                        firstMapRender = false;
+                        setTimeout(() => window.adattaMappaAlloSchermo(), 100);
+                    }
+                }
+            });
+
+            ascoltaOrdiniPerData(today);
+        }
+
+        window.cambiaDataMappa = (dateStr) => {
+            if (!dateStr) return;
+            ascoltaOrdiniPerData(dateStr);
+        };
+
+        function ascoltaOrdiniPerData(dateStr) {
+            if (unsubOrdini) unsubOrdini();
+            const q = query(collection(db, "ordini"), where("data_ritiro", "==", dateStr));
+            unsubOrdini = onSnapshot(q, (snap) => {
+                ordiniGiornoMap = {};
+                snap.forEach(docSnap => {
+                    const d = docSnap.data();
+                    if (d.stato === 'Annullato' || d.stato === 'Consegnato') return;
+                    if (d.tavolo) {
+                        const key = String(d.tavolo).trim().toUpperCase();
+                        if (!ordiniGiornoMap[key]) ordiniGiornoMap[key] = [];
+                        ordiniGiornoMap[key].push({ id: docSnap.id, ...d });
+                    }
+                });
+
+                Object.keys(ordiniGiornoMap).forEach(k => {
+                    ordiniGiornoMap[k].sort((a, b) => {
+                        const aSed = a.stato !== 'Prenotato' ? 0 : 1;
+                        const bSed = b.stato !== 'Prenotato' ? 0 : 1;
+                        if (aSed !== bSed) return aSed - bSed;
+                        return (a.orario || '00:00').localeCompare(b.orario || '00:00');
+                    });
+                });
+
+                renderFloorPlan();
+            });
+        }
+
+        function renderRoomTabs() {
+            const container = document.getElementById('rooms-tabs-container');
+            container.innerHTML = LAYOUT_DATA.sale.map(s => {
+                const countTav = (LAYOUT_DATA.tavoli || []).filter(t => t.sala === s.id).length;
+                return `
+                    <div class="room-tab ${s.id === currentRoomId ? 'active' : ''}" onclick="window.selezionaSala('${s.id}')">
+                        ${s.nome}
+                        <span style="background:rgba(0,0,0,0.3); padding:1px 6px; border-radius:10px; font-size:0.78em;">${countTav}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.selezionaSala = (roomId) => {
+            currentRoomId = roomId;
+            selectedItemId = null;
+            selectedItemCategory = null;
+            aggiornaPannelloIspettore();
+            renderRoomTabs();
+            renderFloorPlan();
+            window.adattaMappaAlloSchermo();
+        };
+
+        // --- GEOMETRIA TAVOLO E SEDIE DINAMICHE ---
+        function calcolaGeometriaTavolo(t) {
+            const sedie = Math.max(1, parseInt(t.sedie) || 4);
+            const scale = (parseFloat(t.scale) || 100) / 100;
+            let width = 90, height = 90;
+
+            if (t.forma === 'rotondo') {
+                const baseDiam = Math.max(84, 64 + (sedie * 8));
+                width = Math.round(baseDiam * scale);
+                height = width;
+            } else if (t.forma === 'quadrato') {
+                const baseSide = Math.max(84, 68 + (Math.ceil(sedie / 4) * 18));
+                width = Math.round(baseSide * scale);
+                height = width;
+            } else {
+                const sediePerLato = Math.max(1, Math.ceil((sedie - 2) / 2));
+                const baseW = Math.max(125, 70 + (sediePerLato * 34));
+                const baseH = 82;
+                if ((t.rot || 0) % 180 === 90) {
+                    width = Math.round(baseH * scale);
+                    height = Math.round(baseW * scale);
+                } else {
+                    width = Math.round(baseW * scale);
+                    height = Math.round(baseH * scale);
+                }
+            }
+
+            const chairsCoords = [];
+            const chairSize = 18;
+            const gap = 6;
+            const pad = 26;
+            const totalW = width + (pad * 2);
+            const totalH = height + (pad * 2);
+            const cx = totalW / 2;
+            const cy = totalH / 2;
+
+            if (t.forma === 'rotondo') {
+                const radius = (width / 2) + gap + (chairSize / 2);
+                for (let i = 0; i < sedie; i++) {
+                    const angle = (i * 2 * Math.PI) / sedie - (Math.PI / 2);
+                    const x = cx + radius * Math.cos(angle) - (chairSize / 2);
+                    const y = cy + radius * Math.sin(angle) - (chairSize / 2);
+                    const deg = (angle * 180 / Math.PI) + 90;
+                    chairsCoords.push({ x, y, deg });
+                }
+            } else {
+                const isVertical = height > width;
+                let topCount = 0, bottomCount = 0, leftCount = 0, rightCount = 0;
+
+                if (t.forma === 'quadrato') {
+                    for (let i = 0; i < sedie; i++) {
+                        if (i % 4 === 0) topCount++;
+                        else if (i % 4 === 1) bottomCount++;
+                        else if (i % 4 === 2) leftCount++;
+                        else rightCount++;
+                    }
+                } else {
+                    if (!isVertical) {
+                        if (sedie >= 4) { leftCount = 1; rightCount = 1; }
+                        const rem = sedie - leftCount - rightCount;
+                        topCount = Math.ceil(rem / 2);
+                        bottomCount = Math.floor(rem / 2);
+                    } else {
+                        if (sedie >= 4) { topCount = 1; bottomCount = 1; }
+                        const rem = sedie - topCount - bottomCount;
+                        leftCount = Math.ceil(rem / 2);
+                        rightCount = Math.floor(rem / 2);
+                    }
+                }
+
+                for (let i = 0; i < topCount; i++) {
+                    const step = width / (topCount + 1);
+                    chairsCoords.push({ x: pad + step * (i + 1) - (chairSize / 2), y: pad - gap - chairSize, deg: 0 });
+                }
+                for (let i = 0; i < bottomCount; i++) {
+                    const step = width / (bottomCount + 1);
+                    chairsCoords.push({ x: pad + step * (i + 1) - (chairSize / 2), y: pad + height + gap, deg: 180 });
+                }
+                for (let i = 0; i < leftCount; i++) {
+                    const step = height / (leftCount + 1);
+                    chairsCoords.push({ x: pad - gap - chairSize, y: pad + step * (i + 1) - (chairSize / 2), deg: -90 });
+                }
+                for (let i = 0; i < rightCount; i++) {
+                    const step = height / (rightCount + 1);
+                    chairsCoords.push({ x: pad + width + gap, y: pad + step * (i + 1) - (chairSize / 2), deg: 90 });
+                }
+            }
+
+            return { width, height, totalW, totalH, chairsCoords };
+        }
+
+        function renderFloorPlan() {
+            const canvas = document.getElementById('floor-canvas');
+            const roomW = getRoomW();
+            const roomH = getRoomH();
+            canvas.style.width = `${roomW}px`;
+            canvas.style.height = `${roomH}px`;
+            canvas.innerHTML = '';
+
+            aggiornaControlliPerimetroUI();
+            applicaZoom(currentZoom);
+
+            // Badge misure sala + maniglia trascinamento angolo perimetro
+            const sizeBadge = document.createElement('div');
+            sizeBadge.id = 'room-size-badge-el';
+            sizeBadge.className = 'room-size-badge';
+            sizeBadge.innerText = `📐 ${roomW} × ${roomH} px`;
+            canvas.appendChild(sizeBadge);
+
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'room-resize-handle';
+            resizeHandle.title = 'Trascina per allargare o restringere il perimetro della sala';
+            resizeHandle.innerHTML = `<i class="fa-solid fa-up-right-and-down-left-from-center" style="transform:rotate(90deg);"></i>`;
+            abilitaDragPerimetroSala(resizeHandle);
+            canvas.appendChild(resizeHandle);
+
+            // 1. Disegna prima gli elementi strutturali (Bancone, Muri, Ingresso, Forno, Cassa)
+            const elementiSala = (LAYOUT_DATA.elementi || []).filter(el => el.sala === currentRoomId);
+            elementiSala.forEach(elObj => {
+                const div = document.createElement('div');
+                const isSel = isEditorMode && selectedItemCategory === 'fixture' && selectedItemId === elObj.id;
+                div.className = `map-fixture-el fixture-${elObj.tipo || 'muro'} ${isSel ? 'selected-edit' : ''}`;
+                div.style.left = `${elObj.x || 40}px`;
+                div.style.top = `${elObj.y || 40}px`;
+                div.style.width = `${elObj.w || 150}px`;
+                div.style.height = `${elObj.h || 40}px`;
+                div.innerHTML = `<span>${elObj.label !== undefined ? elObj.label : ''}</span>`;
+
+                if (isEditorMode) {
+                    abilitaDragElemento(div, elObj, 'fixture');
+                }
+                canvas.appendChild(div);
+            });
+
+            // 2. Disegna i tavoli con le sedie
+            const tavoliSala = (LAYOUT_DATA.tavoli || []).filter(t => t.sala === currentRoomId);
+            let liberiCount = 0, occupatiCount = 0, prenotatiCount = 0;
+
+            tavoliSala.forEach(t => {
+                const geom = calcolaGeometriaTavolo(t);
+                const keyNum = String(t.numero).trim().toUpperCase();
+                const ordiniTav = ordiniGiornoMap[keyNum] || [];
+                const ordPrimario = ordiniTav[0] || null;
+
+                let stateClass = 'state-free';
+                let clientLabel = '';
+                let metaLabel = `${t.sedie}p`;
+
+                if (ordPrimario) {
+                    let rawName = (ordPrimario.nome || '').trim();
+                    if (!rawName || rawName.toUpperCase().startsWith('TAVOLO')) rawName = 'Occupato';
+                    else rawName = rawName.split(' ')[0];
+
+                    const extraTurns = ordiniTav.length > 1 ? `+${ordiniTav.length - 1}` : '';
+
+                    if (ordPrimario.stato === 'Prenotato') {
+                        stateClass = 'state-reserved';
+                        prenotatiCount++;
+                        clientLabel = `📅 ${rawName}${extraTurns}`;
+                        metaLabel = `${ordPrimario.orario || '--:--'} (${ordPrimario.coperti || t.sedie}p)`;
+                    } else {
+                        occupatiCount++;
+                        if (ordPrimario.richiesta_conto || ordPrimario.preconto_stampato) stateClass = 'state-paying';
+                        else if (ordPrimario.stato === 'Pronto') stateClass = 'state-ready';
+                        else stateClass = 'state-occupied';
+
+                        clientLabel = `${rawName}${extraTurns}`;
+                        metaLabel = `€${parseFloat(ordPrimario.totale || 0).toFixed(0)} • ${ordPrimario.coperti || t.sedie}p`;
+                    }
+                } else {
+                    liberiCount++;
+                }
+
+                const isSel = isEditorMode && selectedItemCategory === 'table' && selectedItemId === t.id;
+                const wrapper = document.createElement('div');
+                wrapper.className = `map-table-wrapper ${stateClass} ${isSel ? 'selected-edit' : ''}`;
+                wrapper.style.left = `${t.x || 40}px`;
+                wrapper.style.top = `${t.y || 40}px`;
+                wrapper.style.width = `${geom.totalW}px`;
+                wrapper.style.height = `${geom.totalH}px`;
+
+                const chairsHtml = geom.chairsCoords.map(c =>
+                    `<div class="chair-dot" style="left:${c.x}px; top:${c.y}px; transform:rotate(${c.deg}deg);"></div>`
+                ).join('');
+
+                wrapper.innerHTML = `
+                    ${chairsHtml}
+                    <div class="table-surface shape-${t.forma}" style="width:${geom.width}px; height:${geom.height}px;">
+                        <div class="t-label-num">${t.numero}</div>
+                        ${clientLabel ? `<div class="t-label-client">${clientLabel}</div>` : ''}
+                        <div class="t-label-meta">${metaLabel}</div>
+                    </div>
+                `;
+
+                if (!isEditorMode) {
+                    wrapper.onclick = () => apriMenuOperativoTavolo(t, ordiniTav);
+                } else {
+                    abilitaDragElemento(wrapper, t, 'table');
+                }
+                canvas.appendChild(wrapper);
+            });
+
+            document.getElementById('live-room-summary').innerHTML =
+                `🟢 <b>${liberiCount}</b> &nbsp; 🔴 <b>${occupatiCount}</b> &nbsp; 🟡 <b>${prenotatiCount}</b>`;
+        }
+
+        // --- TRASCINAMENTO MANIGLIA PERIMETRO SALA (ANGOLO IN BASSO A DESTRA) ---
+        function abilitaDragPerimetroSala(handleEl) {
+            let startX = 0, startY = 0, origW = 1200, origH = 800;
+            handleEl.onpointerdown = (e) => {
+                if (!isEditorMode) return;
+                e.stopPropagation();
+                startX = e.clientX;
+                startY = e.clientY;
+                origW = getRoomW();
+                origH = getRoomH();
+                handleEl.setPointerCapture(e.pointerId);
+
+                handleEl.onpointermove = (ev) => {
+                    const dx = (ev.clientX - startX) / currentZoom;
+                    const dy = (ev.clientY - startY) / currentZoom;
+                    const newW = Math.max(600, Math.min(3000, Math.round((origW + dx) / 50) * 50));
+                    const newH = Math.max(500, Math.min(2500, Math.round((origH + dy) / 50) * 50));
+                    const sala = getSalaCorrenteObj();
+                    sala.w = newW;
+                    sala.h = newH;
+                    aggiornaControlliPerimetroUI();
+                    applicaZoom(currentZoom);
+                };
+
+                handleEl.onpointerup = (ev) => {
+                    handleEl.onpointermove = null;
+                    handleEl.onpointerup = null;
+                    handleEl.releasePointerCapture(ev.pointerId);
+                };
+            };
+        }
+
+        // --- MOTORE DRAG & DROP UNIFICATO (TAVOLI E STRUTTURE) CALIBRATO SULLO ZOOM ---
+        function abilitaDragElemento(el, itemObj, category) {
+            let startX = 0, startY = 0, origX = 0, origY = 0;
+
+            el.onpointerdown = (e) => {
+                e.stopPropagation();
+                selectedItemId = itemObj.id;
+                selectedItemCategory = category;
+                document.getElementById('editor-sidebar').classList.remove('minimized');
+                aggiornaPannelloIspettore();
+
+                document.querySelectorAll('.map-table-wrapper, .map-fixture-el').forEach(w => w.classList.remove('selected-edit'));
+                el.classList.add('selected-edit');
+
+                startX = e.clientX;
+                startY = e.clientY;
+                origX = itemObj.x || 0;
+                origY = itemObj.y || 0;
+                el.setPointerCapture(e.pointerId);
+
+                el.onpointermove = (ev) => {
+                    const dx = (ev.clientX - startX) / currentZoom;
+                    const dy = (ev.clientY - startY) / currentZoom;
+                    const maxW = getRoomW() - 40;
+                    const maxH = getRoomH() - 30;
+                    itemObj.x = Math.max(0, Math.min(maxW, Math.round((origX + dx) / 10) * 10));
+                    itemObj.y = Math.max(0, Math.min(maxH, Math.round((origY + dy) / 10) * 10));
+                    el.style.left = `${itemObj.x}px`;
+                    el.style.top = `${itemObj.y}px`;
+                };
+
+                el.onpointerup = (ev) => {
+                    el.onpointermove = null;
+                    el.onpointerup = null;
+                    el.releasePointerCapture(ev.pointerId);
+                };
+            };
+        }
+
+        window.toggleEditorMode = () => {
+            isEditorMode = !isEditorMode;
+            const btn = document.getElementById('btn-toggle-editor');
+            const sidebar = document.getElementById('editor-sidebar');
+            const canvas = document.getElementById('floor-canvas');
+            const roomAdmin = document.getElementById('room-admin-controls');
+
+            btn.classList.toggle('editor-active', isEditorMode);
+            const spanTxt = btn.querySelector('span');
+            if (spanTxt) spanTxt.innerText = isEditorMode ? 'FINE DISEGNO' : 'DISEGNA SALA';
+            sidebar.classList.toggle('open', isEditorMode);
+            sidebar.classList.remove('minimized');
+            canvas.classList.toggle('editor-grid', isEditorMode);
+            roomAdmin.style.display = isEditorMode ? 'flex' : 'none';
+
+            if (!isEditorMode) {
+                selectedItemId = null;
+                selectedItemCategory = null;
+            }
+            aggiornaPannelloIspettore();
+            renderFloorPlan();
+        };
+
+        // --- AGGIUNTA TAVOLI E STRUTTURE ---
+        window.aggiungiTavoloMappa = (forma) => {
+            const tuttiNum = LAYOUT_DATA.tavoli.map(t => parseInt(t.numero)).filter(n => !isNaN(n));
+            const nextNum = tuttiNum.length > 0 ? Math.max(...tuttiNum) + 1 : 1;
+            const sedieDefault = forma === 'rettangolare' ? 6 : 4;
+
+            const nuovo = {
+                id: 'tav_' + Date.now(),
+                numero: String(nextNum),
+                sala: currentRoomId,
+                forma: forma,
+                sedie: sedieDefault,
+                scale: 100,
+                rot: 0,
+                x: 100 + ((LAYOUT_DATA.tavoli.length * 40) % Math.max(300, getRoomW() - 250)),
+                y: 100 + ((LAYOUT_DATA.tavoli.length * 30) % Math.max(250, getRoomH() - 250))
+            };
+
+            LAYOUT_DATA.tavoli.push(nuovo);
+            selectedItemId = nuovo.id;
+            selectedItemCategory = 'table';
+            renderRoomTabs();
+            renderFloorPlan();
+            aggiornaPannelloIspettore();
+        };
+
+        window.aggiungiElementoStrutturale = (tipo) => {
+            if (!Array.isArray(LAYOUT_DATA.elementi)) LAYOUT_DATA.elementi = [];
+            const presets = {
+                bancone: { label: '🍺 BANCONE BAR', w: 220, h: 65 },
+                muro:    { label: '', w: 220, h: 18 },
+                ingresso:{ label: '🚪 INGRESSO', w: 120, h: 30 },
+                forno:   { label: '🔥 FORNO / CUCINA', w: 160, h: 65 },
+                cassa:   { label: '🖥️ CASSA', w: 100, h: 55 }
+            };
+            const p = presets[tipo] || presets.muro;
+            const nuovoEl = {
+                id: 'el_' + Date.now(),
+                tipo: tipo,
+                sala: currentRoomId,
+                label: p.label,
+                w: p.w,
+                h: p.h,
+                x: 140,
+                y: 60
+            };
+            LAYOUT_DATA.elementi.push(nuovoEl);
+            selectedItemId = nuovoEl.id;
+            selectedItemCategory = 'fixture';
+            renderFloorPlan();
+            aggiornaPannelloIspettore();
+        };
+
+        function aggiornaPannelloIspettore() {
+            const tPanel = document.getElementById('selected-table-panel');
+            const fPanel = document.getElementById('selected-fixture-panel');
+            tPanel.style.display = 'none';
+            fPanel.style.display = 'none';
+
+            if (!isEditorMode || !selectedItemId) return;
+
+            if (selectedItemCategory === 'table') {
+                const t = LAYOUT_DATA.tavoli.find(x => x.id === selectedItemId);
+                if (!t) return;
+                tPanel.style.display = 'block';
+                document.getElementById('inp-t-num').value = t.numero;
+                document.getElementById('inp-t-shape').value = t.forma;
+                document.getElementById('lbl-t-chairs').innerText = t.sedie;
+                document.getElementById('inp-t-scale').value = t.scale || 100;
+                document.getElementById('lbl-t-scale').innerText = `${t.scale || 100}%`;
+            } else if (selectedItemCategory === 'fixture') {
+                const f = (LAYOUT_DATA.elementi || []).find(x => x.id === selectedItemId);
+                if (!f) return;
+                fPanel.style.display = 'block';
+                document.getElementById('inp-f-label').value = f.label || '';
+                document.getElementById('inp-f-w').value = f.w || 180;
+                document.getElementById('lbl-f-w').innerText = `${f.w || 180} px`;
+                document.getElementById('inp-f-h').value = f.h || 50;
+                document.getElementById('lbl-f-h').innerText = `${f.h || 50} px`;
+            }
+        }
+
+        window.aggiornaPropTavolo = (prop, val) => {
+            const t = LAYOUT_DATA.tavoli.find(x => x.id === selectedItemId);
+            if (!t) return;
+            t[prop] = val;
+            renderFloorPlan();
+        };
+
+        window.aggiornaPropStruttura = (prop, val) => {
+            const f = (LAYOUT_DATA.elementi || []).find(x => x.id === selectedItemId);
+            if (!f) return;
+            if (prop === 'w' || prop === 'h') {
+                f[prop] = parseInt(val) || 40;
+                document.getElementById(`lbl-f-${prop}`).innerText = `${f[prop]} px`;
+            } else {
+                f[prop] = val;
+            }
+            renderFloorPlan();
+        };
+
+        window.cambiaSedieTavolo = (delta) => {
+            const t = LAYOUT_DATA.tavoli.find(x => x.id === selectedItemId);
+            if (!t) return;
+            t.sedie = Math.max(1, Math.min(24, (parseInt(t.sedie) || 4) + delta));
+            document.getElementById('lbl-t-chairs').innerText = t.sedie;
+            renderFloorPlan();
+        };
+
+        window.ridimensionaTavoloConSedie = (nuovaScala) => {
+            const t = LAYOUT_DATA.tavoli.find(x => x.id === selectedItemId);
+            if (!t) return;
+            const scaleNum = parseInt(nuovaScala) || 100;
+            t.scale = scaleNum;
+            document.getElementById('lbl-t-scale').innerText = `${scaleNum}%`;
+
+            const baseChairs = t.forma === 'rettangolare' ? 6 : 4;
+            const extraSteps = Math.round((scaleNum - 100) / 20);
+            t.sedie = Math.max(2, Math.min(24, baseChairs + (extraSteps * 2)));
+            document.getElementById('lbl-t-chairs').innerText = t.sedie;
+
+            renderFloorPlan();
+        };
+
+        window.ruotaSelezionato = () => {
+            if (selectedItemCategory === 'table') {
+                const t = LAYOUT_DATA.tavoli.find(x => x.id === selectedItemId);
+                if (!t) return;
+                t.rot = ((t.rot || 0) + 90) % 180;
+            } else if (selectedItemCategory === 'fixture') {
+                const f = (LAYOUT_DATA.elementi || []).find(x => x.id === selectedItemId);
+                if (!f) return;
+                const oldW = f.w;
+                f.w = f.h;
+                f.h = oldW;
+                aggiornaPannelloIspettore();
+            }
+            renderFloorPlan();
+        };
+
+        window.duplicaSelezionato = () => {
+            if (selectedItemCategory === 'table') {
+                const t = LAYOUT_DATA.tavoli.find(x => x.id === selectedItemId);
+                if (!t) return;
+                const tuttiNum = LAYOUT_DATA.tavoli.map(x => parseInt(x.numero)).filter(n => !isNaN(n));
+                const nextNum = tuttiNum.length > 0 ? Math.max(...tuttiNum) + 1 : 1;
+                const copia = { ...t, id: 'tav_' + Date.now(), numero: String(nextNum), x: (t.x || 50) + 40, y: (t.y || 50) + 40 };
+                LAYOUT_DATA.tavoli.push(copia);
+                selectedItemId = copia.id;
+                renderRoomTabs();
+            } else if (selectedItemCategory === 'fixture') {
+                const f = (LAYOUT_DATA.elementi || []).find(x => x.id === selectedItemId);
+                if (!f) return;
+                const copiaF = { ...f, id: 'el_' + Date.now(), x: (f.x || 50) + 30, y: (f.y || 50) + 30 };
+                LAYOUT_DATA.elementi.push(copiaF);
+                selectedItemId = copiaF.id;
+            }
+            renderFloorPlan();
+            aggiornaPannelloIspettore();
+        };
+
+        window.eliminaSelezionato = () => {
+            if (!selectedItemId) return;
+            if (selectedItemCategory === 'table') {
+                LAYOUT_DATA.tavoli = LAYOUT_DATA.tavoli.filter(x => x.id !== selectedItemId);
+                renderRoomTabs();
+            } else if (selectedItemCategory === 'fixture') {
+                LAYOUT_DATA.elementi = (LAYOUT_DATA.elementi || []).filter(x => x.id !== selectedItemId);
+            }
+            selectedItemId = null;
+            selectedItemCategory = null;
+            aggiornaPannelloIspettore();
+            renderFloorPlan();
+        };
+
+        window.creaNuovaSala = async () => {
+            const { value: nome } = await Swal.fire({
+                title: 'Nuova Sala / Area', input: 'text', inputPlaceholder: 'Es. Terrazza, Giardino...',
+                showCancelButton: true, background: '#1e293b', color: '#fff'
+            });
+            if (nome && nome.trim()) {
+                const id = 'sala_' + Date.now();
+                LAYOUT_DATA.sale.push({ id, nome: nome.trim(), w: 1200, h: 800 });
+                currentRoomId = id;
+                renderRoomTabs();
+                renderFloorPlan();
+                window.adattaMappaAlloSchermo();
+            }
+        };
+
+        window.rinominaSalaCorrente = async () => {
+            const sala = LAYOUT_DATA.sale.find(s => s.id === currentRoomId);
+            if (!sala) return;
+            const { value: nuovoNome } = await Swal.fire({
+                title: 'Rinomina Sala', input: 'text', inputValue: sala.nome,
+                showCancelButton: true, background: '#1e293b', color: '#fff'
+            });
+            if (nuovoNome && nuovoNome.trim()) {
+                sala.nome = nuovoNome.trim();
+                renderRoomTabs();
+            }
+        };
+
+        window.eliminaSalaCorrente = async () => {
+            if (LAYOUT_DATA.sale.length <= 1) return Swal.fire("Attenzione", "Deve rimanere almeno una sala.", "warning");
+            const sala = LAYOUT_DATA.sale.find(s => s.id === currentRoomId);
+            const res = await Swal.fire({
+                title: `Eliminare "${sala?.nome}"?`, icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#dc2626', background: '#1e293b', color: '#fff'
+            });
+            if (res.isConfirmed) {
+                LAYOUT_DATA.sale = LAYOUT_DATA.sale.filter(s => s.id !== currentRoomId);
+                LAYOUT_DATA.tavoli = LAYOUT_DATA.tavoli.filter(t => t.sala !== currentRoomId);
+                LAYOUT_DATA.elementi = (LAYOUT_DATA.elementi || []).filter(e => e.sala !== currentRoomId);
+                currentRoomId = LAYOUT_DATA.sale[0].id;
+                renderRoomTabs();
+                renderFloorPlan();
+            }
+        };
+
+        window.salvaPlanimetriaSuFirebase = async () => {
+            try {
+                Swal.fire({ title: 'Salvataggio...', allowOutsideClick: false, didOpen: () => Swal.showLoading(), background: '#1e293b', color: '#fff' });
+                await setDoc(doc(db, "impostazioni", "mappa_sala"), {
+                    sale: LAYOUT_DATA.sale,
+                    tavoli: LAYOUT_DATA.tavoli,
+                    elementi: LAYOUT_DATA.elementi || [],
+                    updated_at: serverTimestamp()
+                });
+                Swal.fire({ icon: 'success', title: 'Planimetria Salvata!', timer: 1400, showConfirmButton: false, background: '#1e293b', color: '#fff' });
+            } catch (e) {
+                Swal.fire("Errore", e.message, "error");
+            }
+        };
+
+        // --- AZIONI OPERATIVE LIVE SUL TAVOLO ---
+        function apriMenuOperativoTavolo(tavoloObj, ordiniTav) {
+            const num = tavoloObj.numero;
+            const salaNome = LAYOUT_DATA.sale.find(s => s.id === tavoloObj.sala)?.nome || 'Sala';
+
+            if (ordiniTav.length === 0) {
+                Swal.fire({
+                    title: `Tavolo ${num} (${salaNome})`,
+                    html: `<p style="color:#94a3b8; margin:0;">Capienza: <b>${tavoloObj.sedie} posti</b> — <b style="color:#10b981;">LIBERO</b></p>`,
+                    showCancelButton: true,
+                    showDenyButton: true,
+                    confirmButtonColor: '#10b981',
+                    denyButtonColor: '#f59e0b',
+                    confirmButtonText: '📝 Apri Comanda',
+                    denyButtonText: '📅 Prenota',
+                    cancelButtonText: 'Chiudi',
+                    background: '#1e293b', color: '#fff'
+                }).then((r) => {
+                    if (r.isConfirmed) {
+                        window.location.href = `sala.html?locale=${window.TENANT_ID}&tavolo=${encodeURIComponent(num)}`;
+                    } else if (r.isDenied) {
+                        creaPrenotazioneRapidaDaMappa(num, salaNome, tavoloObj.sedie);
+                    }
+                });
+                return;
+            }
+
+            const ord = ordiniTav[0];
+            const isPren = ord.stato === 'Prenotato';
+            const righeProd = (ord.prodotti || []).map(p => `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed #334155;"><span><b>${p.qta}x</b> ${p.nome}</span><span style="color:var(--gold);">€${(p.prezzo * p.qta).toFixed(2)}</span></div>`).join('');
+
+            Swal.fire({
+                title: `Tavolo ${num} — ${(ord.nome || 'Cliente').toUpperCase()}`,
+                html: `
+                    <div style="text-align:left; font-size:0.9em;">
+                        <div style="background:#0f172a; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #334155;">
+                            <div>📍 <b>${ord.area || salaNome}</b> | 👥 <b>${ord.coperti || tavoloObj.sedie}p</b> | 🕒 <b>${ord.orario || '--:--'}</b></div>
+                            ${ord.preferenza_servizio ? `<div style="margin-top:4px; color:#38bdf8; font-weight:bold;">🍽️ ${ord.preferenza_servizio}</div>` : ''}
+                            ${Array.isArray(ord.etichette) && ord.etichette.length ? `<div style="margin-top:4px; color:#fbbf24; font-weight:bold;">🏷️ ${ord.etichette.join(' • ')}</div>` : ''}
+                            ${ord.note_ordine ? `<div style="margin-top:4px; color:#f87171; font-weight:bold;">📝 ${ord.note_ordine}</div>` : ''}
+                        </div>
+                        ${!isPren ? `
+                            <div style="max-height:150px; overflow-y:auto; background:#0f172a; padding:8px; border-radius:8px; margin-bottom:8px;">
+                                ${righeProd || '<small style="color:#64748b;">Nessun piatto inserito</small>'}
+                            </div>
+                            <div style="text-align:right; font-size:1.2em; font-weight:900; color:#10b981; margin-bottom:8px;">
+                                Totale: € ${parseFloat(ord.totale || 0).toFixed(2)}
+                            </div>
+                            <div style="display:flex; gap:4px; margin-bottom:6px;">
+                                ${[1,2,3,4,5].map(t => `<button onclick="window.chiamaTurnoMappa('${ord.id}', '${num}', ${t})" style="flex:1; background:#334155; color:#fff; border:none; padding:10px 0; border-radius:6px; font-weight:bold; cursor:pointer;">T${t}</button>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonColor: '#3b82f6',
+                denyButtonColor: isPren ? '#10b981' : '#ef4444',
+                confirmButtonText: '📝 Modifica Ordine',
+                denyButtonText: isPren ? '✅ Accomoda' : '🔓 Libera Tavolo',
+                cancelButtonText: 'Chiudi',
+                background: '#1e293b', color: '#fff'
+            }).then(async (res) => {
+                if (res.isConfirmed) {
+                    window.location.href = `sala.html?locale=${window.TENANT_ID}&tavolo=${encodeURIComponent(num)}`;
+                } else if (res.isDenied) {
+                    if (isPren) {
+                        const numCop = parseInt(ord.coperti) || tavoloObj.sedie || 2;
+                        const totInit = ord.preferenza_servizio === 'Giro Pizza' ? 0 : (numCop * prezzoCopertoLocale);
+                        await updateDoc(doc(db, "ordini", ord.id), {
+                            stato: 'In forno',
+                            totale: ord.totale > 0 ? ord.totale : totInit,
+                            data_invio: serverTimestamp()
+                        });
+                    } else {
+                        await updateDoc(doc(db, "ordini", ord.id), { stato: 'Consegnato', data_chiusura: serverTimestamp() });
+                    }
+                }
+            });
+        }
+
+        window.chiamaTurnoMappa = async (docId, numTav, turn) => {
+            await updateDoc(doc(db, "ordini", docId), {
+                messaggio_cucina: `VIA TURNO ${turn}`,
+                timestamp_messaggio: serverTimestamp(),
+                turni_chiamati: arrayUnion(parseInt(turn))
+            });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Tavolo ${numTav}: VIA T${turn}!`, showConfirmButton: false, timer: 1200 });
+        };
+
+        async function creaPrenotazioneRapidaDaMappa(numTavolo, salaNome, sedieDefault) {
+            const { value: fv } = await Swal.fire({
+                title: `Prenota Tav. ${numTavolo}`,
+                html: `
+                    <input id="qm-nome" class="swal2-input" placeholder="Nome Cliente *">
+                    <input id="qm-ora" type="time" class="swal2-input" value="20:30">
+                    <input id="qm-pax" type="number" class="swal2-input" value="${sedieDefault}" placeholder="Persone">
+                    <input id="qm-tel" type="tel" class="swal2-input" placeholder="Telefono">
+                `,
+                showCancelButton: true, confirmButtonText: 'Salva', confirmButtonColor: '#10b981',
+                background: '#1e293b', color: '#fff',
+                preConfirm: () => {
+                    const nome = document.getElementById('qm-nome').value.trim();
+                    const ora = document.getElementById('qm-ora').value;
+                    if (!nome || !ora) { Swal.showValidationMessage('Nome e Orario obbligatori'); return false; }
+                    return { nome, ora, pax: parseInt(document.getElementById('qm-pax').value) || sedieDefault, tel: document.getElementById('qm-tel').value.trim() };
+                }
+            });
+
+            if (fv) {
+                const dataSel = document.getElementById('map-date-picker').value || getTodayLocal();
+                await addDoc(collection(db, "ordini"), {
+                    data_ritiro: dataSel, data_invio: serverTimestamp(),
+                    nome: fv.nome, telefono: fv.tel, tavolo: String(numTavolo),
+                    coperti: fv.pax, adulti: fv.pax, orario: fv.ora, area: salaNome,
+                    stato: 'Prenotato', tipo: 'SALA', prodotti: [], totale: 0, operatore: 'Mappa Sala'
+                });
+            }
+        }
+
+        initMappa();
+  // --- GESTIONE INTELLIGENTE DEL TASTO INDIETRO ---
+const _urlParams = new URLSearchParams(window.location.search);
+const paramFrom = _urlParams.get('from');
+const btnBackTextEl = document.getElementById('btn-back-text');
+
+if (paramFrom === 'cassa') {
+    if (btnBackTextEl) btnBackTextEl.innerText = 'Cassa';
+} else if (paramFrom === 'sala') {
+    if (btnBackTextEl) btnBackTextEl.innerText = 'Palmare';
+} else if (paramFrom === 'agenda') {
+    if (btnBackTextEl) btnBackTextEl.innerText = 'Agenda';
+}
+
+window.tornaIndietroIntelligente = () => {
+    const tenant = window.TENANT_ID || 'default';
+    if (paramFrom === 'cassa') {
+        window.location.href = `cassa.html?locale=${tenant}`;
+    } else if (paramFrom === 'sala') {
+        window.location.href = `sala.html?locale=${tenant}`;
+    } else if (paramFrom === 'agenda') {
+        window.location.href = `agenda.html?locale=${tenant}`;
+    } else {
+        if (window.history.length > 1) window.history.back();
+        else window.location.href = `cassa.html?locale=${tenant}`;
+    }
+};
+    </script>
+    
+</body>
+</html>

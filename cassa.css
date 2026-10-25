@@ -625,3 +625,95 @@ body {
     display: inline-block;
     vertical-align: middle;
 }
+/* ==========================================================
+   OTTIMIZZAZIONE MOBILE / SMARTPHONE PER CASSA.HTML
+   ========================================================== */
+
+@media (max-width: 768px) {
+    /* Barra superiore flessibile e scorrevole */
+    .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 8px 10px;
+        gap: 8px;
+    }
+    
+    .top-bar > div:last-child {
+        display: flex;
+        overflow-x: auto;
+        gap: 6px;
+        padding-bottom: 4px;
+        scrollbar-width: none; /* Nasconde la barra di scorrimento su Firefox */
+    }
+    
+    .top-bar > div:last-child::-webkit-scrollbar {
+        display: none; /* Nasconde la barra di scorrimento su Chrome/Safari */
+    }
+
+    /* Pulsanti nella top bar più compatti per smartphone */
+    .top-bar button, .top-bar div[onclick] {
+        padding: 6px 10px !important;
+        font-size: 0.82em !important;
+        white-space: nowrap;
+    }
+
+    /* Griglia ordini a colonna singola sui telefoni */
+    .orders-grid {
+        grid-template-columns: 1fr !important;
+        padding: 8px !important;
+        gap: 10px !important;
+    }
+
+    /* Adattamento Modali (Nuovo Ordine e Pagamento) a schermo quasi intero */
+    .modal-box {
+        width: 96% !important;
+        max-width: 100% !important;
+        max-height: 92vh !important;
+        padding: 15px !important;
+        border-radius: 14px 14px 0 0 !important;
+    }
+
+    /* Campi form nei modali disposti verticalmente per evitare tagli */
+    .form-row {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    .form-row input, .form-row select, .form-row textarea {
+        width: 100% !important;
+    }
+
+    /* Pulsanti rapidi orario e tipo ordine */
+    .order-type-selector {
+        flex-direction: row !important;
+    }
+    
+    .order-type-selector .type-btn {
+        font-size: 0.8em !important;
+        padding: 8px 4px !important;
+    }
+}
+@media (max-width: 768px) {
+    body, html {
+        height: 100vh;
+        height: 100dvh;
+        overflow-y: auto !important;
+    }
+    .orders-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        position: relative !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        z-index: 10 !important;
+    }
+    .sidebar, .slot-container, [id*="orari"] {
+        position: relative !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: 300px !important;
+        overflow-y: auto !important;
+        z-index: 5;
+    }
+}
