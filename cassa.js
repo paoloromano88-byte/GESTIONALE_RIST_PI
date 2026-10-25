@@ -2208,7 +2208,7 @@ function gestisciChiamataTurno(o, rep, printerIp) {
         const qDisplay = p.qta % 1 === 0 ? p.qta : p.qta.toFixed(3);
         d.push(`\x1D\x21\x01${qDisplay} x ${p.nome}\n\n\x1D\x21\x00`); 
         if(p.dettagli && p.dettagli!=='Normale') {
-            d.push(`   > ${p.dettagli.replace(/<[^>]*>/g, '')}\n`);
+            d.push(`   > ${p.dettagli.replace(/<br\s*\/?>/gi, '\n   > ').replace(/<[^>]*>?/gm, '')}\n`);
         }
         d.push('\n');
     });
@@ -2296,19 +2296,19 @@ window.stampaVia = (id, _u1, _u2, reparto) => {
     };
 
     if (storniFiltrati.length > 0) {
-        data.push('\x1B\x61\x01\x1B\x45\x01\n⛔ STORNO (ANNULLARE) ⛔\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
+        data.push('\x1B\x61\x01\x1B\x45\x01\n!!! STORNO (ANNULLARE) !!!\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
         storniFiltrati.forEach(p => stampaRiga(p));
     }
 
     if (spostamentiFiltrati.length > 0) {
         if (storniFiltrati.length > 0) data.push('\n');
-        data.push('\x1B\x61\x01\x1B\x45\x01\n↪️ CAMBIO TURNO ↩️\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
+        data.push('\x1B\x61\x01\x1B\x45\x01\n<<< CAMBIO TURNO >>>\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
         spostamentiFiltrati.forEach(p => { stampaRiga(p, ` (DA T${p.oldTurn} A T${p.newTurn})`); });
     }
 
     if (aggiunteFiltrate.length > 0) {
         if (storniFiltrati.length > 0 || spostamentiFiltrati.length > 0) data.push('\n');
-        data.push('\x1B\x61\x01\x1B\x45\x01\n➕ NUOVE AGGIUNTE ➕\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
+        data.push('\x1B\x61\x01\x1B\x45\x01\n+++ NUOVE AGGIUNTE +++\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
         
         const byTurn = {};
         aggiunteFiltrate.forEach(p => {
@@ -4423,21 +4423,25 @@ window.caricaDipendenti = async () => {
     l.innerHTML = "";
     snap.forEach(d => {
         const dip = d.data();
-        l.innerHTML += `<div class="db-item"><span><b>${dip.nome}</b> (PIN: ${dip.pin})</span><button onclick="eliminaDB('dipendenti','${d.id}')" style="background:#ef5350; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;"><i class="fa fa-trash"></i></button></div>`;
+        const badgeRuolo = dip.ruolo === 'rider'
+            ? `<span style="background:#f59e0b; color:#000; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold; margin-left:6px;">🛵 RIDER</span>`
+            : `<span style="background:#e0e0e0; color:#333; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold; margin-left:6px;">CAMERIERE</span>`;
+        l.innerHTML += `<div class="db-item"><span><b>${window.escapeHtml(dip.nome)}</b> (PIN: ${window.escapeHtml(dip.pin)}) ${badgeRuolo}</span><button onclick="eliminaDB('dipendenti','${window.safeId(d.id)}')" style="background:#ef5350; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;"><i class="fa fa-trash"></i></button></div>`;
     });
 };
 
 window.salvaDipendente = async () => {
     const nome = document.getElementById('dip-nome').value.trim();
     const pin = document.getElementById('dip-pin').value.trim();
-    if(nome && pin) {
+    const ruolo = document.getElementById('dip-ruolo')?.value === 'rider' ? 'rider' : 'cameriere';
+    if(nome && /^\d{4}$/.test(pin)) {
         const snap = await getDocs(query(collection(db, "dipendenti")));
         let foundDuplicate = false;
         snap.forEach(d => { if (String(d.data().pin).trim() === pin) foundDuplicate = true; });
         if (foundDuplicate || pin === "0000") {
             return Swal.fire({icon:'error', title:'Errore', text:'Questo PIN è già in uso o non è valido!'});
         }
-        await addDoc(collection(db, "dipendenti"), {nome, pin});
+        await addDoc(collection(db, "dipendenti"), {nome, pin, ruolo});
         document.getElementById('dip-nome').value = "";
         document.getElementById('dip-pin').value = "";
         window.caricaDipendenti();
