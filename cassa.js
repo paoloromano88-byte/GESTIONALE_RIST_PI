@@ -650,6 +650,8 @@ NLg/qXlDavq+hN/q9BoFp6VP9e5sC0dBnMmT0WQLk7QppCI64qe3bUEYHGirnDsL
     onSnapshot(query(collection(db, "ordini"), where("stato", "in", ["In attesa", "In forno", "Pronto", "Prenotato"])), (snapshot) => {
         window.tavoliOccupati = {}; 
         snapshot.forEach(d => { if(d.data().tavolo) window.tavoliOccupati[d.data().tavolo] = { id: d.id, ...d.data() }; });
+        ordiniAttiviForno = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        pubblicaOccupazioneForno();
         
         if (!isFirstLoad) {
             snapshot.docChanges().forEach((change) => {
@@ -992,6 +994,52 @@ window.copiaPizzeSuGF = async () => {
     });
 };
 
+// --- OCCUPAZIONE FORNO PUBBLICA ---
+// L'App Clienti non può più leggere gli ordini degli altri: legge solo il numero di pizze per fascia oraria
+// da occupazione_forno/{data}. La cassa lo ricalcola dagli ordini reali (modifiche, annullamenti, nuovi ordini).
+const CATEGORIE_FORNO = ['pizza', 'stirata', 'gf', 'speciale'];
+let ordiniAttiviForno = [];
+let ordiniCacheData = null;
+const occupazioneScritta = {};
+let timerOccupazione = null;
+
+function contaPizzeOrdine(o) {
+    return (o.prodotti || []).reduce((acc, p) => acc + (CATEGORIE_FORNO.includes(p.cat) ? (parseFloat(p.qta) || 0) : 0), 0);
+}
+
+function pubblicaOccupazioneForno() {
+    clearTimeout(timerOccupazione);
+    timerOccupazione = setTimeout(async () => {
+        const ora = new Date();
+        const oggi = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}-${String(ora.getDate()).padStart(2, '0')}`;
+        const perData = {};
+        const aggiungi = (o) => {
+            if (!o.data_ritiro || o.data_ritiro < oggi || !o.orario || o.stato === 'Annullato' || o.tavolo) return;
+            const pz = contaPizzeOrdine(o);
+            if (pz <= 0) return;
+            perData[o.data_ritiro] = perData[o.data_ritiro] || {};
+            perData[o.data_ritiro][o.orario] = (perData[o.data_ritiro][o.orario] || 0) + pz;
+        };
+        // Per il giorno mostrato in cassa contano tutti gli ordini (anche già chiusi); per gli altri giorni quelli attivi
+        ordiniAttiviForno.filter(o => o.data_ritiro !== ordiniCacheData).forEach(aggiungi);
+        if (ordiniCacheData) ordiniCache.forEach(aggiungi);
+
+        const date = new Set([...Object.keys(perData), ...Object.keys(occupazioneScritta), ...(ordiniCacheData && ordiniCacheData >= oggi ? [ordiniCacheData] : [])]);
+        for (const data of date) {
+            if (data < oggi) continue;
+            const slot = perData[data] || {};
+            const firma = JSON.stringify(slot);
+            if (occupazioneScritta[data] === firma) continue;
+            try {
+                await setDoc(doc(db, "occupazione_forno", data), { slot, aggiornato: serverTimestamp() });
+                occupazioneScritta[data] = firma;
+            } catch (e) {
+                console.warn("Aggiornamento occupazione forno:", e);
+            }
+        }
+    }, 1500);
+}
+
 function caricaOrdiniPerData(dateObj) {
     const yyyy = dateObj.getFullYear(); const mm = String(dateObj.getMonth() + 1).padStart(2, '0'); const dd = String(dateObj.getDate()).padStart(2, '0');
     const dateStr = `${yyyy}-${mm}-${dd}`;
@@ -1039,6 +1087,8 @@ function caricaOrdiniPerData(dateObj) {
         
         ordini.sort((a,b) => (a.orario || "23:59").localeCompare(b.orario || "23:59")); 
         ordiniCache = ordini;
+        ordiniCacheData = dateStr;
+        pubblicaOccupazioneForno();
 
         listAsporto.sort((a, b) => (a.orario || "23:59").localeCompare(b.orario || "23:59"));
         listTavoli.sort((a, b) => (a.orario || "23:59").localeCompare(b.orario || "23:59"));

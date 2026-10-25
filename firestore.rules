@@ -1,0 +1,166 @@
+rules_version = '2';
+
+// =============================================================================
+// REGOLE FIRESTORE - Gestionale Ristoranti
+//
+// Personale (cassa, sala, KDS, rider...): account email/password del locale -> accesso completo.
+// Clienti (App Clienti, menu QR): senza account o con accesso SMS -> solo ciò che serve:
+//   - leggere menu e impostazioni pubbliche
+//   - inviare un ordine valido e seguirlo tramite il suo ID
+//   - leggere i PROPRI ordini e la propria scheda solo dopo la verifica SMS del numero
+//
+// Le stesse regole valgono per il locale principale (raccolte alla radice)
+// e per ogni locale creato da Super Admin (ristoranti/{locale}/...).
+// =============================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Chi è l'utente ----------
+    function isStaff() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    // Il numero verificato via SMS corrisponde al telefono indicato (salvato senza +39)
+    function isTelefono(tel) {
+      return request.auth != null
+        && tel is string && tel != ''
+        && request.auth.token.get('phone_number', '') == '+39' + tel;
+    }
+
+    // ---------- Dati pubblici ----------
+    function letturaPubblica(coll, id) {
+      return coll in ['prodotti', 'ingredienti', 'rimozioni', 'sconti', 'occupazione_forno']
+        || (coll == 'impostazioni' && id in ['negozio', 'licenza', 'forno', 'app_cliente', 'fidelity']);
+    }
+
+    function testo(v, max) {
+      return v is string && v.size() <= max;
+    }
+
+    // ---------- Ordini dall'App Clienti ----------
+    function ordineValido(d) {
+      return d.keys().hasOnly(['cliente', 'nome', 'cognome', 'telefono', 'prodotti', 'totale', 'orario',
+                               'data_ritiro', 'note_ordine', 'codice_sconto', 'sconto_applicato', 'tipo',
+                               'indirizzo', 'citofono', 'zona', 'supplemento_consegna', 'stato',
+                               'data_invio', 'user_agent'])
+        && d.stato == 'In attesa'
+        && d.tipo in ['ASPORTO', 'DOMICILIO']
+        && testo(d.nome, 60) && testo(d.cognome, 60)
+        && d.telefono is string && d.telefono.matches('^3[0-9]{9}$')
+        && d.prodotti is list && d.prodotti.size() > 0 && d.prodotti.size() <= 80
+        && d.totale is number && d.totale >= 0 && d.totale <= 300
+        && testo(d.orario, 5) && testo(d.data_ritiro, 10)
+        && testo(d.note_ordine, 200)
+        && testo(d.indirizzo, 200) && testo(d.citofono, 100) && testo(d.zona, 100)
+        && (d.tipo == 'ASPORTO' || d.indirizzo.size() > 0)
+        && d.supplemento_consegna is number && d.supplemento_consegna >= 0 && d.supplemento_consegna <= 20
+        && testo(d.user_agent, 600)
+        && d.data_invio == request.time;
+    }
+
+    function ordineDelCliente(d) {
+      return isTelefono(d.get('telefono', ''))
+        || isTelefono(d.get('cliente', {}).get('telefono', ''));
+    }
+
+    // ---------- Rubrica clienti (CRM) aggiornata a ogni ordine ----------
+    function campiCrm() {
+      return ['nome', 'cognome', 'telefono', 'totaleSpeso', 'numOrdini', 'ultimaData', 'indirizzo', 'citofono', 'zona'];
+    }
+
+    // Nuovo ordine: un ordine in più e una spesa plausibile, nient'altro
+    function crmDaOrdine(tel, prima, dopo) {
+      return dopo.telefono == tel
+        && dopo.numOrdini == prima.get('numOrdini', 0) + 1
+        && dopo.totaleSpeso is number
+        && dopo.totaleSpeso >= prima.get('totaleSpeso', 0)
+        && dopo.totaleSpeso <= prima.get('totaleSpeso', 0) + 300;
+    }
+
+    // Profilo modificato dal cliente stesso (verificato via SMS), senza toccare i contatori
+    function crmProfilo(tel, campiToccati) {
+      return isTelefono(tel)
+        && campiToccati.hasOnly(['nome', 'cognome', 'telefono', 'ultimaData', 'indirizzo', 'citofono', 'zona'])
+        && request.resource.data.telefono == tel;
+    }
+
+    // ---------- Scorte scalate dall'App Clienti ----------
+    function soloScorta() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scorta', 'attivo'])
+        && request.resource.data.scorta is number
+        && request.resource.data.scorta >= 0
+        && (!(resource.data.get('scorta', null) is number) || request.resource.data.scorta <= resource.data.scorta)
+        && request.resource.data.attivo == (request.resource.data.scorta > 0);
+    }
+
+    // ---------- Profilo cliente registrato via SMS ----------
+    function profiloValido(d) {
+      return d.keys().hasOnly(['nome', 'cognome', 'telefono', 'indirizzo', 'citofono', 'zona', 'data_reg'])
+        && isTelefono(d.telefono);
+    }
+
+    // ---------- Contatore pizze per fascia oraria ----------
+    // Il cliente può toccare solo i contatori "slot" (la cassa aggiunge anche "aggiornato")
+    function occupazioneValida(id, campiToccati) {
+      return id.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && campiToccati.hasOnly(['slot'])
+        && request.resource.data.slot is map;
+    }
+
+    // ---------- Permessi pubblici per raccolta ----------
+    function puoLeggereDoc(coll, id) {
+      return letturaPubblica(coll, id)
+        || coll == 'ordini'                       // chi ha l'ID del proprio ordine può seguirlo
+        || (coll == 'clienti' && isTelefono(id))
+        || (coll == 'clienti_registrati' && request.auth != null && request.auth.uid == id);
+    }
+
+    function puoElencare(coll) {
+      return coll in ['prodotti', 'ingredienti', 'rimozioni', 'sconti']
+        || (coll == 'ordini' && ordineDelCliente(resource.data));
+    }
+
+    function puoCreare(coll, id) {
+      return (coll == 'ordini' && ordineValido(request.resource.data))
+        || (coll == 'clienti' && request.resource.data.keys().hasOnly(campiCrm())
+            && (crmDaOrdine(id, {}, request.resource.data) || crmProfilo(id, request.resource.data.keys())))
+        || (coll == 'clienti_registrati' && request.auth != null && request.auth.uid == id
+            && profiloValido(request.resource.data))
+        || (coll == 'occupazione_forno' && occupazioneValida(id, request.resource.data.keys()));
+    }
+
+    function puoModificare(coll, id) {
+      return (coll == 'prodotti' && soloScorta())
+        || (coll == 'clienti'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(campiCrm())
+            && (crmDaOrdine(id, resource.data, request.resource.data)
+                || crmProfilo(id, request.resource.data.diff(resource.data).affectedKeys())))
+        || (coll == 'clienti_registrati' && request.auth != null && request.auth.uid == id
+            && profiloValido(request.resource.data))
+        || (coll == 'occupazione_forno'
+            && occupazioneValida(id, request.resource.data.diff(resource.data).affectedKeys()));
+    }
+
+    // ---------- Personale: accesso completo a tutto ----------
+    match /{document=**} {
+      allow read, write: if isStaff();
+    }
+
+    // ---------- Locale principale ----------
+    match /{coll}/{id} {
+      allow get: if puoLeggereDoc(coll, id);
+      allow list: if puoElencare(coll);
+      allow create: if puoCreare(coll, id);
+      allow update: if puoModificare(coll, id);
+    }
+
+    // ---------- Locali creati da Super Admin ----------
+    match /ristoranti/{locale}/{coll}/{id} {
+      allow get: if puoLeggereDoc(coll, id);
+      allow list: if puoElencare(coll);
+      allow create: if puoCreare(coll, id);
+      allow update: if puoModificare(coll, id);
+    }
+  }
+}

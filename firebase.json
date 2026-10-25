@@ -1,10 +1,23 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": ".",
     "ignore": [
       "firebase.json",
+      "firestore.rules",
+      "test/**",
       "**/.*",
       "**/node_modules/**"
     ]
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8085
+    },
+    "ui": {
+      "enabled": false
+    }
   }
 }
