@@ -527,6 +527,15 @@
         const SESSION_STORAGE_KEY = `mimmo_user_session_${window.TENANT_ID}`;
         const LAST_ORDER_STORAGE_KEY = `mimmo_last_order_${window.TENANT_ID}`;
         const ADDRESS_STORAGE_KEY = `mimmo_user_address_${window.TENANT_ID}`;
+        const LAST_ORDER_ID_STORAGE_KEY = `mimmo_last_order_id_${window.TENANT_ID}`;
+        const CATEGORIE_FORNO = ['pizza', 'stirata', 'gf', 'speciale'];
+
+        // Telefono verificato via SMS (Firebase Auth). Solo con questo si possono leggere i propri ordini:
+        // le regole Firestore non permettono di elencare gli ordini di altri numeri.
+        const telefonoVerificato = () => {
+            const ph = auth.currentUser && auth.currentUser.phoneNumber;
+            return ph ? ph.replace('+39', '') : null;
+        };
 
         function getTodayLocalStr() {
             const now = new Date();
@@ -607,7 +616,7 @@
             
             precompilaCarrello();
             
-            if (window.calcolaFidelity && data.telefono) {
+            if (window.calcolaFidelity && data.telefono && telefonoVerificato() === data.telefono) {
                 window.calcolaFidelity(data.telefono);
             }
             updateAuthModalUI(true);
@@ -922,6 +931,10 @@
 
             if(!currentUserData || !currentUserData.telefono) {
                 container.innerHTML = "<div style='color:var(--col-red);'>Errore: Nessun telefono associato all'account.</div>";
+                return;
+            }
+            if (telefonoVerificato() !== currentUserData.telefono) {
+                container.innerHTML = "<div style='text-align:center; color:#888; padding:10px;'>Per vedere lo storico accedi con il tuo numero di telefono (codice SMS).</div>";
                 return;
             }
 
@@ -1428,9 +1441,10 @@
         window.aggiornaOrari = async () => {
             const sel = document.getElementById('orario'); sel.innerHTML="<option value=''>Caricamento...</option>"; const dateInput = document.getElementById('data-ritiro').value; const d = new Date(dateInput);
             if(GIORNO_CHIUSURA && String(d.getDay()) === String(GIORNO_CHIUSURA)) { sel.innerHTML="<option value=''>CHIUSO</option>"; Swal.fire("Siamo chiusi in questo giorno."); return; }
-            const snap = await getDocs(query(collection(db, "ordini"), where("data_ritiro", "==", dateInput))); const slotCounts = {}; 
-            snap.forEach(docSnap => { const o = docSnap.data(); if(o.stato !== 'Annullato' && o.prodotti) { let pizzeCount = 0; o.prodotti.forEach(p => { if(['pizza', 'stirata', 'gf', 'speciale'].includes(p.cat)) pizzeCount += parseFloat(p.qta || 0); }); if(o.orario) slotCounts[o.orario] = (slotCounts[o.orario] || 0) + pizzeCount; } });
-            let myCartPizzas = 0; carrello.forEach(p => { if(['pizza', 'stirata', 'gf', 'speciale'].includes(p.cat)) myCartPizzas += parseFloat(p.qta || 0); });
+            // Pizze già prenotate per fascia oraria: contatore aggregato (senza leggere gli ordini degli altri clienti)
+            let slotCounts = {};
+            try { const occ = await getDoc(doc(db, "occupazione_forno", dateInput)); if (occ.exists()) slotCounts = occ.data().slot || {}; } catch (e) { console.warn("Occupazione forno non disponibile:", e); }
+            let myCartPizzas = 0; carrello.forEach(p => { if(CATEGORIE_FORNO.includes(p.cat)) myCartPizzas += parseFloat(p.qta || 0); });
             sel.innerHTML="<option value=''>Orario...</option>"; const now = new Date(); const isToday = (dateInput === getTodayLocalStr());
             for(let h=19;h<23;h++) {
                 for(let m=0;m<60;m+=15) {
@@ -1499,7 +1513,7 @@
             btn.innerText="INVIO IN CORSO..."; btn.disabled=true;
             try {
                 const dataRitiroVal = document.getElementById('data-ritiro').value;
-                await addDoc(collection(db, "ordini"), {
+                const nuovoOrdineRef = await addDoc(collection(db, "ordini"), {
                     cliente: { nome, cognome, telefono: tel, indirizzo, citofono, zona },
                     nome: nome,
                     cognome: cognome,
@@ -1520,6 +1534,15 @@
                     data_invio: serverTimestamp(),
                     user_agent: navigator.userAgent
                 });
+
+                localStorage.setItem(LAST_ORDER_ID_STORAGE_KEY, nuovoOrdineRef.id);
+
+                // Aggiorna il contatore pizze della fascia oraria (la cassa lo ricalcola comunque dagli ordini reali)
+                const pizzeOrdine = carrello.reduce((acc, p) => acc + (CATEGORIE_FORNO.includes(p.cat) ? (parseFloat(p.qta) || 0) : 0), 0);
+                if (pizzeOrdine > 0) {
+                    setDoc(doc(db, "occupazione_forno", dataRitiroVal), { slot: { [ora]: increment(pizzeOrdine) } }, { merge: true })
+                        .catch(e => console.warn("Aggiornamento occupazione forno:", e));
+                }
 
                 // Salva l'indirizzo sul dispositivo per comodità nei prossimi ordini
                 if (isDom && indirizzo) {
@@ -1588,6 +1611,12 @@
 
         window.cercaOrdine = async () => {
             const tel = document.getElementById('track-tel')?.value; if(!tel) return Swal.fire("Attenzione", "Inserisci il tuo numero di telefono.", "warning");
+            if (telefonoVerificato() !== tel) {
+                // Senza verifica SMS si può seguire solo l'ultimo ordine fatto da questo dispositivo
+                const ultimoId = localStorage.getItem(LAST_ORDER_ID_STORAGE_KEY);
+                if (ultimoId) return monitoraOrdineLive(ultimoId);
+                return Swal.fire("Accedi", "Per seguire i tuoi ordini accedi con il tuo numero di telefono (codice SMS).", "info");
+            }
             try {
                 let snap = await getDocs(query(collection(db, "ordini"), where("telefono", "==", tel)));
                 if(snap.empty) snap = await getDocs(query(collection(db, "ordini"), where("cliente.telefono", "==", tel)));
