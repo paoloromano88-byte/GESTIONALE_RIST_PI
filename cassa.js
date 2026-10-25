@@ -2208,7 +2208,7 @@ function gestisciChiamataTurno(o, rep, printerIp) {
         const qDisplay = p.qta % 1 === 0 ? p.qta : p.qta.toFixed(3);
         d.push(`\x1D\x21\x01${qDisplay} x ${p.nome}\n\n\x1D\x21\x00`); 
         if(p.dettagli && p.dettagli!=='Normale') {
-            d.push(`   > ${p.dettagli.replace(/<[^>]*>/g, '')}\n`);
+            d.push(`   > ${p.dettagli.replace(/<br\s*\/?>/gi, '\n   > ').replace(/<[^>]*>?/gm, '')}\n`);
         }
         d.push('\n');
     });
@@ -2296,19 +2296,19 @@ window.stampaVia = (id, _u1, _u2, reparto) => {
     };
 
     if (storniFiltrati.length > 0) {
-        data.push('\x1B\x61\x01\x1B\x45\x01\n⛔ STORNO (ANNULLARE) ⛔\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
+        data.push('\x1B\x61\x01\x1B\x45\x01\n!!! STORNO (ANNULLARE) !!!\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
         storniFiltrati.forEach(p => stampaRiga(p));
     }
 
     if (spostamentiFiltrati.length > 0) {
         if (storniFiltrati.length > 0) data.push('\n');
-        data.push('\x1B\x61\x01\x1B\x45\x01\n↪️ CAMBIO TURNO ↩️\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
+        data.push('\x1B\x61\x01\x1B\x45\x01\n<<< CAMBIO TURNO >>>\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
         spostamentiFiltrati.forEach(p => { stampaRiga(p, ` (DA T${p.oldTurn} A T${p.newTurn})`); });
     }
 
     if (aggiunteFiltrate.length > 0) {
         if (storniFiltrati.length > 0 || spostamentiFiltrati.length > 0) data.push('\n');
-        data.push('\x1B\x61\x01\x1B\x45\x01\n➕ NUOVE AGGIUNTE ➕\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
+        data.push('\x1B\x61\x01\x1B\x45\x01\n+++ NUOVE AGGIUNTE +++\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
         
         const byTurn = {};
         aggiunteFiltrate.forEach(p => {

@@ -1770,6 +1770,9 @@
             const SEPARATORE_DOPPIO = "=".repeat(LARGHEZZA_CARTA);
             const SEPARATORE_TRATTO = "-".repeat(LARGHEZZA_CARTA);
 
+            // Converte il testo in ASCII puro: le stampanti termiche non gestiscono UTF-8,
+            // quindi accenti, € ed emoji uscirebbero come caratteri incomprensibili.
+            // I comandi ESC/POS usati sono tutti sotto 0x80 e restano intatti.
             function pulisciTestoESC(str) {
                 if (!str) return "";
                 return String(str)
@@ -1783,8 +1786,18 @@
                     .replace(/[ÌÍÎÏ]/g, "I'")
                     .replace(/[ÒÓÔÕÖ]/g, "O'")
                     .replace(/[ÙÚÛÜ]/g, "U'")
-                    .replace(/€/g, "EUR ");
+                    .replace(/€\s?/g, "EUR ")
+                    .replace(/[‘’´`]/g, "'")
+                    .replace(/[“”«»]/g, '"')
+                    .replace(/[–—]/g, "-")
+                    .replace(/…/g, "...")
+                    .replace(/[×]/g, "x")
+                    .replace(/°/g, "o")
+                    .replace(/\u00A0/g, " ")
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^\x00-\x7F]+ ?/g, "");
             }
+            window.pulisciTestoESC = pulisciTestoESC;
 
             function wrapTestoTermica(testo, maxCols = LARGHEZZA_CARTA) {
                 const pulito = pulisciTestoESC(testo).trim();
@@ -1924,6 +1937,15 @@
                         }
                     } catch (err) {
                         console.error("Errore iniezione dati domicilio su QZ Tray:", err);
+                    }
+                    if (Array.isArray(data)) {
+                        data = data.map(item => {
+                            if (typeof item === 'string') return pulisciTestoESC(item);
+                            if (item && typeof item.data === 'string' && (!item.format || item.format === 'plain' || item.format === 'command')) {
+                                return { ...item, data: pulisciTestoESC(item.data) };
+                            }
+                            return item;
+                        });
                     }
                     return origQzPrint(config, data);
                 };
