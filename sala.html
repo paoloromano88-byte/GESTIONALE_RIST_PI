@@ -339,7 +339,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { initializeFirestore, persistentLocalCache, collection as _collection, onSnapshot, doc as _doc, updateDoc, addDoc, getDocs, query, where, serverTimestamp, arrayUnion, deleteDoc, writeBatch, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { assicuraLoginDispositivo } from "./login-dispositivo.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU", 
@@ -386,7 +387,8 @@
         // Sblocco immediato interfaccia (nessun blocco su schermata nera)
         const savedName = sessionStorage.getItem('sala_waiter_name');
         if (!savedName) document.getElementById('login-overlay').style.display = 'flex';
-        signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {});
+        // Accesso del dispositivo con l'account del locale (una sola volta, poi Firebase lo ricorda)
+        await assicuraLoginDispositivo({ titolo: "Palmare Sala" });
 
         // CONTROLLO LICENZA E MODULO SALA IN TEMPO REALE (LIVE)
         onSnapshot(doc(db, "impostazioni", "licenza"), (snap) => {

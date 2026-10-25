@@ -417,13 +417,8 @@ onAuthStateChanged(auth, (user) => {
         }
         if (!initAvviato) init();
     } else {
-        if (sessionStorage.getItem('cassa_manual_logout') !== 'true') {
-            signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {
-                if (!initAvviato) init();
-            });
-        } else {
-            if (document.getElementById('login-overlay')) document.getElementById('login-overlay').style.display = 'flex';
-        }
+        // Nessun accesso automatico: il dispositivo entra una volta con l'account del locale e Firebase lo ricorda
+        if (document.getElementById('login-overlay')) document.getElementById('login-overlay').style.display = 'flex';
     }
 });
 

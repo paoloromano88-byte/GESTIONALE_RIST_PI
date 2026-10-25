@@ -1277,6 +1277,7 @@
     <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, doc as _doc, collection as _collection, query, where, onSnapshot, updateDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { attendiUtenteCollegato } from "./login-dispositivo.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
@@ -1289,6 +1290,9 @@
 
         const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // I listener di questo script partono solo dopo l'accesso alla cassa
+        await attendiUtenteCollegato();
 
         // --- ROUTER MULTI-TENANT AUTOMATICO ---
         const _urlParams = new URLSearchParams(window.location.search);

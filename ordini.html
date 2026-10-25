@@ -343,7 +343,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, addDoc, getDocs, onSnapshot, serverTimestamp, query, where, doc as _doc, setDoc, updateDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { assicuraLoginDispositivo } from "./login-dispositivo.js";
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -383,7 +384,8 @@
         };
 
         // Login automatico silenzioso per abilitare i permessi Firestore
-        signInWithEmailAndPassword(auth, "palmari@damimmo.it", "palmari2026").catch(() => {});
+        // Accesso del dispositivo con l'account del locale (una sola volta, poi Firebase lo ricorda)
+        await assicuraLoginDispositivo({ titolo: "Telecomando Ordini" });
 
         // Nome locale dinamico nell'header
         onSnapshot(doc(db, "impostazioni", "negozio"), (snap) => {
