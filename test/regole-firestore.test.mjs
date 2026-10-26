@@ -122,6 +122,8 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('anonimo NON incrementa il contatore dopo la cassa', false, () => setDoc(d(anon, 'occupazione_forno/2026-10-27'), { slot: { '20:00': increment(2) } }, { merge: true }));
   await t('occupazione forno: cliente NON tocca aggiornato', false, () => setDoc(d(anon, 'occupazione_forno/2026-10-27'), { aggiornato: 'x' }, { merge: true }));
   await t('personale aggiorna il contatore del forno', true, () => setDoc(d(staff, 'occupazione_forno/2026-10-27'), { slot: { '20:00': 7 }, aggiornato: 'x' }));
+  await t('anonimo NON scrive il contatore delle consegne', false, () => setDoc(d(anon, 'occupazione_forno/2026-10-26'), { consegne: { '20:30': increment(1) } }, { merge: true }));
+  await t('personale aggiorna il contatore delle consegne', true, () => setDoc(d(staff, 'occupazione_forno/2026-10-27'), { slot: { '20:00': 7 }, consegne: { '20:00': 2 }, aggiornato: 'x' }));
   await t('occupazione forno: id non-data rifiutato', false, () => setDoc(d(anon, 'occupazione_forno/hack'), { slot: {} }));
 
   // Cliente verificato via SMS (Mario)

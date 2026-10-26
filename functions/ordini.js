@@ -3,7 +3,7 @@
 // Al posto del telefono del cliente (che non può più scrivere su questi dati):
 //   - scala le scorte dei prodotti
 //   - aggiorna la scheda del cliente nella rubrica (clienti/{telefono})
-//   - aggiorna il contatore pizze per fascia oraria (occupazione_forno/{data})
+//   - aggiorna i contatori per fascia oraria (occupazione_forno/{data}): pizze e consegne a domicilio
 //   - ricalcola i prezzi dal listino e segnala in anomalia_prezzo se non tornano
 // ============================================================================
 import { FieldValue } from 'firebase-admin/firestore';
@@ -178,9 +178,11 @@ export async function elaboraOrdineApp(db, base, ordineRef) {
             tx.set(col('clienti').doc(tel), scheda, { merge: true });
         }
 
-        if (analisi.pizze > 0 && ordine.data_ritiro && ordine.orario) {
-            tx.set(col('occupazione_forno').doc(ordine.data_ritiro),
-                { slot: { [ordine.orario]: FieldValue.increment(analisi.pizze) } }, { merge: true });
+        const occupazione = {};
+        if (analisi.pizze > 0) occupazione.slot = { [ordine.orario]: FieldValue.increment(analisi.pizze) };
+        if (ordine.tipo === 'DOMICILIO') occupazione.consegne = { [ordine.orario]: FieldValue.increment(1) };
+        if (ordine.data_ritiro && ordine.orario && Object.keys(occupazione).length) {
+            tx.set(col('occupazione_forno').doc(ordine.data_ritiro), occupazione, { merge: true });
         }
 
         tx.update(ordineRef, {

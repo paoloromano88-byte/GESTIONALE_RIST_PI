@@ -651,6 +651,9 @@ NLg/qXlDavq+hN/q9BoFp6VP9e5sC0dBnMmT0WQLk7QppCI64qe3bUEYHGirnDsL
     if(docForno.exists() && docForno.data().limite_pizze && document.getElementById('oven-limit')) {
         document.getElementById('oven-limit').value = docForno.data().limite_pizze;
     }
+    if (document.getElementById('delivery-limit')) {
+        document.getElementById('delivery-limit').value = String(parseInt(docForno.exists() && docForno.data().limite_consegne) || 0);
+    }
     const docApp = await getDoc(doc(db, "impostazioni", "app_cliente"));
     if(docApp.exists() && docApp.data().cross_sell_bibite !== undefined && document.getElementById('switch-cross-sell')) {
         document.getElementById('switch-cross-sell').checked = docApp.data().cross_sell_bibite;
@@ -1049,8 +1052,8 @@ window.copiaPizzeSuGF = async () => {
 };
 
 // --- OCCUPAZIONE FORNO PUBBLICA ---
-// L'App Clienti non può più leggere gli ordini degli altri: legge solo il numero di pizze per fascia oraria
-// da occupazione_forno/{data}. La cassa lo ricalcola dagli ordini reali (modifiche, annullamenti, nuovi ordini).
+// L'App Clienti non può più leggere gli ordini degli altri: legge solo il numero di pizze e di consegne
+// per fascia oraria da occupazione_forno/{data}. La cassa lo ricalcola dagli ordini reali (modifiche, annullamenti, nuovi ordini).
 const CATEGORIE_FORNO = ['pizza', 'stirata', 'gf', 'speciale'];
 let ordiniAttiviForno = [];
 let ordiniCacheData = null;
@@ -1070,9 +1073,11 @@ function pubblicaOccupazioneForno() {
         const aggiungi = (o) => {
             if (!o.data_ritiro || o.data_ritiro < oggi || !o.orario || o.stato === 'Annullato' || o.tavolo) return;
             const pz = contaPizzeOrdine(o);
-            if (pz <= 0) return;
-            perData[o.data_ritiro] = perData[o.data_ritiro] || {};
-            perData[o.data_ritiro][o.orario] = (perData[o.data_ritiro][o.orario] || 0) + pz;
+            const consegna = o.tipo === 'DOMICILIO';
+            if (pz <= 0 && !consegna) return;
+            const giorno = perData[o.data_ritiro] = perData[o.data_ritiro] || { slot: {}, consegne: {} };
+            if (pz > 0) giorno.slot[o.orario] = (giorno.slot[o.orario] || 0) + pz;
+            if (consegna) giorno.consegne[o.orario] = (giorno.consegne[o.orario] || 0) + 1;
         };
         // Per il giorno mostrato in cassa contano tutti gli ordini (anche già chiusi); per gli altri giorni quelli attivi
         ordiniAttiviForno.filter(o => o.data_ritiro !== ordiniCacheData).forEach(aggiungi);
@@ -1081,11 +1086,11 @@ function pubblicaOccupazioneForno() {
         const date = new Set([...Object.keys(perData), ...Object.keys(occupazioneScritta), ...(ordiniCacheData && ordiniCacheData >= oggi ? [ordiniCacheData] : [])]);
         for (const data of date) {
             if (data < oggi) continue;
-            const slot = perData[data] || {};
-            const firma = JSON.stringify(slot);
+            const { slot, consegne } = perData[data] || { slot: {}, consegne: {} };
+            const firma = JSON.stringify([slot, consegne]);
             if (occupazioneScritta[data] === firma) continue;
             try {
-                await setDoc(doc(db, "occupazione_forno", data), { slot, aggiornato: serverTimestamp() });
+                await setDoc(doc(db, "occupazione_forno", data), { slot, consegne, aggiornato: serverTimestamp() });
                 occupazioneScritta[data] = firma;
             } catch (e) {
                 console.warn("Aggiornamento occupazione forno:", e);
@@ -2547,6 +2552,13 @@ window.salvaChiusura = async (val) => { await setDoc(doc(db, "impostazioni", "ne
 window.updateOvenLimit = async (val) => {
     await setDoc(doc(db, "impostazioni", "forno"), { limite_pizze: parseInt(val), ultima_modifica: serverTimestamp() }, { merge: true });
     showToast("Limite forno aggiornato a " + val + " pizze ogni 15 minuti.");
+};
+
+// Consegne a domicilio per fascia di 15 minuti (0 = senza limite): l'App Clienti mostra PIENO oltre il limite
+window.updateDeliveryLimit = async (val) => {
+    const limite = parseInt(val) || 0;
+    await setDoc(doc(db, "impostazioni", "forno"), { limite_consegne: limite, ultima_modifica: serverTimestamp() }, { merge: true });
+    showToast(limite ? `Massimo ${limite} consegne ogni 15 minuti.` : "Consegne senza limite per fascia oraria.");
 };
 
 window.toggleCrossSell = async (val) => {
