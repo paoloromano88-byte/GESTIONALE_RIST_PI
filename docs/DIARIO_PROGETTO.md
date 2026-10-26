@@ -110,7 +110,8 @@ File condivisi:
   - tasto BOOT per 5 s = ripristino;
   - prende 3 comande per volta (memoria limitata).
 - Il firmware lo compila **GitHub** (`.github/workflows/firmware-esp32.yml`: arduino-cli, core esp32 3.0.7, ArduinoJson 7.2.1, `CDCOnBoot=cdc`, `FlashMode=dio`):
-  - lo fa a ogni anteprima e a ogni pubblicazione, e il file finisce in `firmware/` sul sito;
+  - lo fa a ogni anteprima e a ogni pubblicazione, e i file finiscono in `firmware/` sul sito;
+  - sono quattro parti (bootloader 0x0, partizioni 0x8000, boot_app0 0xe000, programma 0x10000): un aggiornamento non cancella Wi-Fi e accesso salvati (NVS a 0x9000);
   - in questa sessione non si può compilare: i siti degli strumenti ESP32 sono bloccati.
 
 ### Scontrino fiscale: il gestionale NON è fiscale (decisione del 26/10/2026)
