@@ -6,6 +6,7 @@
     --bg-card: #1e1e1e;
     --primary: #2962ff;
     --accent: #ffea00;
+    --gold: #ffd600;      /* usato da "DA FARE" nella colonna orari, prezzi del carrello e storico */
     --success: #00e676;
     --danger: #ff5252;
     --text-main: #eee;
@@ -708,20 +709,13 @@ body {
         height: 100dvh;
         overflow-y: auto !important;
     }
-    /* Niente "display" forzato: la lista mostrata la sceglie la scheda Asporto / Tavoli / Pronti */
+    /* Niente "display" forzato: la lista mostrata la sceglie la scheda Asporto / Tavoli / Pronti.
+       Niente z-index: creerebbe un livello proprio e la colonna ORARI (che è dentro la griglia)
+       finirebbe sotto la barra in alto e le schede invece di coprire lo schermo. */
     .orders-grid {
         position: relative !important;
         width: 100% !important;
         height: auto !important;
         overflow: visible !important;
-        z-index: 10 !important;
-    }
-    .sidebar, .slot-container, [id*="orari"] {
-        position: relative !important;
-        width: 100% !important;
-        height: auto !important;
-        max-height: 300px !important;
-        overflow-y: auto !important;
-        z-index: 5;
     }
 }
