@@ -22,11 +22,16 @@
       "test/**",
       "functions/**",
       "docs/**",
+      "agente-stampa/**",
+      "**/agente-stampa.json",
       "**/.*",
       "**/node_modules/**"
     ]
   },
   "emulators": {
+    "auth": {
+      "port": 9099
+    },
     "firestore": {
       "port": 8085
     },

@@ -1,4 +1,5 @@
-# A ogni push su main: test, poi Cloud Functions + regole Firestore, poi il sito (Hosting).
+# A ogni push su main: test, poi Cloud Functions + regole Firestore, poi il sito (Hosting)
+# insieme al firmware dell'ESP32 compilato (pagina esp32.html).
 # Il sito viene pubblicato solo se backend e regole sono andati a buon fine, così
 # l'App Clienti nuova non va online senza le funzioni che aggiornano scorte e rubrica.
 name: Deploy Firebase Hosting (produzione)
@@ -32,11 +33,19 @@ jobs:
             --project gestionale-ristoranti-96c5b --non-interactive --force
           rm -f "$RUNNER_TEMP/sa.json"
 
+  firmware:
+    uses: ./.github/workflows/firmware-esp32.yml
+
   deploy:
-    needs: backend
+    needs: [backend, firmware]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Firmware dell'ESP32 appena compilato, per la pagina esp32.html
+      - uses: actions/download-artifact@v4
+        with:
+          name: firmware-esp32
+          path: firmware
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

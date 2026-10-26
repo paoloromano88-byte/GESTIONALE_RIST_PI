@@ -1,4 +1,4 @@
-# Test riutilizzabili con gli emulatori Firebase: regole Firestore + Cloud Functions
+# Test riutilizzabili con gli emulatori Firebase: regole Firestore, Agente di stampa, Cloud Functions
 name: Test emulatori
 
 on:
@@ -23,6 +23,8 @@ jobs:
           cp zone-consegna.js functions/zone-consegna.js
       - name: Regole Firestore
         run: npx firebase emulators:exec --only firestore --project demo-gestionale "node test/regole-firestore.test.mjs"
+      - name: Agente di stampa (coda, stampanti finte)
+        run: npx firebase emulators:exec --only auth,firestore --project demo-gestionale "node test/agente-stampa.test.mjs"
       - name: Elaborazione ordini (server)
         run: npx firebase emulators:exec --only firestore --project demo-gestionale "node functions/test/ordini.test.mjs"
       - name: Trigger Cloud Functions end-to-end

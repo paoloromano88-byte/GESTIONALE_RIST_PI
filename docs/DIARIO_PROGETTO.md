@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 26/10/2026, con la PR #27 (Cassa non fiscale: preconto e totale battuto sul registratore del locale).
+**Ultimo aggiornamento:** 26/10/2026, con la PR #29 (stampa senza QZ Tray: coda di stampa, Agente di stampa e firmware ESP32-C3).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -28,11 +28,13 @@ dall'hosting in `firebase.json`.
 | `mappa_sala.html` | Mappa dei tavoli | personale |
 | `delivery.html` | **App Rider**: consegne del giorno (PIN personale con ruolo "Rider"), scanner QR per prendere in carico la busta, avviso "ordine pronto" | rider |
 | `superadmin.html` | **Super Admin**: crea i locali, licenze, account dei locali | titolare del software |
+| `esp32.html` | Programma un **ESP32-C3** come Agente di stampa, dal browser via USB (ESP Web Tools 10.2.1), e istruzioni | titolare / installatore |
 
 File condivisi:
 - `login-dispositivo.js`: accesso del dispositivo con l'account del locale e controllo della scheda `utenti`.
 - `sanitize.js`: protezione da HTML iniettato (`escapeHtml`, `sanitizeHtml`, `safeId`).
 - `zone-consegna.js`: zone di consegna per CAP. È usato da App Clienti, Cassa e server, così il calcolo è identico ovunque.
+- `agente-stampa/`: **Agente di stampa** per PC/Raspberry (`agente.mjs`) e protocollo per l'ESP32 (`README.md`). Non è pubblicato sul sito.
 - `functions/`: Cloud Functions (server).
 - `firestore.rules`: regole di sicurezza del database.
 - `test/`, `functions/test/`: test automatici.
@@ -81,6 +83,36 @@ File condivisi:
    - Uscita d'emergenza: "Scontrino senza QR? Prendi a mano", con conferma.
    - Un ordine preso è visibile **solo** a quel rider. "Rilascia" lo restituisce agli altri.
 5. **Consegna**: il rider preme "Consegnato". La Cassa vede tutto in "🛵 CONSEGNE DI OGGI".
+
+### Stampa: QZ Tray oppure Agente di stampa (dalla PR #29)
+- Si sceglie in Gestionale → Stampanti → «Come arrivano le stampe» (`impostazioni/stampanti.metodo`: `qz` predefinito, oppure `agente`).
+- Tutte le stampe termiche passano da `inviaStampaTermica()` in `cassa.js`:
+  - comande, VIA/aggiunte, chiamata turni, conto, preconto, riepilogo Z;
+  - i ritocchi (blocco domicilio, testo solo ASCII) sono in `preparaDatiStampaTermica()` in `cassa.html`.
+- **QZ Tray**: identico a prima. Provato confrontando byte per byte 8 tipi di stampa prima e dopo.
+- **Agente**:
+  - la cassa scrive i byte ESC/POS in base64 in `coda_stampa` del locale;
+  - un apparecchio nel locale (ESP32, oppure PC con `agente-stampa/agente.mjs`) li manda a IP:9100 e cancella la comanda;
+  - il tentativo 5 fallito porta lo stato a `errore`; dopo 15 minuti la comanda è `scaduta`;
+  - ogni 30 secondi il battito aggiorna `agenti_stampa/{id}`;
+  - l'agente usa l'account email/password del locale, quindi niente server in più e niente regole nuove;
+  - la prenotazione di una comanda è un commit con `currentDocument.updateTime`, così due agenti non stampano due volte la stessa comanda. Con PATCH e la condizione nell'URL l'emulatore sbaglia.
+- **Semaforo** in alto (sugli smartphone un badge in basso, solo se c'è un problema):
+  - QZ Tray spento / errore sul PC con «QUESTO PC È LA CASSA»;
+  - agente spento (nessun battito da 90 s);
+  - comande ferme da più di 20 s o in errore;
+  - avviso a comparsa quando diventa rosso.
+- Per ora le comande automatiche le prepara ancora il dispositivo con «QUESTO PC È LA CASSA», che però può essere anche un telefono.
+- **ESP32-C3 SuperMini** (firmware in `agente-stampa/esp32/AgenteStampa/`, stesso protocollo dell'agente per PC):
+  - al primo avvio crea la rete «AgenteStampa-xxxx» con una pagina per Wi-Fi (solo 2,4 GHz), email e password del locale e nome;
+  - la password serve solo al primo accesso: poi resta il token di rinnovo;
+  - lucina blu (GPIO 8): fissa = ok, lampeggio veloce = da configurare, lento = problema, tre lampi = stampato;
+  - tasto BOOT per 5 s = ripristino;
+  - prende 3 comande per volta (memoria limitata).
+- Il firmware lo compila **GitHub** (`.github/workflows/firmware-esp32.yml`: arduino-cli, core esp32 3.0.7, ArduinoJson 7.2.1, `CDCOnBoot=cdc`, `FlashMode=dio`):
+  - lo fa a ogni anteprima e a ogni pubblicazione, e i file finiscono in `firmware/` sul sito;
+  - sono quattro parti (bootloader 0x0, partizioni 0x8000, boot_app0 0xe000, programma 0x10000): un aggiornamento non cancella Wi-Fi e accesso salvati (NVS a 0x9000);
+  - in questa sessione non si può compilare: i siti degli strumenti ESP32 sono bloccati.
 
 ### Scontrino fiscale: il gestionale NON è fiscale (decisione del 26/10/2026)
 - Ogni locale stampa il **preconto** dal gestionale e batte il totale sul **proprio registratore di cassa**, di qualunque marca. Così non serve nessun accordo con l'Agenzia delle Entrate.
@@ -143,6 +175,7 @@ File condivisi:
 npm install --no-save @firebase/rules-unit-testing@3.0.4 firebase@10.7.1
 cp zone-consegna.js functions/ && (cd functions && npm ci)
 npx firebase-tools@13.29.1 emulators:exec --only firestore --project demo-gestionale "node test/regole-firestore.test.mjs"
+npx firebase-tools@13.29.1 emulators:exec --only auth,firestore --project demo-gestionale "node test/agente-stampa.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only firestore --project demo-gestionale "node functions/test/ordini.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project demo-gestionale "node functions/test/trigger.test.mjs"
 ```
@@ -164,6 +197,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #24 | **QR delle consegne**: stampato sugli scontrini a domicilio, scanner nell'App Rider. **Avviso "ordine pronto"** al rider (suono, vibrazione, badge). App Rider: schede intere anche con tante consegne. **Cassa su smartphone**: controllo di 32 schermate (liste, colonna Orari, barra della data, finestre che si scorrono fino in fondo, Incasso, Nuovo ordine/Modifica, Statistiche, Mappa, Gestionale). Anche sul computer: Preconto, scritte illeggibili su tavoli occupati, "DA FARE" e titolo Bi-Gusto |
 | #25 | Aggiornamento di questo diario |
 | #27 | **Cassa non fiscale**: per ogni locale "Scontrino fiscale" in Gestionale → Stampanti (Nessuno / Olivetti con cartella impostabile). Incasso con "INCASSA" e promemoria "batti € X sul registratore". "DOCUMENTO NON FISCALE" su preconto, conto e riepilogo Z |
+| #29 | **Stampa senza QZ Tray, tappe 1 e 2**: coda di stampa (`coda_stampa`), Agente di stampa per PC (`agente-stampa/`), **firmware ESP32-C3** compilato da GitHub e pagina `esp32.html` per installarlo, scelta in Gestionale → Stampanti, semaforo e avvisi quando la stampa non funziona (anche con QZ Tray) |
 
 ## 6. Issue
 
@@ -178,22 +212,25 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 - #8 minimo e consegna gratuita;
 - #9 avviso al rider quando un ordine è pronto;
 - #18 errore all'apertura dell'App Clienti;
-- #26 cassa non fiscale (preconto + totale a mano sul registratore).
+- #26 cassa non fiscale (preconto + totale a mano sul registratore);
+- #28 stampa senza QZ Tray, tappa 1 (coda e Agente di stampa).
 
 **Da fare, in ordine**:
 1. **#16**: chiave privata di QZ Tray (stampa) scritta nel codice della cassa → firma lato server.
 2. **#17**: regole di Firebase Storage (logo e immagini) per più locali.
 3. **#19**: PIN d'emergenza 0000 sempre valido in Sala e Agenda.
 
+**Stampa senza QZ Tray con ESP32** (#28, deciso il 26/10/2026), in tappe:
+1. ✅ Coda di stampa, Agente per PC, semaforo e avvisi (PR #29).
+2. ✅ Firmware ESP32-C3 SuperMini (il modello del titolare) e pagina `esp32.html` (PR #29). **Da provare con l'apparecchio vero**: non è stato possibile provarlo qui.
+3. Comande preparate dal server (Cloud Function sugli ordini), così si stampa anche con la cassa chiusa.
+
+Altre strade valutate: stampa dal browser (una sola stampante, finestra «Stampa»); stampanti Star CloudPRNT / Epson Server Direct Print (solo certi modelli); Monitor Cucina (KDS) al posto della carta.
+
 Da verificare sul posto:
 - **QR sugli scontrini**: al primo ordine a domicilio, controllare che il QR esca nitido dalla stampante vera e che il rider lo scansioni. Non è stato provato con una stampante reale. Se esce male, servono il modello della stampante e una foto dello scontrino. Alternative: comando QR nativo `GS ( k`, oppure moduli più grandi in `rasterQrBase64`.
 
 Idee per dopo (non richieste):
-- **Stampa delle comande senza QZ Tray**, per i locali che non lo installano (discusso il 26/10/2026, da decidere):
-  - oggi, se QZ Tray manca o è spento, la comanda non esce e la cassa non avvisa → serve almeno un avviso ben visibile;
-  - stampa dal browser come riserva (rotolo 80 mm; c'è già una base inutilizzata, `#print-area`);
-  - stampanti "cloud" che prendono da sole le comande: Star CloudPRNT, Epson Server Direct Print;
-  - il Monitor Cucina (KDS) già esistente, al posto della carta.
 - Togliere "Prendi a mano" dall'App Rider se si vuole la presa **solo** con il QR.
 - Notifiche push al rider anche con l'app chiusa (oggi l'avviso "pronto" richiede l'app aperta).
 - Ritocchi minori su smartphone:

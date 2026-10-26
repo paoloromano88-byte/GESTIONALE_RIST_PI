@@ -401,6 +401,7 @@ document.addEventListener("DOMContentLoaded", () => {
 window.togglePrintServer = (val) => {
     window.isPrintServer = val;
     localStorage.setItem('is_print_server', val);
+    aggiornaSemaforoStampa();
     if(val) {
         Swal.fire("Server di Stampa ATTIVATO", "Questo PC stamperà automaticamente gli ordini dei camerieri.", "success");
     } else {
@@ -621,6 +622,7 @@ NLg/qXlDavq+hN/q9BoFp6VP9e5sC0dBnMmT0WQLk7QppCI64qe3bUEYHGirnDsL
     if (document.getElementById('qr-app-img')) document.getElementById('qr-app-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(linkAppQR)}`;
 
     const docSnap = await getDoc(doc(db, "impostazioni", "stampanti")); if(docSnap.exists()) PRINTER_CONFIG = docSnap.data();
+    avviaMonitorStampa();
     
     // Ascolto in tempo reale dei dati del ristorante selezionato
     onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
@@ -2243,6 +2245,189 @@ window.inviaSegnaleVia = async (id, turno) => {
     });
 };
 
+// --- INVIO ALLE STAMPANTI TERMICHE ---
+// Il modo si sceglie in Gestionale > Stampanti (impostazioni/stampanti.metodo):
+//  - 'qz' (predefinito): QZ Tray sul PC della cassa manda i byte all'IP della stampante;
+//  - 'agente': la cassa mette la stampa in coda_stampa e l'Agente di stampa del locale
+//    (ESP32 o PC, vedi agente-stampa/) la manda alla stampante. Non serve QZ Tray.
+const metodoStampa = () => (PRINTER_CONFIG.metodo === 'agente' ? 'agente' : 'qz');
+
+const descrizioneStampa = (o) => o ? (o.tavolo ? `Tavolo ${o.tavolo}` : `${o.cognome || o.nome || ''} ${o.orario || ''}`.trim()) : '';
+
+// Voci di stampa (testo ESC/POS e immagini in base64) -> byte da mandare alla stampante.
+// Dopo preparaDatiStampaTermica il testo è già ASCII: un carattere = un byte.
+function byteDatiStampa(data) {
+    const out = [];
+    const testo = (s) => { for (const ch of String(s)) { const c = ch.codePointAt(0); out.push(c <= 0xFF ? c : (ch === '€' ? 0x80 : 0x3F)); } };
+    for (const item of data) {
+        if (typeof item === 'string') testo(item);
+        else if (item && typeof item.data === 'string') {
+            if (item.flavor === 'base64') { const bin = atob(item.data); for (let i = 0; i < bin.length; i++) out.push(bin.charCodeAt(i)); }
+            else testo(item.data);
+        }
+    }
+    return out;
+}
+
+function base64Byte(bytes) {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.slice(i, i + 0x8000));
+    return btoa(bin);
+}
+
+function inviaStampaTermica(ip, data, opzioni = {}) {
+    const { encoding, stampante = '', descrizione = '' } = opzioni;
+    let invio;
+    if (metodoStampa() === 'agente') {
+        const pronti = typeof window.preparaDatiStampaTermica === 'function' ? window.preparaDatiStampaTermica(data) : data;
+        const [host, porta] = String(ip || '').trim().replace(/^https?:\/\//, '').split(':');
+        invio = addDoc(collection(db, 'coda_stampa'), {
+            stampante: String(stampante), descrizione: String(descrizione).slice(0, 80),
+            ip: host, porta: parseInt(porta) || 9100, dati: base64Byte(byteDatiStampa(pronti)),
+            stato: 'da_stampare', tentativi: 0, creato: serverTimestamp()
+        });
+    } else if (typeof qz === 'undefined') {
+        invio = Promise.reject(new Error('QZ Tray non caricato'));
+    } else {
+        invio = qz.print(encoding ? qz.configs.create({ host: ip, port: 9100 }, { encoding }) : qz.configs.create({ host: ip, port: 9100 }), data);
+    }
+    return invio.then(r => { segnalaEsitoStampa(true); return r; }, err => { segnalaEsitoStampa(false); throw err; });
+}
+window.inviaStampaTermica = inviaStampaTermica;
+
+// --- SEMAFORO DELLA STAMPA (in alto) ---
+// QZ: sul PC con «QUESTO PC È LA CASSA» dice se QZ Tray è collegato.
+// Agente: su ogni dispositivo dice se l'agente risponde e se ci sono comande ferme.
+const statoStampa = { ultimoErroreQz: 0, agenti: [], coda: [], livelloPrecedente: null };
+const SECONDI_AGENTE_ONLINE = 90, SECONDI_COMANDA_FERMA = 20;
+let ascoltiStampa = [];
+const avvioPagina = Date.now();
+
+function segnalaEsitoStampa(ok) {
+    if (metodoStampa() !== 'qz') return;
+    statoStampa.ultimoErroreQz = ok ? 0 : Date.now();
+    aggiornaSemaforoStampa();
+}
+
+const msDa = (ts) => ts && ts.toDate ? Date.now() - ts.toDate().getTime() : Infinity;
+const agenteOnline = (a) => !a.disattivato && msDa(a.ultimo_contatto) < SECONDI_AGENTE_ONLINE * 1000;
+const comandaFerma = (c) => ['errore', 'scaduta'].includes(c.stato) || msDa(c.creato) > SECONDI_COMANDA_FERMA * 1000;
+
+function calcolaStatoStampa() {
+    if (metodoStampa() === 'agente') {
+        const ferme = statoStampa.coda.filter(comandaFerma);
+        const inErrore = ferme.filter(c => ['errore', 'scaduta'].includes(c.stato));
+        if (!statoStampa.agenti.some(agenteOnline)) return { livello: 'errore', testo: 'AGENTE DI STAMPA SPENTO', dettaglio: "Nessun Agente di stampa risponde: le comande restano in coda finché non torna in linea." };
+        if (inErrore.length) return { livello: 'errore', testo: `${inErrore.length} NON STAMPATE`, dettaglio: "Alcune comande non sono uscite: controlla che le stampanti siano accese, poi «Riprova» in Gestionale > Stampanti." };
+        if (ferme.length) return { livello: 'attenzione', testo: `${ferme.length} IN ATTESA`, dettaglio: "Alcune comande aspettano da più di 20 secondi." };
+        return { livello: 'ok', testo: 'STAMPA OK', dettaglio: 'Agente di stampa collegato.' };
+    }
+    const qzAttivo = typeof qz !== 'undefined' && qz.websocket && qz.websocket.isActive();
+    if (!window.isPrintServer && !statoStampa.ultimoErroreQz) return { livello: 'nascosto' };
+    if (!qzAttivo) return { livello: 'errore', testo: 'QZ TRAY SPENTO', dettaglio: "QZ Tray non è collegato su questo dispositivo: le comande NON escono. Apri QZ Tray sul PC della cassa." };
+    if (statoStampa.ultimoErroreQz && Date.now() - statoStampa.ultimoErroreQz < 120000) return { livello: 'errore', testo: 'ERRORE DI STAMPA', dettaglio: "L'ultima stampa non è riuscita: controlla che la stampante sia accesa e collegata." };
+    return { livello: 'ok', testo: 'STAMPA OK', dettaglio: 'QZ Tray collegato.' };
+}
+
+function aggiornaSemaforoStampa() {
+    // Appena aperta la pagina QZ Tray si sta ancora collegando: niente falsi allarmi
+    if (Date.now() - avvioPagina < 8000) return;
+    const s = calcolaStatoStampa();
+    // Uno nella riga dei controlli (computer), uno in basso sugli smartphone (solo se c'è un problema)
+    for (const el of [document.getElementById('semaforo-stampa'), document.getElementById('semaforo-stampa-mobile')]) {
+        if (!el) continue;
+        const mobile = el.id === 'semaforo-stampa-mobile';
+        el.className = (mobile ? 'semaforo-stampa semaforo-mobile' : 'control-group semaforo-stampa') + ' semaforo-' + s.livello;
+        if (!mobile) el.style.display = s.livello === 'nascosto' ? 'none' : 'flex';
+        el.title = s.dettaglio || '';
+        el.querySelector('.semaforo-testo').textContent = s.testo || '';
+    }
+    if (s.livello === 'errore' && statoStampa.livelloPrecedente !== 'errore' && printerOn) {
+        Swal.fire({ toast: true, position: 'top', icon: 'error', title: '🖨️ ' + s.testo, text: s.dettaglio, showConfirmButton: false, timer: 7000 });
+    }
+    statoStampa.livelloPrecedente = s.livello;
+    if (document.getElementById('view-stampanti')?.style.display === 'block') renderPannelloAgente();
+}
+setInterval(aggiornaSemaforoStampa, 5000);
+
+// In modalità agente ascolta gli agenti e la coda del locale
+function avviaMonitorStampa() {
+    ascoltiStampa.forEach(stop => stop());
+    ascoltiStampa = [];
+    statoStampa.agenti = []; statoStampa.coda = [];
+    if (metodoStampa() !== 'agente') { aggiornaSemaforoStampa(); return; }
+    ascoltiStampa.push(onSnapshot(collection(db, 'agenti_stampa'), snap => {
+        statoStampa.agenti = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        aggiornaSemaforoStampa();
+    }, err => console.error('Agenti di stampa:', err)));
+    ascoltiStampa.push(onSnapshot(collection(db, 'coda_stampa'), snap => {
+        statoStampa.coda = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        aggiornaSemaforoStampa();
+    }, err => console.error('Coda di stampa:', err)));
+}
+
+window.apriImpostazioniStampa = () => { window.apriGestionale(); window.cambiaTab('stampanti'); };
+
+const quantoFa = (ts) => {
+    const s = Math.round(msDa(ts) / 1000);
+    if (!isFinite(s)) return 'mai';
+    if (s < 60) return `${Math.max(s, 0)} s fa`;
+    if (s < 3600) return `${Math.round(s / 60)} min fa`;
+    return `${Math.round(s / 3600)} ore fa`;
+};
+
+function renderPannelloAgente() {
+    const boxAgenti = document.getElementById('lista-agenti-stampa');
+    const boxCoda = document.getElementById('lista-coda-stampa');
+    if (!boxAgenti || !boxCoda) return;
+    const esc = window.escapeHtml;
+    if (metodoStampa() !== 'agente') {
+        boxAgenti.innerHTML = '<p class="nota-stampa">Salva con «Agente di stampa» per vedere qui gli agenti collegati.</p>';
+        boxCoda.innerHTML = '';
+        return;
+    }
+    boxAgenti.innerHTML = statoStampa.agenti.length ? statoStampa.agenti.map(a => {
+        const icona = a.disattivato ? '⛔' : (agenteOnline(a) ? '🟢' : '🔴');
+        const info = [a.disattivato ? 'scollegato' : `ultimo contatto ${quantoFa(a.ultimo_contatto)}`, a.versione ? 'v' + a.versione : '', a.ip_locale || ''].filter(Boolean).join(' · ');
+        const pulsante = a.disattivato
+            ? `<button class="btn-agente" onclick="eliminaAgenteStampa('${window.safeId(a.id)}')">Elimina</button>`
+            : `<button class="btn-agente" onclick="scollegaAgenteStampa('${window.safeId(a.id)}')">Scollega</button>`;
+        return `<div class="riga-agente"><div><b>${icona} ${esc(a.nome || a.id)}</b><br><small>${esc(info)}</small>${a.ultimo_errore ? `<br><small style="color:#c62828;">${esc(a.ultimo_errore)}</small>` : ''}</div>${pulsante}</div>`;
+    }).join('') : '<p class="nota-stampa">🔴 Nessun agente collegato finora.</p>';
+
+    const ferme = statoStampa.coda.filter(comandaFerma).sort((x, y) => msDa(y.creato) - msDa(x.creato));
+    boxCoda.innerHTML = ferme.length ? `
+        <div style="margin-top:12px; font-weight:bold;">Comande non ancora stampate: ${ferme.length}</div>
+        ${ferme.slice(0, 15).map(c => `<div class="riga-coda"><b>${esc(c.descrizione || c.stampante || '')}</b> <small>(${esc(c.ip || '')}) · ${esc(c.stato === 'scaduta' ? 'scaduta' : c.stato === 'errore' ? 'errore' : 'in attesa')} · ${quantoFa(c.creato)}</small>${c.errore ? `<br><small style="color:#c62828;">${esc(c.errore)}</small>` : ''}</div>`).join('')}
+        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+            <button class="btn-agente" style="background:#2e7d32; color:#fff;" onclick="riprovaCodaStampa()">🔁 Riprova tutte</button>
+            <button class="btn-agente" onclick="scartaCodaStampa()">🗑️ Scarta tutte</button>
+        </div>` : '<p class="nota-stampa">✅ Nessuna comanda in attesa.</p>';
+}
+
+window.scollegaAgenteStampa = async (id) => {
+    const r = await Swal.fire({ title: 'Scollegare questo agente?', text: "Smetterà di stampare finché non lo ricolleghi con l'account del locale.", icon: 'warning', showCancelButton: true, confirmButtonText: 'Scollega', cancelButtonText: 'Annulla' });
+    if (r.isConfirmed) await updateDoc(doc(db, 'agenti_stampa', id), { disattivato: true });
+};
+window.eliminaAgenteStampa = async (id) => { await deleteDoc(doc(db, 'agenti_stampa', id)); };
+
+window.riprovaCodaStampa = async () => {
+    const ferme = statoStampa.coda.filter(comandaFerma);
+    const batch = writeBatch(db);
+    ferme.forEach(c => batch.update(doc(db, 'coda_stampa', c.id), { stato: 'da_stampare', tentativi: 0, errore: '', creato: serverTimestamp() }));
+    await batch.commit();
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `${ferme.length} comande rimesse in stampa`, showConfirmButton: false, timer: 2000 });
+};
+
+window.scartaCodaStampa = async () => {
+    const ferme = statoStampa.coda.filter(comandaFerma);
+    const r = await Swal.fire({ title: `Scartare ${ferme.length} comande?`, text: 'Non verranno più stampate.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Scarta', cancelButtonText: 'Annulla' });
+    if (!r.isConfirmed) return;
+    const batch = writeBatch(db);
+    ferme.forEach(c => batch.delete(doc(db, 'coda_stampa', c.id)));
+    await batch.commit();
+};
+
 function enquePrint(id, reparto, type) {
     printQueue.push({id, reparto, type});
     processPrintQueue();
@@ -2365,7 +2550,7 @@ function gestisciChiamataTurno(o, rep, printerIp) {
     });
 
     d.push(`\n\n\x1B\x61\x01${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`);
-    qz.print(qz.configs.create({ host: printerIp, port: 9100 }), d).catch(err => console.error("Errore QZ:", err));
+    inviaStampaTermica(printerIp, d, { stampante: rep, descrizione: `${String(rep).toUpperCase()} · ${descrizioneStampa(o)}` }).catch(err => console.error("Errore stampa:", err));
 }
 
 window.stampaVia = (id, _u1, _u2, reparto) => {
@@ -2508,7 +2693,7 @@ window.stampaVia = (id, _u1, _u2, reparto) => {
     }
 
     data.push(`\n\n\x1B\x61\x01${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`); 
-    qz.print(qz.configs.create({ host: printerIp, port: 9100 }, { encoding: 'windows-1252' }), data).catch(e => console.error(e));
+    inviaStampaTermica(printerIp, data, { encoding: 'windows-1252', stampante: repKey, descrizione: `${repKey.toUpperCase()} · ${descrizioneStampa(o)}` }).catch(e => console.error(e));
 };
 
 window.chiudiTavolo = async (id) => {
@@ -3437,7 +3622,7 @@ window.stampa = (id, reparto) => {
     // Consegna a domicilio: QR dell'ordine, che il rider scansiona dall'App Rider per prenderlo in carico
     if (typeof window.datiQrConsegnaESC === 'function') data.push(...window.datiQrConsegnaESC(o));
     data.push(`\x1B\x61\x01\n${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`); 
-    qz.print(qz.configs.create({ host: printerIp, port: 9100 }), data).catch(e => console.error(e));
+    inviaStampaTermica(printerIp, data, { stampante: repKey, descrizione: `${headerTitle} · ${descrizioneStampa(o)}` }).catch(e => console.error(e));
 };
 // ============================================================================
 // CASSA.JS - PARTE 4 DI 4
@@ -3945,7 +4130,7 @@ window.stampaChiusuraZ = async (modalita = 'oggi') => {
         data.push(`\x1B\x61\x01\x1D\x21\x11\x1B\x45\x01TOTALE: E ${totGen.toFixed(2)}\n\x1D\x21\x00\x1B\x45\x00`);
         data.push(`\n${new Date().toLocaleString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`);
 
-        await qz.print(qz.configs.create({ host: printerIp, port: 9100 }), data);
+        await inviaStampaTermica(printerIp, data, { stampante: 'conto', descrizione: `RIEPILOGO Z ${dStart}` });
         Swal.fire({ icon: 'success', title: 'Report Z inviato in stampa!', timer: 1500, showConfirmButton: false });
     } catch (e) {
         Swal.fire("Errore Stampa Z", e.message, "error");
@@ -4370,6 +4555,17 @@ window.renderizzaConfigStampanti = () => {
         document.getElementById('fiscale-cartella').value = fiscale.cartella || '';
         window.aggiornaVistaFiscale();
     }
+    if (document.getElementById('stampa-metodo')) {
+        document.getElementById('stampa-metodo').value = metodoStampa();
+        window.aggiornaVistaMetodoStampa();
+    }
+    renderPannelloAgente();
+};
+
+window.aggiornaVistaMetodoStampa = () => {
+    const agente = document.getElementById('stampa-metodo').value === 'agente';
+    document.getElementById('stampa-agente-box').style.display = agente ? 'block' : 'none';
+    document.getElementById('stampa-qz-info').style.display = agente ? 'none' : 'block';
 };
 
 window.aggiornaVistaFiscale = () => {
@@ -4394,11 +4590,14 @@ window.salvaConfigStampanti = async () => {
         pizzeria: { ip: document.getElementById('ip-pizzeria').value.trim(), cats: getCats('cats-pizzeria') },
         cucina: { ip: document.getElementById('ip-cucina').value.trim(), cats: getCats('cats-cucina') },
         bar: { ip: document.getElementById('ip-bar').value.trim(), cats: getCats('cats-bar') },
-        fiscale
+        fiscale,
+        metodo: document.getElementById('stampa-metodo')?.value === 'agente' ? 'agente' : 'qz'
     };
     try {
         await setDoc(doc(db, "impostazioni", "stampanti"), newConfig);
         PRINTER_CONFIG = newConfig; 
+        avviaMonitorStampa();
+        renderPannelloAgente();
         Swal.fire("Configurazione salvata!");
     } catch(e) {
         Swal.fire("Errore salvataggio: " + e.message);
