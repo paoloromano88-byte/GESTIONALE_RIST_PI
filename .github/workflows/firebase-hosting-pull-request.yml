@@ -9,6 +9,9 @@ permissions:
   pull-requests: write
 
 jobs:
+  test:
+    uses: ./.github/workflows/test-emulatori.yml
+
   preview:
     # Le PR da fork non hanno accesso ai secrets
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}

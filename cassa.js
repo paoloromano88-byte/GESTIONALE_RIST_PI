@@ -1260,6 +1260,8 @@ function renderOrdine(o, container) {
         const totaleStr = o.totale ? parseFloat(o.totale).toFixed(2) : "0.00";
         const orarioPrenotazioneHtml = o.orario ? `<div style="margin-top:5px; color:#1976d2; font-size:0.9em;"><b><i class="fa fa-calendar-check"></i> Prenotato per le: ${window.escapeHtml(o.orario)}</b></div>` : '';
         const noteHtml = o.note_ordine ? `<div style="margin-top:10px; background:#fff8e1; border:1px solid #ffe0b2; color:#e65100; padding:8px; border-radius:5px; font-weight:bold;">NOTE: ${window.escapeHtml(o.note_ordine)}</div>` : '';
+        // Segnalazione del server: i prezzi dell'ordine non tornano con il listino (vedi functions/ordini.js)
+        const anomaliaHtml = (o.anomalia_prezzo && Array.isArray(o.anomalia_prezzo.motivi)) ? `<div style="margin-top:10px; background:#ffebee; border:2px solid #d32f2f; color:#b71c1c; padding:8px; border-radius:5px; font-weight:bold;">⚠️ PREZZI DA VERIFICARE<br><small style="font-weight:normal;">${o.anomalia_prezzo.motivi.map(m => window.escapeHtml(m)).join('<br>')}${o.anomalia_prezzo.totale_atteso !== undefined ? `<br>Totale atteso: € ${window.escapeHtml(Number(o.anomalia_prezzo.totale_atteso).toFixed(2))}` : ''}</small></div>` : '';
 
         let orarioDisplay = o.orario || "--:--"; 
         let iconaOrario = "fa-clock"; 
@@ -1326,7 +1328,7 @@ function renderOrdine(o, container) {
             </div>
             <div class="card-client-box"><span class="client-name">${nomeCli} ${copertiHtml}</span><a href="tel:${String(telCli).replace(/[^\d+]/g, '')}" class="client-phone"><i class="fa fa-phone"></i> ${window.escapeHtml(telCli)}</a></div>
             ${agendaBadgesHtml}
-            <div class="card-body">${alertViaHtml}${itemsHtml}${orarioPrenotazioneHtml}${noteHtml}<div class="card-total-box"><span>TOTALE</span><span>€ ${totaleStr}</span></div>
+            <div class="card-body">${alertViaHtml}${anomaliaHtml}${itemsHtml}${orarioPrenotazioneHtml}${noteHtml}<div class="card-total-box"><span>TOTALE</span><span>€ ${totaleStr}</span></div>
             <div class="status-row"><button class="status-btn ${o.stato.includes('Pronto')?'active-pronto':''}" onclick="cambiaStato('${window.safeId(o.id)}','Pronto')">PRONTO</button><button class="status-btn" style="background:#333; color:white;" onclick="apriPagamento('${window.safeId(o.id)}')">PAGA & CHIUDI</button></div>
             <div class="card-actions"><button class="action-btn" style="border-left:3px solid #2962ff; background:#e3f2fd; color:#1565c0;" onclick="apriModifica('${window.safeId(o.id)}')">✏️ MODIFICA</button><button class="action-btn" style="border-left:3px solid black;" onclick="chiediDivisioneEStampa('${window.safeId(o.id)}')">PRECONTO</button><button class="action-btn" style="border-left:3px solid #d32f2f;" onclick="stampa('${window.safeId(o.id)}', 'PIZZERIA')">PIZZA</button><button class="action-btn" style="border-left:3px solid #f57c00;" onclick="stampa('${window.safeId(o.id)}', 'CUCINA')">CUCINA</button><button class="action-btn" style="border-left:3px solid #1976d2;" onclick="stampa('${window.safeId(o.id)}', 'BAR')">BAR</button></div></div>`;
         container.appendChild(div);

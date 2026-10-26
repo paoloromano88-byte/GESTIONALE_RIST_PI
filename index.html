@@ -482,7 +482,7 @@
     <script src="sanitize.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection as _collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc as _doc, getDoc, query, where, orderBy, limit, setDoc, writeBatch, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection as _collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc as _doc, getDoc, query, where, orderBy, limit, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { calcolaConsegna } from "./zone-consegna.js";
         import { getAuth, signInWithPhoneNumber, RecaptchaVerifier, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -1585,63 +1585,12 @@
 
                 localStorage.setItem(LAST_ORDER_ID_STORAGE_KEY, nuovoOrdineRef.id);
 
-                // Aggiorna il contatore pizze della fascia oraria (la cassa lo ricalcola comunque dagli ordini reali)
-                const pizzeOrdine = carrello.reduce((acc, p) => acc + (CATEGORIE_FORNO.includes(p.cat) ? (parseFloat(p.qta) || 0) : 0), 0);
-                if (pizzeOrdine > 0) {
-                    setDoc(doc(db, "occupazione_forno", dataRitiroVal), { slot: { [ora]: increment(pizzeOrdine) } }, { merge: true })
-                        .catch(e => console.warn("Aggiornamento occupazione forno:", e));
-                }
+                // Scorte, rubrica clienti e contatore del forno vengono aggiornati dal server
+                // (Cloud Function ordineApp*), che ricontrolla anche i prezzi dal listino.
 
                 // Salva l'indirizzo sul dispositivo per comodità nei prossimi ordini
                 if (isDom && indirizzo) {
                     localStorage.setItem(ADDRESS_STORAGE_KEY, JSON.stringify({ indirizzo, citofono, zona, cap }));
-                }
-
-                // Scala Scorte Zero-Click (inclusa Stirata Bi-Gusto) e aggiorna CRM Cliente con Indirizzo
-                try {
-                    const batch = writeBatch(db);
-                    carrello.forEach(item => {
-                        let itemsToScale = [];
-                        if (item.componenti && item.componenti.length > 0) {
-                            item.componenti.forEach(cId => {
-                                const m = MENU.find(x => x.id === cId);
-                                if (m) itemsToScale.push({ prod: m, factor: 0.5 });
-                            });
-                        } else {
-                            const prodOrig = MENU.find(m => m.nome === item.nome);
-                            if (prodOrig) itemsToScale.push({ prod: prodOrig, factor: 1 });
-                        }
-
-                        itemsToScale.forEach(({ prod, factor }) => {
-                            if (prod.scorta !== null && prod.scorta !== undefined && prod.scorta !== "") {
-                                const qtaDaScalare = (parseFloat(item.qta) || 1) * factor;
-                                const nuovaScorta = Math.max(0, parseFloat(prod.scorta) - qtaDaScalare);
-                                batch.update(doc(db, "prodotti", prod.id), {
-                                    scorta: nuovaScorta,
-                                    attivo: nuovaScorta > 0
-                                });
-                            }
-                        });
-                    });
-                    if (tel) {
-                        const crmPayload = {
-                            nome: `${nome} ${cognome}`.trim(),
-                            cognome: cognome,
-                            telefono: tel,
-                            totaleSpeso: increment(totFinale),
-                            numOrdini: increment(1),
-                            ultimaData: dataRitiroVal
-                        };
-                        if (isDom && indirizzo) {
-                            crmPayload.indirizzo = indirizzo;
-                            crmPayload.citofono = citofono;
-                            crmPayload.zona = zona;
-                        }
-                        batch.set(doc(db, "clienti", tel), crmPayload, { merge: true });
-                    }
-                    await batch.commit();
-                } catch (errBatch) {
-                    console.warn("Aggiornamento scorte/CRM:", errBatch);
                 }
 
                 localStorage.setItem(LAST_ORDER_STORAGE_KEY, Date.now());
