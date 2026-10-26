@@ -161,13 +161,19 @@
                 box-sizing: border-box !important;
             }
 
-            /* Modali responsive su smartphone */
+            /* Modali responsive su smartphone: si scorrono fino in fondo */
             .modal-box {
                 width: 96% !important;
                 max-width: 100% !important;
-                max-height: 92vh !important;
+                max-height: none !important;
                 padding: 15px !important;
                 box-sizing: border-box !important;
+            }
+
+            /* Incasso: il pulsante MODIFICA va sotto il totale invece di coprirne la scritta */
+            .btn-modifica-totale {
+                position: static !important;
+                margin-top: 8px !important;
             }
         }
 
@@ -1194,7 +1200,7 @@
                 <div style="font-size:1.2em; color:#555;">TOTALE DA PAGARE</div>
                 <div style="font-size:3em; font-weight:900; color:#333;" id="pay-total">€ 0.00</div>
                 
-                <button onclick="modificaTotaleManuale()" style="position:absolute; top:15px; right:15px; background:#ff9800; color:black; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                <button class="btn-modifica-totale" onclick="modificaTotaleManuale()" style="position:absolute; top:15px; right:15px; background:#ff9800; color:black; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                     <i class="fa fa-pencil"></i> MODIFICA
                 </button>
             </div>
