@@ -12,12 +12,21 @@ jobs:
   test:
     uses: ./.github/workflows/test-emulatori.yml
 
+  firmware:
+    uses: ./.github/workflows/firmware-esp32.yml
+
   preview:
     # Le PR da fork non hanno accesso ai secrets
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    needs: firmware
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Firmware dell'ESP32 appena compilato, per la pagina esp32.html
+      - uses: actions/download-artifact@v4
+        with:
+          name: firmware-esp32
+          path: firmware
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

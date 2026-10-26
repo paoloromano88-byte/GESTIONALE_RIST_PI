@@ -1,0 +1,50 @@
+# Compila il firmware dell'Agente di stampa per ESP32-C3 (agente-stampa/esp32) e prepara i file
+# per la pagina esp32.html, che lo installa via USB dal browser (ESP Web Tools).
+name: Firmware ESP32
+
+on:
+  workflow_call:
+
+jobs:
+  compila:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.arduino15
+            ~/Arduino/libraries
+          key: arduino-esp32-3.0.7-arduinojson-7.2.1-v1
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Core ESP32 e libreria ArduinoJson
+        env:
+          URL_ESP32: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+        run: |
+          arduino-cli core update-index --additional-urls "$URL_ESP32"
+          arduino-cli core install esp32:esp32@3.0.7 --additional-urls "$URL_ESP32"
+          arduino-cli lib install ArduinoJson@7.2.1
+      - name: Compila per ESP32-C3 (USB seriale all'avvio, flash DIO)
+        run: |
+          arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc,FlashMode=dio --warnings default \
+            --output-dir build agente-stampa/esp32/AgenteStampa
+          ls -la build
+      - name: File per la pagina di programmazione
+        run: |
+          mkdir -p firmware
+          if [ -f build/AgenteStampa.ino.merged.bin ]; then
+            cp build/AgenteStampa.ino.merged.bin firmware/agente-stampa-esp32c3.bin
+          else
+            ESPTOOL=$(ls -d ~/.arduino15/packages/esp32/tools/esptool_py/*/ | head -1)
+            BOOTAPP0=$(ls ~/.arduino15/packages/esp32/hardware/esp32/*/tools/partitions/boot_app0.bin | head -1)
+            "${ESPTOOL}esptool" --chip esp32c3 merge_bin -o firmware/agente-stampa-esp32c3.bin \
+              0x0 build/AgenteStampa.ino.bootloader.bin 0x8000 build/AgenteStampa.ino.partitions.bin \
+              0xe000 "$BOOTAPP0" 0x10000 build/AgenteStampa.ino.bin
+          fi
+          cp agente-stampa/esp32/manifest.json firmware/agente-stampa-esp32c3.json
+          ls -la firmware
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-esp32
+          path: firmware/
+          retention-days: 7

@@ -67,3 +67,9 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Agente di stampa: impostazioni con il token di accesso (mai nel repository)
+agente-stampa.json
+# Firmware ESP32 compilato (lo prepara GitHub ad ogni pubblicazione)
+/firmware/
+/build/

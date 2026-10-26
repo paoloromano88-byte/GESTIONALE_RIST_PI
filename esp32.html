@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agente di stampa ESP32</title>
+    <!-- ESP Web Tools: installa il firmware via USB dal browser (Chrome/Edge su computer) -->
+    <script type="module" src="https://unpkg.com/esp-web-tools@10.2.1/dist/web/install-button.js?module"></script>
+    <style>
+        :root { --sfondo: #f4f4f4; --scheda: #fff; --testo: #222; --tenue: #555; --verde: #2e7d32; --bordo: #ddd; }
+        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--sfondo); color: var(--testo); }
+        main { max-width: 760px; margin: 0 auto; padding: 16px; }
+        h1 { font-size: 1.5em; margin: 8px 0 4px; }
+        h2 { font-size: 1.15em; margin: 0 0 10px; }
+        .scheda { background: var(--scheda); border-radius: 14px; padding: 18px; margin: 14px 0; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+        p, li { line-height: 1.5; }
+        ol { padding-left: 22px; margin: 0; }
+        li { margin-bottom: 8px; }
+        .tenue { color: var(--tenue); font-size: .95em; }
+        .avviso { background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px; padding: 10px 12px; margin-top: 12px; }
+        .installa { text-align: center; padding: 10px 0 4px; }
+        esp-web-install-button button[slot="activate"] { background: var(--verde); color: #fff; border: 0; border-radius: 12px; padding: 16px 28px; font-size: 1.15em; font-weight: bold; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 8px 6px; border-bottom: 1px dashed var(--bordo); vertical-align: top; }
+        td:first-child { white-space: nowrap; font-weight: bold; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>🖨️ Agente di stampa con ESP32-C3</h1>
+    <p class="tenue">Un piccolo apparecchio sempre acceso nel locale, che manda alle stampanti termiche le stampe della cassa. Funziona con qualunque stampante di rete (porta 9100), senza QZ Tray.</p>
+
+    <section class="scheda">
+        <h2>1. Programma l'ESP32 (una volta sola)</h2>
+        <ol>
+            <li>Usa un <b>computer</b> con <b>Chrome</b> o <b>Edge</b>: da telefono e da Safari non funziona.</li>
+            <li>Collega l'ESP32-C3 SuperMini al computer con un cavo <b>USB-C che trasmette dati</b> (alcuni cavi servono solo per caricare).</li>
+            <li>Premi <b>Installa</b>, scegli la porta che compare (di solito «USB JTAG/serial debug unit») e conferma. Quando chiede di cancellare l'apparecchio, accetta.</li>
+            <li>Aspetta la fine: circa un minuto.</li>
+        </ol>
+        <div class="installa">
+            <esp-web-install-button manifest="firmware/agente-stampa-esp32c3.json">
+                <button slot="activate">⬇️ Installa sull'ESP32</button>
+                <span slot="unsupported"><b>Questo browser non può programmare l'ESP32.</b> Apri questa pagina su un computer con Chrome o Edge.</span>
+                <span slot="not-allowed"><b>Pagina non sicura:</b> aprila dall'indirizzo https del gestionale.</span>
+            </esp-web-install-button>
+        </div>
+        <div class="avviso">Se la porta non compare o l'installazione non parte: scollega l'ESP32, <b>tieni premuto il tasto BOOT</b>, ricollegalo al computer, lascia il tasto e riprova.</div>
+    </section>
+
+    <section class="scheda">
+        <h2>2. Collegalo al locale</h2>
+        <ol>
+            <li>Alimenta l'ESP32 nel locale con un normale caricatore USB, vicino al router.</li>
+            <li>Dal telefono apri il Wi-Fi e collegati alla rete <b>AgenteStampa-xxxx</b>. Si apre una pagina; se non si apre, vai su <b>http://192.168.4.1</b>.</li>
+            <li>Inserisci:
+                <ul>
+                    <li>la rete Wi-Fi del locale e la sua password. Deve essere una rete <b>a 2,4 GHz</b>, la stessa delle stampanti;</li>
+                    <li><b>email e password del locale</b>, le stesse della cassa. La password non resta salvata;</li>
+                    <li>un nome, per esempio «ESP32 cucina».</li>
+                </ul>
+            </li>
+            <li>In cassa: <b>Gestionale → Stampanti</b>.
+                <ul>
+                    <li>Controlla gli indirizzi IP delle stampanti.</li>
+                    <li>In «Come arrivano le stampe» scegli <b>Agente di stampa</b> e salva.</li>
+                    <li>Dopo qualche secondo l'agente compare in verde 🟢.</li>
+                </ul>
+            </li>
+        </ol>
+    </section>
+
+    <section class="scheda">
+        <h2>La lucina blu</h2>
+        <table>
+            <tr><td>Accesa fissa</td><td>Tutto a posto: aspetta le stampe.</td></tr>
+            <tr><td>Tre lampi rapidi</td><td>Ha appena stampato una comanda.</td></tr>
+            <tr><td>Lampeggio veloce</td><td>È da configurare: collegati alla rete «AgenteStampa-xxxx». Se c'è stato un errore, la pagina lo spiega in rosso.</td></tr>
+            <tr><td>Lampeggio lento</td><td>Problema di Wi-Fi o di internet: controlla il router. Riprova da solo.</td></tr>
+        </table>
+        <p class="tenue">Per ricominciare da capo, ad esempio per cambiare Wi-Fi o locale, tieni premuto il tasto <b>BOOT</b> per 5 secondi con l'ESP32 acceso.</p>
+        <p class="tenue">Se qualcosa non va, collega l'ESP32 al computer, premi <b>Installa</b> e scegli <b>Logs &amp; Console</b>: compare il registro di cosa sta facendo. Puoi copiarlo e mandarlo all'assistenza.</p>
+    </section>
+</main>
+</body>
+</html>

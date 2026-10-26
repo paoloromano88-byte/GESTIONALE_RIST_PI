@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 26/10/2026, con la PR #29 (stampa senza QZ Tray: coda di stampa e Agente di stampa, tappa 1).
+**Ultimo aggiornamento:** 26/10/2026, con la PR #29 (stampa senza QZ Tray: coda di stampa, Agente di stampa e firmware ESP32-C3).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -28,6 +28,7 @@ dall'hosting in `firebase.json`.
 | `mappa_sala.html` | Mappa dei tavoli | personale |
 | `delivery.html` | **App Rider**: consegne del giorno (PIN personale con ruolo "Rider"), scanner QR per prendere in carico la busta, avviso "ordine pronto" | rider |
 | `superadmin.html` | **Super Admin**: crea i locali, licenze, account dei locali | titolare del software |
+| `esp32.html` | Programma un **ESP32-C3** come Agente di stampa, dal browser via USB (ESP Web Tools 10.2.1), e istruzioni | titolare / installatore |
 
 File condivisi:
 - `login-dispositivo.js`: accesso del dispositivo con l'account del locale e controllo della scheda `utenti`.
@@ -102,6 +103,15 @@ File condivisi:
   - comande ferme da più di 20 s o in errore;
   - avviso a comparsa quando diventa rosso.
 - Per ora le comande automatiche le prepara ancora il dispositivo con «QUESTO PC È LA CASSA», che però può essere anche un telefono.
+- **ESP32-C3 SuperMini** (firmware in `agente-stampa/esp32/AgenteStampa/`, stesso protocollo dell'agente per PC):
+  - al primo avvio crea la rete «AgenteStampa-xxxx» con una pagina per Wi-Fi (solo 2,4 GHz), email e password del locale e nome;
+  - la password serve solo al primo accesso: poi resta il token di rinnovo;
+  - lucina blu (GPIO 8): fissa = ok, lampeggio veloce = da configurare, lento = problema, tre lampi = stampato;
+  - tasto BOOT per 5 s = ripristino;
+  - prende 3 comande per volta (memoria limitata).
+- Il firmware lo compila **GitHub** (`.github/workflows/firmware-esp32.yml`: arduino-cli, core esp32 3.0.7, ArduinoJson 7.2.1, `CDCOnBoot=cdc`, `FlashMode=dio`):
+  - lo fa a ogni anteprima e a ogni pubblicazione, e il file finisce in `firmware/` sul sito;
+  - in questa sessione non si può compilare: i siti degli strumenti ESP32 sono bloccati.
 
 ### Scontrino fiscale: il gestionale NON è fiscale (decisione del 26/10/2026)
 - Ogni locale stampa il **preconto** dal gestionale e batte il totale sul **proprio registratore di cassa**, di qualunque marca. Così non serve nessun accordo con l'Agenzia delle Entrate.
@@ -186,7 +196,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #24 | **QR delle consegne**: stampato sugli scontrini a domicilio, scanner nell'App Rider. **Avviso "ordine pronto"** al rider (suono, vibrazione, badge). App Rider: schede intere anche con tante consegne. **Cassa su smartphone**: controllo di 32 schermate (liste, colonna Orari, barra della data, finestre che si scorrono fino in fondo, Incasso, Nuovo ordine/Modifica, Statistiche, Mappa, Gestionale). Anche sul computer: Preconto, scritte illeggibili su tavoli occupati, "DA FARE" e titolo Bi-Gusto |
 | #25 | Aggiornamento di questo diario |
 | #27 | **Cassa non fiscale**: per ogni locale "Scontrino fiscale" in Gestionale → Stampanti (Nessuno / Olivetti con cartella impostabile). Incasso con "INCASSA" e promemoria "batti € X sul registratore". "DOCUMENTO NON FISCALE" su preconto, conto e riepilogo Z |
-| #29 | **Stampa senza QZ Tray, tappa 1**: coda di stampa (`coda_stampa`), Agente di stampa per PC e protocollo per l'ESP32 (`agente-stampa/`), scelta in Gestionale → Stampanti, semaforo e avvisi quando la stampa non funziona (anche con QZ Tray) |
+| #29 | **Stampa senza QZ Tray, tappe 1 e 2**: coda di stampa (`coda_stampa`), Agente di stampa per PC (`agente-stampa/`), **firmware ESP32-C3** compilato da GitHub e pagina `esp32.html` per installarlo, scelta in Gestionale → Stampanti, semaforo e avvisi quando la stampa non funziona (anche con QZ Tray) |
 
 ## 6. Issue
 
@@ -211,7 +221,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 
 **Stampa senza QZ Tray con ESP32** (#28, deciso il 26/10/2026), in tappe:
 1. ✅ Coda di stampa, Agente per PC, semaforo e avvisi (PR #29).
-2. Firmware ESP32: Wi-Fi e account del locale da una pagina di configurazione, programmazione via USB da pagina web. Serve sapere il modello di ESP32 del titolare (consigliato ESP32-C3 SuperMini; con presa di rete WT32-ETH01).
+2. ✅ Firmware ESP32-C3 SuperMini (il modello del titolare) e pagina `esp32.html` (PR #29). **Da provare con l'apparecchio vero**: non è stato possibile provarlo qui.
 3. Comande preparate dal server (Cloud Function sugli ordini), così si stampa anche con la cassa chiusa.
 
 Altre strade valutate: stampa dal browser (una sola stampante, finestra «Stampa»); stampanti Star CloudPRNT / Epson Server Direct Print (solo certi modelli); Monitor Cucina (KDS) al posto della carta.

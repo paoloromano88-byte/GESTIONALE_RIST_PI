@@ -1,0 +1,11 @@
+{
+  "name": "Agente di stampa (ESP32-C3)",
+  "version": "1.0.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [{ "path": "agente-stampa-esp32c3.bin", "offset": 0 }]
+    }
+  ]
+}

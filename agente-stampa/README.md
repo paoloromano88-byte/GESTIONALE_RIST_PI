@@ -10,7 +10,7 @@ Cassa / Sala / App Clienti ──► Firebase: coda_stampa ──► Agente di s
 ```
 
 L'agente può essere:
-- un **ESP32** (programma in arrivo nella prossima tappa, stesso protocollo descritto qui sotto);
+- un **ESP32-C3 SuperMini** con il firmware di `esp32/AgenteStampa/`. Si programma dal browser con la pagina **`esp32.html`** del gestionale (Gestionale → Stampanti → «Programma e collega un ESP32-C3»). Il firmware lo compila GitHub a ogni anteprima e pubblicazione (`.github/workflows/firmware-esp32.yml`: Arduino core esp32 3.0.7, ArduinoJson 7.2.1);
 - un **PC o Raspberry Pi** sempre acceso, con `agente.mjs` (questa cartella).
 
 ## Come si attiva
@@ -37,7 +37,7 @@ node agente.mjs
 - La password non viene salvata. Nel file `agente-stampa.json` resta solo il token di accesso: tienilo riservato.
 - Per ricollegarlo, ad esempio dopo «Scollega» dalla cassa: `node agente.mjs --collega`.
 
-## Protocollo (per il programma dell'ESP32)
+## Protocollo (uguale per ESP32 e PC)
 
 Tutto passa dalle API REST pubbliche di Firebase, con l'account email/password del locale.
 Le regole di Firestore danno all'account accesso solo ai dati del suo locale.
