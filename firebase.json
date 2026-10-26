@@ -11,7 +11,8 @@
       ".gitignore"
     ],
     "predeploy": [
-      "cp \"$PROJECT_DIR/zone-consegna.js\" \"$RESOURCE_DIR/zone-consegna.js\""
+      "cp \"$PROJECT_DIR/zone-consegna.js\" \"$RESOURCE_DIR/zone-consegna.js\"",
+      "cp \"$PROJECT_DIR/comande-escpos.js\" \"$RESOURCE_DIR/comande-escpos.js\""
     ]
   },
   "hosting": {

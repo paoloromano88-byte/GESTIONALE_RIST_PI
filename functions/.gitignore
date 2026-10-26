@@ -1,3 +1,4 @@
 node_modules/
-# Copiato da ../zone-consegna.js prima del deploy e dei test (firebase.json predeploy)
+# Copiati da ../zone-consegna.js e ../comande-escpos.js prima del deploy e dei test (firebase.json predeploy)
 zone-consegna.js
+comande-escpos.js

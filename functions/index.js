@@ -5,9 +5,10 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { setGlobalOptions } from 'firebase-functions/v2';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
 import { elaboraOrdineApp, isOrdineApp } from './ordini.js';
+import { comandeDaEvento } from './comande.js';
 
 initializeApp();
 setGlobalOptions({ region: 'europe-west12', maxInstances: 10 });
@@ -26,3 +27,10 @@ export const ordineAppPrincipale = onDocumentCreated('ordini/{ordineId}', (event
 // Locali creati dal Super Admin
 export const ordineAppLocali = onDocumentCreated('ristoranti/{locale}/ordini/{ordineId}',
     (event) => gestisci(event, db.collection('ristoranti').doc(event.params.locale)));
+
+// Comande per l'Agente di stampa (solo se il locale ha scelto "Agente di stampa"):
+// ordini nuovi e messaggi alla cucina, anche con la cassa chiusa
+export const comandePrincipale = onDocumentWritten('ordini/{ordineId}', (event) => comandeDaEvento(db, db, 'default', event));
+
+export const comandeLocali = onDocumentWritten('ristoranti/{locale}/ordini/{ordineId}',
+    (event) => comandeDaEvento(db, db.collection('ristoranti').doc(event.params.locale), event.params.locale, event));

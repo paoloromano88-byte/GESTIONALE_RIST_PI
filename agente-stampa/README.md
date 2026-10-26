@@ -5,9 +5,11 @@ termiche di rete** del locale, senza QZ Tray. Funziona con qualunque marca che a
 ESC/POS sulla porta 9100 (quasi tutte le termiche con presa di rete).
 
 ```
-Cassa / Sala / App Clienti ──► Firebase: coda_stampa ──► Agente di stampa ──► stampante (IP:9100)
-                                                          (nel locale)
+Ordini (cassa, sala, App Clienti) ──► server ──┐
+Conto, preconto, Z (dalla cassa) ──────────────┴──► Firebase: coda_stampa ──► Agente di stampa ──► stampante (IP:9100)
+                                                                               (nel locale)
 ```
+Il testo delle stampe lo prepara `comande-escpos.js`, lo stesso per cassa e server.
 
 L'agente può essere:
 - un **ESP32-C3 SuperMini** con il firmware di `esp32/AgenteStampa/`. Si programma dal browser con la pagina **`esp32.html`** del gestionale (Gestionale → Stampanti → «Programma e collega un ESP32-C3»). Il firmware lo compila GitHub a ogni anteprima e pubblicazione (`.github/workflows/firmware-esp32.yml`: Arduino core esp32 3.0.7, ArduinoJson 7.2.1);
@@ -22,8 +24,9 @@ L'agente può essere:
 3. In alto nella cassa compare il semaforo:
    - **STAMPA OK** quando l'agente risponde;
    - rosso lampeggiante se l'agente è spento o una stampante non risponde.
-4. Le comande automatiche (ordini da sala, telecomando e App Clienti) le prepara il dispositivo
-   con «QUESTO PC È LA CASSA» acceso. Va bene anche un tablet o un telefono, perché QZ Tray non serve.
+4. Le comande automatiche (ordini nuovi da cassa, sala, telecomando e App Clienti; VIA, aggiunte e
+   storni) le mette in coda il **server** (`functions/comande.js`): escono anche con la cassa chiusa.
+   Conto, preconto e riepilogo Z li manda la cassa, da qualunque dispositivo.
 
 ### Agente su PC o Raspberry Pi
 

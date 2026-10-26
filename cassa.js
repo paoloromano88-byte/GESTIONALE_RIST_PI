@@ -3,6 +3,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } f
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { verificaAccountLocale } from "./login-dispositivo.js";
 import { calcolaConsegna } from "./zone-consegna.js";
+import { datiOrdine, datiMessaggioCucina, raggruppaProdotti, descrizioneStampa, byteDatiStampa, base64Byte, righeServizioCucina } from "./comande-escpos.js";
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
 // --- CONFIGURAZIONE PROGETTO FIREBASE ---
@@ -179,28 +180,7 @@ window.generaBadgeAgendaPerCassa = (o) => {
         : '';
 };
 
-window.getRigheStampaCucinaFiltrate = (o) => {
-    if (!o) return "";
-    let righe = [];
-    const serv = (o.preferenza_servizio || '').trim().toLowerCase();
-    if (serv === 'giro pizza' || serv === 'giropizza') righe.push("*** SERVIZIO: GIRO PIZZA ***");
-    else if (serv === 'ristorante') righe.push("*** SERVIZIO: RISTORANTE ***");
-    else if (serv === 'pizzeria') righe.push("*** SERVIZIO: PIZZERIA ***");
-    else if (serv === 'misto') righe.push("*** SERVIZIO: MISTO ***");
-
-    if (Array.isArray(o.etichette)) {
-        const haSenzaGlutine = o.etichette.some(t => {
-            const low = String(t || '').toLowerCase();
-            return low.includes('senza glutine') || low.includes('glutine') || low.includes('celiac') || low.includes('gf');
-        });
-        if (haSenzaGlutine) {
-            righe.push("================================");
-            righe.push("   ATTENZIONE: SENZA GLUTINE    ");
-            righe.push("================================");
-        }
-    }
-    return righe.length > 0 ? righe.join("\n") + "\n" : "";
-};
+window.getRigheStampaCucinaFiltrate = (o) => righeServizioCucina(o);
 
 // --- SIDEBAR ORARI ASPORTO CON TENDINA COGNOMI E NUMERO PIZZE ---
 window.generaSidebarOrari = () => {
@@ -747,7 +727,7 @@ NLg/qXlDavq+hN/q9BoFp6VP9e5sC0dBnMmT0WQLk7QppCI64qe3bUEYHGirnDsL
                     if (isNuovoDavvero && data.data_ritiro && data.data_ritiro !== dataAttualeCassa) {
                         window.ordiniFuturiCache.push({ id: oid, ...data });
 
-                        if (printerOn && window.isPrintServer) {
+                        if (stampaAutomaticaDaQuestaCassa()) {
                             setTimeout(() => {
                                 if(typeof playSound === 'function') playSound();
                                 if(typeof showToast === 'function') showToast("🖨️ Stampa ordine del: " + data.data_ritiro);
@@ -1186,7 +1166,7 @@ function caricaOrdiniPerData(dateObj) {
                     printedViaCache.add(oid + data.messaggio_cucina); 
                     playSound(); 
 
-                    if (printerOn && window.isPrintServer) {
+                    if (stampaAutomaticaDaQuestaCassa()) {
                         if (!data.messaggio_cucina.includes("RICHIESTA CONTO")) {
                             enquePrint(oid, 'PIZZERIA', 'VIA'); 
                             enquePrint(oid, 'CUCINA', 'VIA'); 
@@ -1220,7 +1200,7 @@ function caricaOrdiniPerData(dateObj) {
                         triggerTabBlink('asporto');
                     }
 
-                    if(printerOn && window.isPrintServer) {
+                    if(stampaAutomaticaDaQuestaCassa()) {
                         enquePrint(oid, 'PIZZERIA', 'ORDER'); 
                         enquePrint(oid, 'CUCINA', 'ORDER'); 
                         enquePrint(oid, 'BAR', 'ORDER'); 
@@ -1259,30 +1239,6 @@ function caricaOrdiniPerData(dateObj) {
     });
 }
 
-function raggruppaProdotti(prodotti) {
-    const raggruppati = [];
-    if(!prodotti) return [];
-    prodotti.forEach(p => {
-        let cleanDet = p.dettagli || '';
-        if(cleanDet === 'Normale') cleanDet = '';
-
-        const key = (p.nome || 'Unknown') + '|' + cleanDet + '|' + (p.turno || 1);
-
-        const esistente = raggruppati.find(x => x._groupKey === key);
-        if(esistente) { 
-            esistente.qta += parseFloat(p.qta || 1); 
-        } else { 
-            raggruppati.push({
-                ...p, 
-                qta: parseFloat(p.qta || 1), 
-                dettagli: cleanDet, 
-                _groupKey: key, 
-                turno: p.turno || 1
-            }); 
-        }
-    });
-    return raggruppati;
-}
 window.raggruppaProdotti = raggruppaProdotti;
 
 function renderOrdine(o, container) {
@@ -2252,29 +2208,6 @@ window.inviaSegnaleVia = async (id, turno) => {
 //    (ESP32 o PC, vedi agente-stampa/) la manda alla stampante. Non serve QZ Tray.
 const metodoStampa = () => (PRINTER_CONFIG.metodo === 'agente' ? 'agente' : 'qz');
 
-const descrizioneStampa = (o) => o ? (o.tavolo ? `Tavolo ${o.tavolo}` : `${o.cognome || o.nome || ''} ${o.orario || ''}`.trim()) : '';
-
-// Voci di stampa (testo ESC/POS e immagini in base64) -> byte da mandare alla stampante.
-// Dopo preparaDatiStampaTermica il testo è già ASCII: un carattere = un byte.
-function byteDatiStampa(data) {
-    const out = [];
-    const testo = (s) => { for (const ch of String(s)) { const c = ch.codePointAt(0); out.push(c <= 0xFF ? c : (ch === '€' ? 0x80 : 0x3F)); } };
-    for (const item of data) {
-        if (typeof item === 'string') testo(item);
-        else if (item && typeof item.data === 'string') {
-            if (item.flavor === 'base64') { const bin = atob(item.data); for (let i = 0; i < bin.length; i++) out.push(bin.charCodeAt(i)); }
-            else testo(item.data);
-        }
-    }
-    return out;
-}
-
-function base64Byte(bytes) {
-    let bin = '';
-    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.slice(i, i + 0x8000));
-    return btoa(bin);
-}
-
 function inviaStampaTermica(ip, data, opzioni = {}) {
     const { encoding, stampante = '', descrizione = '' } = opzioni;
     let invio;
@@ -2294,6 +2227,13 @@ function inviaStampaTermica(ip, data, opzioni = {}) {
     return invio.then(r => { segnalaEsitoStampa(true); return r; }, err => { segnalaEsitoStampa(false); throw err; });
 }
 window.inviaStampaTermica = inviaStampaTermica;
+
+// Comande automatiche (ordini nuovi, VIA, aggiunte): con QZ Tray le stampa il PC con
+// «QUESTO PC È LA CASSA»; con l'Agente di stampa le mette in coda il server
+// (functions/comande.js), così escono anche a cassa chiusa e mai due volte.
+function stampaAutomaticaDaQuestaCassa() {
+    return printerOn && window.isPrintServer && metodoStampa() !== 'agente';
+}
 
 // --- SEMAFORO DELLA STAMPA (in alto) ---
 // QZ: sul PC con «QUESTO PC È LA CASSA» dice se QZ Tray è collegato.
@@ -2450,250 +2390,28 @@ function processPrintQueue() {
     }, 1000); 
 }
 
-// --- GESTIONE CHIAMATA TURNI (Campanello) CON STAMPA ETICHETTE CUCINA ---
-function gestisciChiamataTurno(o, rep, printerIp) {
-    const messaggio = o.messaggio_cucina;
-    console.log(`Gestione Chiamata ${rep}:`, messaggio); 
+// Contesto per il testo delle stampe (comande-escpos.js): righe operative con i dati del
+// domicilio, QR della consegna e prezzo del coperto di questo locale
+const contestoStampa = (extra = {}) => ({
+    righeServizio: (o) => window.getRigheStampaCucinaFiltrate(o),
+    qrDati: (o) => (typeof window.datiQrConsegnaESC === 'function' ? window.datiQrConsegnaESC(o) : []),
+    prezzoCoperto: window.prezzoCopertoLocale || 2.50,
+    ...extra
+});
 
-    const match = messaggio.match(/TURNO\s*(\d+)/i) || messaggio.match(/VIA\s*(\d+)/i);
-    const targetTurn = match ? parseInt(match[1]) : null;
-    
-    if(!targetTurn) {
-        console.warn("Nessun numero turno trovato nel messaggio:", messaggio);
-        return; 
-    }
-
-    const tuttiProdottiTurno = (o.prodotti || []).filter(p => parseInt(p.turno || 1) === targetTurn);
-    if(tuttiProdottiTurno.length === 0) return;
-
-    const hasPizza = tuttiProdottiTurno.some(p => {
-        let c = (p.cat||'').toLowerCase();
-        return c === 'pizza' || c === 'stirata' || c === 'gf' || c === 'speciale' || c === 'calzone' || c.includes('focac');
-    });
-    
-    const hasCucina = tuttiProdottiTurno.some(p => {
-        let c = (p.cat||'').toLowerCase();
-        return c === 'primo' || c === 'secondo' || c === 'contorno' || c === 'ant_ristorante' || c.includes('cuc') || c.includes('frit');
-    });
-
-    let mixMsg = "";
-    if (rep === 'pizzeria' && hasCucina) mixMsg = "*** CON CUCINA ***";
-    if (rep === 'cucina' && hasPizza) mixMsg = "*** CON PIZZERIA ***";
-
-    const itemsToPrint = tuttiProdottiTurno.filter(p => {
-        let cat = (p.cat || 'varie').toLowerCase();
-        let gruppo = 'altro';
-        
-        if (cat === 'pizza' || cat.includes('piz') || cat==='stirata' || cat==='gf' || cat==='speciale' || cat.includes('ant_pizz') || cat.includes('calz') || cat.includes('foc')) {
-            gruppo = 'pizzeria';
-        }
-        else if (cat === 'primo' || cat.includes('prim') || cat.includes('sec') || cat.includes('cont') || cat.includes('dolc') || cat.includes('cuc') || cat.includes('ant_rist')) {
-            gruppo = 'cucina';
-        }
-        else if (cat === 'bibita' || cat.includes('bib') || cat.includes('bar') || cat.includes('vin') || cat.includes('bir') || cat.includes('caf') || cat.includes('ama')) {
-            gruppo = 'bar';
-        }
-
-        if (rep === 'pizzeria') return gruppo === 'pizzeria';
-        if (rep === 'cucina') return gruppo === 'cucina';
-        if (rep === 'bar') return gruppo === 'bar';
-        return false; 
-    });
-
-    if(itemsToPrint.length === 0) return;
-
-    let d = [];
-    d.push('\x1B\x40'); 
-    d.push('\x1B\x61\x01');
-    d.push(rep.toUpperCase() + ' - CHIAMATA\n\n');
-
-    d.push('\x1D\x21\x11');
-    d.push('VAI COL ' + targetTurn + '\n\n');
-    d.push('\x1D\x21\x00');
-
-    if(mixMsg) {
-        d.push('\x1D\x21\x11\x1B\x45\x01'); 
-        d.push(mixMsg + '\n');
-        d.push('\x1D\x21\x00\x1B\x45\x00'); 
-    }
-
-    // Stampa diciture operative Agenda (Giro Pizza, Senza Glutine, Ristorante, Pizzeria, Misto)
-    const infoServizio = window.getRigheStampaCucinaFiltrate(o);
-    if (infoServizio) {
-        d.push('\x1B\x45\x01' + infoServizio + '\x1B\x45\x00');
-    }
-
-    d.push('\n');
-    d.push('\x1D\x21\x11');
-    d.push('\x1B\x45\x01');
-    let nomeTav = o.tavolo ? 'TAVOLO ' + o.tavolo : o.nome;
-    if (o.tavolo && o.coperti > 0) nomeTav += ` (Cop: ${o.coperti})`;
-    d.push(nomeTav + '\n');
-    d.push('\x1B\x45\x00');
-    d.push('\x1D\x21\x00');
-    d.push('----------------\n\n\n\n');
-    d.push('\x1B\x61\x00');
-    
-    let compressed = [];
-    itemsToPrint.forEach(p => {
-        let ex = compressed.find(c => c.nome === p.nome && c.dettagli === p.dettagli);
-        if(ex) ex.qta += parseFloat(p.qta); else compressed.push({...p, qta: parseFloat(p.qta)});
-    });
-    
-    compressed.forEach(p => {
-        const qDisplay = p.qta % 1 === 0 ? p.qta : p.qta.toFixed(3);
-        d.push(`\x1D\x21\x01${qDisplay} x ${p.nome}\n\n\x1D\x21\x00`); 
-        if(p.dettagli && p.dettagli!=='Normale') {
-            d.push(`   > ${p.dettagli.replace(/<br\s*\/?>/gi, '\n   > ').replace(/<[^>]*>?/gm, '')}\n`);
-        }
-        d.push('\n');
-    });
-
-    d.push(`\n\n\x1B\x61\x01${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`);
-    inviaStampaTermica(printerIp, d, { stampante: rep, descrizione: `${String(rep).toUpperCase()} · ${descrizioneStampa(o)}` }).catch(err => console.error("Errore stampa:", err));
-}
-
+// --- MESSAGGI ALLA CUCINA: CHIAMATA TURNI (Campanello), AGGIUNTE, STORNI, CAMBI TURNO ---
 window.stampaVia = (id, _u1, _u2, reparto) => {
     if (!printerOn) return;
     const o = ordiniCache.find(x => x.id === id);
     if(!o || !o.messaggio_cucina) return; 
 
     const repKey = reparto.toLowerCase().trim();
-    const messaggio = o.messaggio_cucina;
     let printerIp = '192.168.1.131'; 
     if (PRINTER_CONFIG[repKey] && PRINTER_CONFIG[repKey].ip) printerIp = PRINTER_CONFIG[repKey].ip;
 
-    if (messaggio.includes("VIA") && !messaggio.includes("SPOSTAMENTO") && !messaggio.includes("AGGIUNTA") && !messaggio.includes("STORNO")) {
-        if (messaggio.includes("TURNO")) { gestisciChiamataTurno(o, repKey, printerIp); return; }
-    }
-
-    if (!messaggio.includes("AGGIUNTA") && !messaggio.includes("STORNO") && !messaggio.includes("SPOSTAMENTO")) return;
-
-    const aggiunte = o.ultime_aggiunte_real || [];
-    const storni = o.ultimi_storni_real || [];
-    const spostamenti = o.ultimi_spostamenti_real || [];
-
-    const getGruppo = (cat) => {
-        cat = (cat || '').toLowerCase().trim();
-        const catBar = ['bibita', 'birra', 'vino', 'caffe', 'amaro', 'liquore', 'bibita_lattina', 'bibita_bottiglia', 'acqua', 'bar'];
-        if (catBar.includes(cat) || cat.includes('bar') || cat.includes('bib')) return 'BAR';
-        if (cat === 'ant_pizzeria' || cat.includes('antipasto') || cat.includes('ant_')) return 'CUCINA';
-        const catPizzeria = ['pizza', 'stirata', 'gf', 'speciale', 'calzone', 'focaccia', 'covaccino', 'panino'];
-        if (catPizzeria.includes(cat) || cat.includes('piz') || cat.includes('stira')) return 'PIZZERIA';
-        return 'CUCINA'; 
-    };
-
-    const deveStampare = (p) => {
-        const gruppoProdotto = getGruppo(p.cat);
-        const isAsporto = !o.tavolo;
-        const isGF = (p.cat === 'gf');
-
-        if (repKey === 'pizzeria') {
-            if (gruppoProdotto === 'PIZZERIA') return true;
-            if (isAsporto && (gruppoProdotto === 'CUCINA' || gruppoProdotto === 'BAR')) return true; 
-            return false;
-        }
-        if (repKey === 'cucina') {
-            if (isGF) return true;
-            if (gruppoProdotto === 'CUCINA') return true;
-            return false;
-        }
-        if (repKey === 'bar' && gruppoProdotto === 'BAR') return true;
-        return false;
-    };
-
-    const aggiunteFiltrate = aggiunte.filter(deveStampare);
-    const storniFiltrati = storni.filter(deveStampare);
-    const spostamentiFiltrati = spostamenti.filter(deveStampare);
-
-    if (aggiunteFiltrate.length === 0 && storniFiltrati.length === 0 && spostamentiFiltrati.length === 0) return;
-
-    var data = [];
-    data.push('\x1B\x40\x1B\x61\x01'); 
-    data.push('*** AGGIORNAMENTO ***\n'); 
-    let headTav = o.tavolo ? 'TAVOLO ' + o.tavolo : (o.nome || 'ASPORTO');
-    if (o.tavolo && o.coperti > 0) headTav += ` (Cop: ${o.coperti})`;
-    data.push('\x1D\x21\x11' + headTav + '\n\x1D\x21\x00');
-
-    const infoServizio = window.getRigheStampaCucinaFiltrate(o);
-    if (infoServizio) {
-        data.push('\x1B\x45\x01' + infoServizio + '\x1B\x45\x00');
-    }
-
-    data.push('Op: ' + (o.operatore || 'Cameriere') + '\n--------------------------------\n\x1B\x61\x00'); 
-
-    const stampaRiga = (p, extraInfo = "") => {
-        let det = p.dettagli || '';
-        if(det === 'Normale' || det === 'Manuale') det = '';
-        if(det) det = det.replace(/<br\s*\/?>/gi, '\n   >>> ').replace(/<[^>]*>?/gm, '');
-        const q = p.qta % 1 === 0 ? p.qta : p.qta.toFixed(3);
-        data.push(`\x1D\x21\x01${q} x ${p.nome}${extraInfo}\n\x1D\x21\x00`);
-        if(det) data.push(`   >>> ${det}\n`);
-    };
-
-    if (storniFiltrati.length > 0) {
-        data.push('\x1B\x61\x01\x1B\x45\x01\n!!! STORNO (ANNULLARE) !!!\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
-        storniFiltrati.forEach(p => stampaRiga(p));
-    }
-
-    if (spostamentiFiltrati.length > 0) {
-        if (storniFiltrati.length > 0) data.push('\n');
-        data.push('\x1B\x61\x01\x1B\x45\x01\n<<< CAMBIO TURNO >>>\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
-        spostamentiFiltrati.forEach(p => { stampaRiga(p, ` (DA T${p.oldTurn} A T${p.newTurn})`); });
-    }
-
-    if (aggiunteFiltrate.length > 0) {
-        if (storniFiltrati.length > 0 || spostamentiFiltrati.length > 0) data.push('\n');
-        data.push('\x1B\x61\x01\x1B\x45\x01\n+++ NUOVE AGGIUNTE +++\n\x1B\x45\x00\x1B\x61\x00--------------------------------\n');
-        
-        const byTurn = {};
-        aggiunteFiltrate.forEach(p => {
-            const t = p.turno || 1;
-            if(!byTurn[t]) byTurn[t] = [];
-            byTurn[t].push(p);
-        });
-
-        const raggruppaLocal = (list) => {
-            const ragg = [];
-            list.forEach(p => {
-                let cd = p.dettagli||''; if(cd==='Normale'||cd==='Manuale') cd='';
-                const k = `${p.nome}|${cd}|${p.prezzo}|${p.turno}`;
-                const ex = ragg.find(r=>`${r.nome}|${(r.dettagli||'').replace(/(Normale|Manuale)/g,'')}|${r.prezzo}|${r.turno}`===k);
-                if(ex) ex.qta += parseFloat(p.qta); else ragg.push({...p, qta:parseFloat(p.qta)});
-            });
-            return ragg;
-        };
-
-        Object.keys(byTurn).sort().forEach(turn => {
-            const itemsDelTurno = byTurn[turn];
-            const allItemsInTurn = aggiunte.filter(p => (p.turno || 1) == turn);
-            const hasPizzas = allItemsInTurn.some(p => getGruppo(p.cat) === 'PIZZERIA');
-            const hasKitchen = allItemsInTurn.some(p => getGruppo(p.cat) === 'CUCINA');
-
-            let mixMsg = "";
-            if (repKey === 'pizzeria' && hasPizzas && hasKitchen) mixMsg = "*** CON CUCINA ***";
-            if (repKey === 'cucina' && hasKitchen && hasPizzas) mixMsg = "*** CON PIZZERIA ***";
-
-            if(Object.keys(byTurn).length > 1) data.push(`--- T${turn} ---\n`);
-            if(mixMsg) data.push(`\x1D\x21\x11\x1B\x45\x01${mixMsg}\n\x1D\x21\x00\x1B\x45\x00\n`);
-
-            if (repKey === 'pizzeria' && !o.tavolo) {
-                const listPizze = itemsDelTurno.filter(p => getGruppo(p.cat) === 'PIZZERIA');
-                const listCucina = itemsDelTurno.filter(p => getGruppo(p.cat) !== 'PIZZERIA');
-
-                if (listPizze.length > 0) raggruppaLocal(listPizze).forEach(p => stampaRiga(p, ` [T${turn}]`));
-                if (listCucina.length > 0) {
-                    if (listPizze.length > 0) data.push('\n\x1B\x45\x01--- DA CUCINA ---\x1B\x45\x00\n');
-                    raggruppaLocal(listCucina).forEach(p => stampaRiga(p, ` [T${turn}]`));
-                }
-            } else {
-                raggruppaLocal(itemsDelTurno).forEach(p => stampaRiga(p, ` [T${turn}]`));
-            }
-        });
-    }
-
-    data.push(`\n\n\x1B\x61\x01${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`); 
-    inviaStampaTermica(printerIp, data, { encoding: 'windows-1252', stampante: repKey, descrizione: `${repKey.toUpperCase()} · ${descrizioneStampa(o)}` }).catch(e => console.error(e));
+    const stampaReparto = datiMessaggioCucina(o, repKey, contestoStampa());
+    if (!stampaReparto) return;
+    inviaStampaTermica(printerIp, stampaReparto.data, { ...(stampaReparto.encoding ? { encoding: stampaReparto.encoding } : {}), stampante: repKey, descrizione: `${repKey.toUpperCase()} · ${descrizioneStampa(o)}` }).catch(e => console.error("Errore stampa:", e));
 };
 
 window.chiudiTavolo = async (id) => {
@@ -3439,190 +3157,14 @@ window.stampa = (id, reparto) => {
     let printerIp = PRINTER_CONFIG[repKey]?.ip;
     if (!printerIp || printerIp.trim() === '') return;
 
-    const categorieAbilitate = (PRINTER_CONFIG[repKey] && PRINTER_CONFIG[repKey].cats) ? PRINTER_CONFIG[repKey].cats : [];
-    const catsPiz = PRINTER_CONFIG['pizzeria']?.cats || [];
-    const catsCuc = PRINTER_CONFIG['cucina']?.cats || [];
-
-    const itemsToPrint = (o.prodotti || []).filter(p => {
-        if (isConto) return true;
-        let prodCat = (p.cat || 'varie').toLowerCase().trim();
-        const isAsporto = !o.tavolo;
-        if (categorieAbilitate.includes(prodCat)) return true;
-        if (repKey === 'pizzeria' && isAsporto) return true;
-        return false; 
-    });
-
-    if(itemsToPrint.length === 0 && !isConto) return; 
-
-    var data = [];
-    data.push('\x1B\x40\x1B\x61\x01'); 
-    let headerTitle = repKey === 'preconto' ? "PRECONTO" : (repKey === 'conto' ? "CONTO" : reparto.toUpperCase());
-    data.push('\x1D\x21\x11\x1B\x45\x01' + headerTitle + '\n\x1D\x21\x00\x1B\x45\x00');
-    if (isConto) data.push('DOCUMENTO NON FISCALE\n');
-    if (!o.tavolo) {
-        const oggiTopStr = new Date().toISOString().split('T')[0];
-        if (o.data_ritiro && o.data_ritiro !== oggiTopStr) {
-            const [y, m, d] = o.data_ritiro.split('-');
-            let oraRitiro = o.orario ? o.orario : "--:--";
-            data.push(`\x1D\x21\x11\x1B\x45\x01PER IL: ${d}/${m}/${y}\nORE: ${oraRitiro}\n\x1B\x45\x00\x1D\x21\x00`); 
-        } else {
-            data.push('\x1D\x21\x11ASPORTO\n\x1D\x21\x00'); 
-        }
-    }
-
-    // Stampa le 5 indicazioni operative per la Cucina/Pizzeria (Giro Pizza, Senza Glutine, Ristorante, Pizzeria, Misto)
-    if (!isConto) {
-        const infoServizio = window.getRigheStampaCucinaFiltrate(o);
-        if (infoServizio) {
-            data.push('\x1B\x45\x01' + infoServizio + '\x1B\x45\x00');
-        }
-    }
-
-    data.push('Op: ' + (o.operatore || 'Admin') + '\n--------------------------------\n\x1B\x61\x00'); 
-
-    const byTurn = {};
-    itemsToPrint.forEach(p => {
-        const t = p.turno || 1;
-        if(!byTurn[t]) byTurn[t] = [];
-        byTurn[t].push(p);
-    });
-
-    const stampaListaProdotti = (lista) => {
-        const compressedItems = raggruppaProdotti(lista);
-        compressedItems.forEach(p => {
-            let det = p.dettagli || '';
-            if(det === 'Normale' || det === 'Manuale') det = '';
-            if(det) det = det.replace(/<br\s*\/?>/gi, '\n   >>> ').replace(/<[^>]*>?/gm, '');
-
-            const qtaDisplay = p.qta % 1 === 0 ? p.qta : p.qta.toFixed(3);
-            let riga = `${qtaDisplay} x ${p.nome}`;
-            
-            if(isConto) {
-                let prezzoTot = (parseFloat(p.prezzo) * parseFloat(p.qta)).toFixed(2);
-                let strPrezzo = " E " + prezzoTot;
-                let maxChars = 42; 
-                let spazio = maxChars - riga.length - strPrezzo.length;
-                if(spazio > 0) riga += ' '.repeat(spazio) + strPrezzo;
-                else riga = riga.substring(0, maxChars - strPrezzo.length) + strPrezzo;
-            } else {
-                data.push('\x1D\x21\x01'); 
-            }
-            data.push(riga + '\n');
-            if(!isConto) data.push('\x1D\x21\x00');
-            
-            if(det) {
-                if(isConto) data.push('   >>> ' + det + '\n');
-                else data.push('\x1D\x21\x01   >>> ' + det + '\n\x1D\x21\x00'); 
-            }
-        });
-    };
-
-    Object.keys(byTurn).sort().forEach(turn => {
-        const itemsDelTurno = byTurn[turn];
-        if(!isConto) data.push(`\x1B\x45\x01--- TURNO ${turn} ---\n\x1B\x45\x00`); 
-
-        const allItemsInTurn = (o.prodotti || []).filter(p => (p.turno || 1) == turn);
-        const hasPizzas = allItemsInTurn.some(p => catsPiz.includes((p.cat || '').toLowerCase().trim()));
-        const hasKitchen = allItemsInTurn.some(p => catsCuc.includes((p.cat || '').toLowerCase().trim()));
-
-        let mixMsg = "";
-        if (repKey === 'pizzeria' && hasPizzas && hasKitchen) mixMsg = "*** CON CUCINA ***";
-        if (repKey === 'cucina' && hasKitchen && hasPizzas) mixMsg = "*** CON PIZZERIA ***";
-
-        if(mixMsg && !isConto) data.push(`\x1D\x21\x11\x1B\x45\x01${mixMsg}\n\x1D\x21\x00\x1B\x45\x00\n`);
-
-        if(isConto) {
-            const listPizzeria = [], listCucina = [], listBar = [], rest = [];
-            itemsDelTurno.forEach(p => {
-                const c = (p.cat || '').toLowerCase().trim();
-                if (catsPiz.includes(c)) listPizzeria.push(p);
-                else if (catsCuc.includes(c)) listCucina.push(p);
-                else if (PRINTER_CONFIG['bar']?.cats?.includes(c)) listBar.push(p);
-                else rest.push(p);
-            });
-
-            if(listCucina.length > 0) { data.push("--- RISTORANTE ---\n"); stampaListaProdotti(listCucina); }
-            if(listPizzeria.length > 0) { data.push("--- PIZZERIA ---\n"); stampaListaProdotti(listPizzeria); }
-            if(listBar.length > 0) { data.push("--- BAR ---\n"); stampaListaProdotti(listBar); }
-            if(rest.length > 0) { data.push("--- VARIE ---\n"); stampaListaProdotti(rest); }
-        } else {
-            if (repKey === 'pizzeria' && !o.tavolo) {
-                const listPizzeria = itemsDelTurno.filter(p => catsPiz.includes((p.cat || '').toLowerCase().trim()));
-                const listCucina = itemsDelTurno.filter(p => !catsPiz.includes((p.cat || '').toLowerCase().trim()));
-                if (listPizzeria.length > 0) stampaListaProdotti(listPizzeria);
-                if (listCucina.length > 0) {
-                    if (listPizzeria.length > 0) data.push('\n--------------------------------\n\x1B\x45\x01--- CUCINA E ALTRO ---\x1B\x45\x00\n');
-                    stampaListaProdotti(listCucina);
-                }
-            } else {
-                stampaListaProdotti(itemsDelTurno);
-            }
-        }
-        if(!isConto) data.push('\n'); 
-    });
-
-    if(isConto) { 
-        const copertoUnit = window.prezzoCopertoLocale || 2.50;
-        if(o.coperti > 0) {
-            const copTot = o.coperti * copertoUnit;
-            data.push('------------------------------------------\n');
-            data.push(`${o.coperti} x COPERTO` + ' '.repeat(15) + 'E ' + copTot.toFixed(2) + '\n');
-        }
-        data.push('------------------------------------------\n');
-
-        let calcTotProdotti = (o.prodotti || []).reduce((acc, p) => acc + (parseFloat(p.prezzo) * parseFloat(p.qta)), 0);
-        let calcTotaleReale = calcTotProdotti + ((o.coperti || 0) * copertoUnit);
-        let totaleAttuale = parseFloat(o.totale || 0);
-        let diffSconto = calcTotaleReale - totaleAttuale;
-        
-        let nomeSconto = o.sconto_applicato;
-        if (!nomeSconto && window.currentPayOrderId === o.id && window.activeDiscount) {
-            nomeSconto = window.activeDiscount.nome || window.activeDiscount.codice;
-        }
-        
-        if (diffSconto > 0.01 || nomeSconto) {
-            let labelSconto = nomeSconto ? nomeSconto.toUpperCase() : "MANUALE / ARROTOND.";
-            if (diffSconto < 0) diffSconto = 0;
-            data.push(`\x1B\x61\x01\x1D\x21\x01* SCONTO: ${labelSconto} *\n`);
-            if (diffSconto > 0) data.push(`(- E ${diffSconto.toFixed(2)})\n`);
-            data.push(`\x1D\x21\x00\x1B\x61\x00------------------------------------------\n`);
-        }
-
-        let tot = o.totale; 
-        data.push(`\x1B\x61\x01\x1B\x45\x01\x1D\x21\x11TOTALE: E ${parseFloat(tot).toFixed(2)}\n\x1D\x21\x00\x1B\x45\x00`);
-        
-        if (window.divisoreTemp && window.divisoreTemp > 1) {
-            let quota = (parseFloat(tot) / window.divisoreTemp).toFixed(2);
-            data.push(`\n\x1B\x61\x01\x1D\x21\x01\x1B\x45\x01Diviso in ${window.divisoreTemp}: E ${quota} a persona\n\x1B\x45\x00\x1D\x21\x00`);
-        }
-        window.divisoreTemp = 1;
-    }
-
-    if(o.note_ordine) data.push(`\n\x1B\x45\x01NOTE: ${o.note_ordine}\n\x1B\x45\x00`);
-
-    if (o.tavolo) {
-        let strCoperti = (o.coperti && o.coperti > 0) ? ` (Cop: ${o.coperti})` : '';
-        data.push(`\x1B\x61\x01\n\x1D\x21\x11\x1B\x45\x01TAVOLO ${o.tavolo}${strCoperti}\n\x1B\x45\x00\x1D\x21\x00\x1B\x61\x00\n`);
-    } else {
-        data.push('--------------------------------\n');
-        data.push(`\x1D\x21\x11${(o.nome + ' ' + (o.cognome || '')).trim()}\n\x1D\x21\x00`);
-        const oggiBotStr = new Date().toISOString().split('T')[0];
-        if (o.data_ritiro && o.data_ritiro !== oggiBotStr) {
-            const [y, m, d] = o.data_ritiro.split('-');
-            let oraRitiro = o.orario ? o.orario : "--:--";
-            data.push(`\x1D\x21\x11\x1B\x45\x01DATA: ${d}/${m}/${y}\nORE: ${oraRitiro}\n\x1B\x45\x00\x1D\x21\x00`);
-        } else if (o.orario) {
-            data.push(`\x1D\x21\x11\x1B\x45\x01RITIRO: ${o.orario}\n\x1B\x45\x00\x1D\x21\x00`);
-        }
-        if (!isConto) {
-            let totaleAsporto = parseFloat(o.totale || 0).toFixed(2);
-            data.push(`\n\x1B\x61\x01\x1D\x21\x11\x1B\x45\x01TOTALE: E ${totaleAsporto}\n\x1B\x45\x00\x1D\x21\x00\x1B\x61\x00\n`);
-        }
-    }
-    // Consegna a domicilio: QR dell'ordine, che il rider scansiona dall'App Rider per prenderlo in carico
-    if (typeof window.datiQrConsegnaESC === 'function') data.push(...window.datiQrConsegnaESC(o));
-    data.push(`\x1B\x61\x01\n${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`); 
-    inviaStampaTermica(printerIp, data, { stampante: repKey, descrizione: `${headerTitle} · ${descrizioneStampa(o)}` }).catch(e => console.error(e));
+    // Il testo (comanda del reparto oppure conto/preconto) lo prepara comande-escpos.js
+    const stampaOrdine = datiOrdine(o, reparto, PRINTER_CONFIG, contestoStampa({
+        divisore: window.divisoreTemp,
+        nomeScontoAttivo: (window.currentPayOrderId === o.id && window.activeDiscount) ? (window.activeDiscount.nome || window.activeDiscount.codice) : null
+    }));
+    if (isConto) window.divisoreTemp = 1;
+    if (!stampaOrdine) return;
+    inviaStampaTermica(printerIp, stampaOrdine.data, { stampante: repKey, descrizione: `${stampaOrdine.titolo} · ${descrizioneStampa(o)}` }).catch(e => console.error(e));
 };
 // ============================================================================
 // CASSA.JS - PARTE 4 DI 4
