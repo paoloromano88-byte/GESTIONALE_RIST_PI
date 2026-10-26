@@ -280,6 +280,8 @@ window.generaSidebarOrari = () => {
             </div>
     `;
 
+    htmlSidebar += htmlConsegneDelGiorno();
+
     orari.forEach(ora => {
         let conteggioPizze = orariMap[ora] || 0;
         let clientiOra = window.ordiniPerOrarioMap[ora] || [];
@@ -320,6 +322,51 @@ window.generaSidebarOrari = () => {
     htmlSidebar += `</div>`;
     return htmlSidebar;
 };
+
+// --- CONSEGNE DI OGGI: tutti gli ordini a domicilio del giorno con lo stato del rider ---
+function htmlConsegneDelGiorno() {
+    const esc = window.escapeHtml;
+    const consegne = ordiniCache
+        .filter(o => o.stato !== 'Annullato' && (o.tipo === 'DOMICILIO' || String(o.indirizzo || '').trim() !== ''))
+        .sort((a, b) => (a.orario || '99:99').localeCompare(b.orario || '99:99'));
+    if (consegne.length === 0) return '';
+
+    const statoRider = (o) => {
+        if (o.stato_consegna === 'Consegnato') return { testo: `✅ Consegnato${o.fattorino ? ' da ' + o.fattorino : ''}`, colore: '#10b981' };
+        if (o.stato_consegna === 'In consegna') return { testo: `🛵 In consegna con ${o.fattorino || 'rider'}`, colore: '#0284c7' };
+        if (o.fattorino) return { testo: `👤 Assegnato a ${o.fattorino}`, colore: '#6366f1' };
+        return { testo: '⏳ Da assegnare', colore: '#d97706' };
+    };
+    const daAssegnare = consegne.filter(o => !o.stato_consegna && !o.fattorino).length;
+    const inConsegna = consegne.filter(o => o.stato_consegna === 'In consegna').length;
+    const consegnate = consegne.filter(o => o.stato_consegna === 'Consegnato').length;
+
+    return `
+        <div style="margin-bottom:15px; border:1px solid #f59e0b; border-radius:8px; overflow:hidden;">
+            <div style="background:#f59e0b; color:#000; font-weight:900; padding:6px 10px; display:flex; justify-content:space-between; font-size:0.85em;">
+                <span>🛵 CONSEGNE DI OGGI</span><span>${consegne.length}</span>
+            </div>
+            <div style="display:flex; gap:4px; padding:6px; font-size:0.7em; font-weight:bold; text-align:center;">
+                <span style="flex:1; background:#d9770633; color:#fbbf24; border-radius:4px; padding:3px;">⏳ ${daAssegnare}</span>
+                <span style="flex:1; background:#0284c733; color:#7dd3fc; border-radius:4px; padding:3px;">🛵 ${inConsegna}</span>
+                <span style="flex:1; background:#10b98133; color:#6ee7b7; border-radius:4px; padding:3px;">✅ ${consegnate}</span>
+            </div>
+            ${consegne.map(o => {
+                const st = statoRider(o);
+                const cliente = ((o.cognome || '') + ' ' + (o.nome || '')).trim() || 'Cliente';
+                const dove = o.zona || o.indirizzo || '';
+                return `
+                <div onclick="window.apriModifica('${window.safeId(o.id)}')" title="${esc(o.indirizzo || '')}" style="padding:6px 8px; border-top:1px solid #333; cursor:pointer; font-size:0.8em; ${o.stato_consegna === 'Consegnato' ? 'opacity:0.6;' : ''}">
+                    <div style="display:flex; justify-content:space-between; gap:6px;">
+                        <b style="white-space:nowrap;">${esc(o.orario || '--:--')}</b>
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${esc(cliente)}</span>
+                    </div>
+                    ${dove ? `<div style="color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${esc(dove)}</div>` : ''}
+                    <div style="color:${st.colore}; font-weight:bold;">${esc(st.testo)}</div>
+                </div>`;
+            }).join('')}
+        </div>`;
+}
 
 window.toggleTendinaOrario = (ora) => {
     const clientiOra = window.ordiniPerOrarioMap[ora] || [];

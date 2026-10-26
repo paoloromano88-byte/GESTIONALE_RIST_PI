@@ -1690,6 +1690,8 @@
                             badgeRider = `<div style="margin-top:4px; background:#0284c7; color:#fff; padding:2px 8px; border-radius:4px; display:inline-block;">🛵 IN CONSEGNA CON: ${window.escapeHtml((ordineMatch.fattorino || 'RIDER').toUpperCase())}</div>`;
                         } else if (ordineMatch.fattorino) {
                             badgeRider = `<br><span style="color:#0284c7;">🛵 Fattorino: <b>${window.escapeHtml(ordineMatch.fattorino)}</b></span>`;
+                        } else {
+                            badgeRider = `<br><span style="color:#d97706;">⏳ Rider da assegnare</span>`;
                         }
 
                         const newHtml = `
