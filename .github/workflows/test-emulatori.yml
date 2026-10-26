@@ -21,11 +21,14 @@ jobs:
           npm install --no-save --no-audit --no-fund firebase-tools@13.29.1 @firebase/rules-unit-testing@3.0.4 firebase@10.7.1
           (cd functions && npm ci --no-audit --no-fund)
           cp zone-consegna.js functions/zone-consegna.js
+          cp comande-escpos.js functions/comande-escpos.js
       - name: Regole Firestore
         run: npx firebase emulators:exec --only firestore --project demo-gestionale "node test/regole-firestore.test.mjs"
       - name: Agente di stampa (coda, stampanti finte)
         run: npx firebase emulators:exec --only auth,firestore --project demo-gestionale "node test/agente-stampa.test.mjs"
       - name: Elaborazione ordini (server)
         run: npx firebase emulators:exec --only firestore --project demo-gestionale "node functions/test/ordini.test.mjs"
+      - name: Comande dal server per l'Agente di stampa (fino alla stampante finta)
+        run: npx firebase emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/comande.test.mjs"
       - name: Trigger Cloud Functions end-to-end
         run: npx firebase emulators:exec --only functions,firestore --project demo-gestionale "node functions/test/trigger.test.mjs"

@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 26/10/2026, con la PR #29 (stampa senza QZ Tray: coda di stampa, Agente di stampa e firmware ESP32-C3).
+**Ultimo aggiornamento:** 26/10/2026, con la PR #31 (comande preparate dal server: si stampa anche a cassa chiusa).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -34,6 +34,7 @@ File condivisi:
 - `login-dispositivo.js`: accesso del dispositivo con l'account del locale e controllo della scheda `utenti`.
 - `sanitize.js`: protezione da HTML iniettato (`escapeHtml`, `sanitizeHtml`, `safeId`).
 - `zone-consegna.js`: zone di consegna per CAP. È usato da App Clienti, Cassa e server, così il calcolo è identico ovunque.
+- `comande-escpos.js`: testo ESC/POS di comande, conto/preconto, chiamata turni, aggiornamenti, blocco domicilio e QR. È lo stesso per Cassa e server (`functions/comande.js`): le comande escono identiche.
 - `agente-stampa/`: **Agente di stampa** per PC/Raspberry (`agente.mjs`) e protocollo per l'ESP32 (`README.md`). Non è pubblicato sul sito.
 - `functions/`: Cloud Functions (server).
 - `firestore.rules`: regole di sicurezza del database.
@@ -102,7 +103,17 @@ File condivisi:
   - agente spento (nessun battito da 90 s);
   - comande ferme da più di 20 s o in errore;
   - avviso a comparsa quando diventa rosso.
-- Per ora le comande automatiche le prepara ancora il dispositivo con «QUESTO PC È LA CASSA», che però può essere anche un telefono.
+- **Comande dal server** (PR #31, `functions/comande.js`, trigger `comandePrincipale` / `comandeLocali` su ogni scrittura di un ordine), solo con «Agente di stampa»:
+  - ordine nuovo (`data_invio` entro 2 minuti, come la cassa): comande pizzeria/cucina/bar in `coda_stampa`, con id `ordine_{id}_{reparto}`;
+  - nuovo messaggio alla cucina (VIA TURNO, AGGIUNTA, STORNO: cambia `timestamp_messaggio`): id `messaggio_{id}_{millis}_{reparto}`. RICHIESTA CONTO e PRONTO non stampano;
+  - con id fissi, se la funzione viene ripetuta non stampa due volte;
+  - in quel caso la cassa non stampa più in automatico (`stampaAutomaticaDaQuestaCassa`), per non avere doppioni;
+  - conto, preconto e Z li manda sempre la cassa;
+  - data e ora in fondo sono in ora italiana (`Europe/Rome`). Il QR punta a `https://gestionale-ristoranti-96c5b.web.app/delivery.html`.
+- Verifiche fatte:
+  - 23 tipi di stampa della cassa identici byte per byte a prima del modulo condiviso;
+  - 17 comande del server identiche a quelle della cassa (tranne data/ora e indirizzo del sito nel QR);
+  - catena completa provata con gli emulatori: ordine → server → coda → agente → stampante finta.
 - **ESP32-C3 SuperMini** (firmware in `agente-stampa/esp32/AgenteStampa/`, stesso protocollo dell'agente per PC):
   - al primo avvio crea la rete «AgenteStampa-xxxx» con una pagina per Wi-Fi (solo 2,4 GHz), email e password del locale e nome;
   - la password serve solo al primo accesso: poi resta il token di rinnovo;
@@ -173,9 +184,10 @@ File condivisi:
 ### Test (dalla cartella principale, serve Java)
 ```
 npm install --no-save @firebase/rules-unit-testing@3.0.4 firebase@10.7.1
-cp zone-consegna.js functions/ && (cd functions && npm ci)
+cp zone-consegna.js comande-escpos.js functions/ && (cd functions && npm ci)
 npx firebase-tools@13.29.1 emulators:exec --only firestore --project demo-gestionale "node test/regole-firestore.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only auth,firestore --project demo-gestionale "node test/agente-stampa.test.mjs"
+npx firebase-tools@13.29.1 emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/comande.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only firestore --project demo-gestionale "node functions/test/ordini.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project demo-gestionale "node functions/test/trigger.test.mjs"
 ```
@@ -198,6 +210,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #25 | Aggiornamento di questo diario |
 | #27 | **Cassa non fiscale**: per ogni locale "Scontrino fiscale" in Gestionale → Stampanti (Nessuno / Olivetti con cartella impostabile). Incasso con "INCASSA" e promemoria "batti € X sul registratore". "DOCUMENTO NON FISCALE" su preconto, conto e riepilogo Z |
 | #29 | **Stampa senza QZ Tray, tappe 1 e 2**: coda di stampa (`coda_stampa`), Agente di stampa per PC (`agente-stampa/`), **firmware ESP32-C3** compilato da GitHub e pagina `esp32.html` per installarlo, scelta in Gestionale → Stampanti, semaforo e avvisi quando la stampa non funziona (anche con QZ Tray) |
+| #31 | **Comande dal server**: con «Agente di stampa» ordini nuovi e messaggi alla cucina vanno in coda dal server, anche a cassa chiusa. Testo delle stampe in `comande-escpos.js`, condiviso da cassa e server |
 
 ## 6. Issue
 
@@ -213,7 +226,8 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 - #9 avviso al rider quando un ordine è pronto;
 - #18 errore all'apertura dell'App Clienti;
 - #26 cassa non fiscale (preconto + totale a mano sul registratore);
-- #28 stampa senza QZ Tray, tappa 1 (coda e Agente di stampa).
+- #28 stampa senza QZ Tray, tappe 1 e 2 (coda, Agente di stampa, ESP32);
+- #30 comande preparate dal server (tappa 3).
 
 **Da fare, in ordine**:
 1. **#16**: chiave privata di QZ Tray (stampa) scritta nel codice della cassa → firma lato server.
@@ -223,7 +237,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 **Stampa senza QZ Tray con ESP32** (#28, deciso il 26/10/2026), in tappe:
 1. ✅ Coda di stampa, Agente per PC, semaforo e avvisi (PR #29).
 2. ✅ Firmware ESP32-C3 SuperMini (il modello del titolare) e pagina `esp32.html` (PR #29). **Da provare con l'apparecchio vero**: non è stato possibile provarlo qui.
-3. Comande preparate dal server (Cloud Function sugli ordini), così si stampa anche con la cassa chiusa.
+3. ✅ Comande preparate dal server (PR #31): con l'Agente di stampa si stampa anche a cassa chiusa.
 
 Altre strade valutate: stampa dal browser (una sola stampante, finestra «Stampa»); stampanti Star CloudPRNT / Epson Server Direct Print (solo certi modelli); Monitor Cucina (KDS) al posto della carta.
 

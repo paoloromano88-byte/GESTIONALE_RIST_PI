@@ -1199,7 +1199,7 @@
                     </select>
                     <p id="stampa-qz-info" class="nota-stampa">QZ Tray deve essere aperto sul PC con «QUESTO PC È LA CASSA» acceso: è lui che manda le stampe agli indirizzi qui sopra.</p>
                     <div id="stampa-agente-box" style="display:none;">
-                        <p class="nota-stampa">Un piccolo apparecchio sempre acceso nel locale (ESP32, oppure un PC) manda le stampe agli indirizzi qui sopra. Si collega con l'email e la password di questo locale, come una cassa. Le comande automatiche le prepara il dispositivo con «QUESTO PC È LA CASSA» acceso: va bene anche un tablet o un telefono.</p>
+                        <p class="nota-stampa">Un piccolo apparecchio sempre acceso nel locale (ESP32, oppure un PC) manda le stampe agli indirizzi qui sopra. Si collega con l'email e la password di questo locale, come una cassa. Le comande automatiche (ordini nuovi, VIA, aggiunte) le prepara il server: escono anche con la cassa chiusa.</p>
                         <a href="esp32.html" target="_blank" rel="noopener" style="display:inline-block; margin:4px 0 8px; font-weight:bold; color:#1565c0;">📲 Programma e collega un ESP32-C3 (istruzioni)</a>
                         <div id="lista-agenti-stampa"></div>
                         <div id="lista-coda-stampa"></div>
@@ -1456,6 +1456,7 @@
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, doc as _doc, collection as _collection, query, where, onSnapshot, updateDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { attendiUtenteCollegato } from "./login-dispositivo.js";
+        import { righeServizioCucina } from "./comande-escpos.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
@@ -1592,47 +1593,11 @@
                 : '';
         };
 
+        // Righe operative di comande e chiamate (comande-escpos.js), con i dati aggiornati del domicilio
         window.getRigheStampaCucinaFiltrate = (o) => {
             if (!o) return "";
-            let righe = [];
-
             const ordineDom = (window.mappaOrdiniDomicilio && o.id) ? window.mappaOrdiniDomicilio[o.id] : null;
-            const dati = ordineDom ? { ...o, ...ordineDom } : o;
-            const isDomicilio = dati.tipo === 'DOMICILIO' || (dati.indirizzo && String(dati.indirizzo).trim() !== '');
-
-            if (isDomicilio) {
-                righe.push("================================");
-                righe.push("   *** CONSEGNA A DOMICILIO *** ");
-                righe.push("================================");
-                if (dati.indirizzo) righe.push(`IND: ${dati.indirizzo.toUpperCase()}`);
-                if (dati.citofono)  righe.push(`CITOFONO: ${dati.citofono.toUpperCase()}`);
-                if (dati.zona)      righe.push(`ZONA: ${dati.zona.toUpperCase()}`);
-                if (dati.telefono)  righe.push(`TEL: ${dati.telefono}`);
-                if (dati.fattorino) righe.push(`RIDER: ${dati.fattorino.toUpperCase()}`);
-                if (parseFloat(dati.supplemento_consegna) > 0) {
-                    righe.push(`SUPPL. CONSEGNA: EUR ${parseFloat(dati.supplemento_consegna).toFixed(2)}`);
-                }
-                righe.push("================================");
-            }
-
-            const serv = (dati.preferenza_servizio || '').trim().toLowerCase();
-            if (serv === 'giro pizza' || serv === 'giropizza') righe.push("*** SERVIZIO: GIRO PIZZA ***");
-            else if (serv === 'ristorante') righe.push("*** SERVIZIO: RISTORANTE ***");
-            else if (serv === 'pizzeria') righe.push("*** SERVIZIO: PIZZERIA ***");
-            else if (serv === 'misto') righe.push("*** SERVIZIO: MISTO ***");
-
-            if (Array.isArray(dati.etichette)) {
-                const haSenzaGlutine = dati.etichette.some(t => {
-                    const low = String(t || '').toLowerCase();
-                    return low.includes('senza glutine') || low.includes('glutine') || low.includes('celiac') || low.includes('gf');
-                });
-                if (haSenzaGlutine) {
-                    righe.push("================================");
-                    righe.push("   ATTENZIONE: SENZA GLUTINE    ");
-                    righe.push("================================");
-                }
-            }
-            return righe.length > 0 ? righe.join("\n") + "\n" : "";
+            return righeServizioCucina(ordineDom ? { ...o, ...ordineDom } : o);
         };
 
         // 3. MONITOR PROMEMORIA GRUPPI >= 10 PERSONE (2 GIORNI PRIMA) IN CASSA
@@ -1972,164 +1937,19 @@
     </script>
 
     <!-- 6. MOTORE DI STAMPA TERMICA AUTOMATICA PER CONSEGNA A DOMICILIO (QZ TRAY + HTML) -->
-    <script>
-        (function() {
-            const LARGHEZZA_CARTA = 42; // Standard 80mm
-            const SEPARATORE_DOPPIO = "=".repeat(LARGHEZZA_CARTA);
-            const SEPARATORE_TRATTO = "-".repeat(LARGHEZZA_CARTA);
+    <!-- Il testo ESC/POS (blocco domicilio, QR, solo ASCII) viene da comande-escpos.js, lo stesso del server -->
+    <script type="module">
+            import { pulisciTestoESC, bloccoDomicilioESC, urlQrConsegna, codiceBreveOrdine, datiQrConsegnaESC, applicaBloccoDomicilio, pulisciDatiStampa, isTestoSemplice } from "./comande-escpos.js";
 
-            // Converte il testo in ASCII puro: le stampanti termiche non gestiscono UTF-8,
-            // quindi accenti, € ed emoji uscirebbero come caratteri incomprensibili.
-            // I comandi ESC/POS usati sono tutti sotto 0x80 e restano intatti.
-            function pulisciTestoESC(str) {
-                if (!str) return "";
-                return String(str)
-                    .replace(/[àáâãä]/g, "a'")
-                    .replace(/[èéêë]/g, "e'")
-                    .replace(/[ìíîï]/g, "i'")
-                    .replace(/[òóôõö]/g, "o'")
-                    .replace(/[ùúûü]/g, "u'")
-                    .replace(/[ÀÁÂÃÄ]/g, "A'")
-                    .replace(/[ÈÉÊË]/g, "E'")
-                    .replace(/[ÌÍÎÏ]/g, "I'")
-                    .replace(/[ÒÓÔÕÖ]/g, "O'")
-                    .replace(/[ÙÚÛÜ]/g, "U'")
-                    .replace(/€\s?/g, "EUR ")
-                    .replace(/[‘’´`]/g, "'")
-                    .replace(/[“”«»]/g, '"')
-                    .replace(/[–—]/g, "-")
-                    .replace(/…/g, "...")
-                    .replace(/[×]/g, "x")
-                    .replace(/°/g, "o")
-                    .replace(/\u00A0/g, " ")
-                    .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
-                    .replace(/[^\x00-\x7F]+ ?/g, "");
-            }
             window.pulisciTestoESC = pulisciTestoESC;
-
-            function wrapTestoTermica(testo, maxCols = LARGHEZZA_CARTA) {
-                const pulito = pulisciTestoESC(testo).trim();
-                if (pulito.length <= maxCols) return [pulito];
-                
-                const parole = pulito.split(/\s+/);
-                const righe = [];
-                let rigaCorrente = "";
-
-                parole.forEach(parola => {
-                    if ((rigaCorrente + " " + parola).trim().length <= maxCols) {
-                        rigaCorrente = (rigaCorrente + " " + parola).trim();
-                    } else {
-                        if (rigaCorrente) righe.push(rigaCorrente);
-                        rigaCorrente = parola.slice(0, maxCols);
-                    }
-                });
-                if (rigaCorrente) righe.push(rigaCorrente);
-                return righe;
-            }
-
-            window.generaBloccoTermicoDomicilioESC = function(ordine, isCucina = false) {
-                if (!ordine) return "";
-                const isDomicilio = ordine.tipo === 'DOMICILIO' || (ordine.indirizzo && String(ordine.indirizzo).trim() !== '');
-                if (!isDomicilio) return "";
-
-                let righe = [];
-                righe.push(SEPARATORE_DOPPIO);
-                righe.push("      *** CONSEGNA A DOMICILIO ***      ".slice(0, LARGHEZZA_CARTA));
-                righe.push(SEPARATORE_DOPPIO);
-
-                const cliente = `${ordine.cognome || ''} ${ordine.nome || ''}`.trim().toUpperCase();
-                if (cliente) {
-                    wrapTestoTermica(`CLIENTE: ${cliente}`).forEach(r => righe.push(r));
-                }
-                if (ordine.telefono) {
-                    righe.push(`TEL:     ${pulisciTestoESC(ordine.telefono)}`);
-                }
-                if (ordine.orario) {
-                    righe.push(`ORARIO:  ${pulisciTestoESC(ordine.orario)}`);
-                }
-
-                righe.push(SEPARATORE_TRATTO);
-
-                if (ordine.indirizzo) {
-                    wrapTestoTermica(`INDIRIZZO: ${ordine.indirizzo.toUpperCase()}`).forEach(r => righe.push(r));
-                }
-                if (ordine.citofono) {
-                    wrapTestoTermica(`CITOFONO:  ${ordine.citofono.toUpperCase()}`).forEach(r => righe.push(r));
-                }
-                const capOrdine = ordine.cap || ordine.cliente?.cap || '';
-                if (capOrdine) {
-                    righe.push(`CAP:       ${pulisciTestoESC(capOrdine)}`);
-                }
-                if (ordine.zona) {
-                    wrapTestoTermica(`ZONA:      ${ordine.zona.toUpperCase()}`).forEach(r => righe.push(r));
-                }
-                if (ordine.fattorino) {
-                    righe.push(`RIDER:     ${pulisciTestoESC(ordine.fattorino).toUpperCase()}`);
-                }
-
-                const supp = parseFloat(ordine.supplemento_consegna) || 0;
-                if (!isCucina && supp > 0) {
-                    righe.push(SEPARATORE_TRATTO);
-                    righe.push(`SUPPLEMENTO CONSEGNA: EUR ${supp.toFixed(2)}`);
-                }
-
-                righe.push(SEPARATORE_DOPPIO);
-                return righe.join("\n") + "\n";
-            };
+            window.generaBloccoTermicoDomicilioESC = bloccoDomicilioESC;
 
             // --- QR della consegna: il rider lo scansiona con l'App Rider per prendere in carico
             // proprio l'ordine della busta che ha in mano (delivery.html?locale=...&ordine=ID) ---
-            window.urlQrConsegna = function(ordine) {
-                const base = location.origin + location.pathname.replace(/[^/]*$/, '');
-                return `${base}delivery.html?locale=${encodeURIComponent(window.TENANT_ID || 'default')}&ordine=${encodeURIComponent(ordine.id)}`;
-            };
-
-            // Codice breve stampato sotto il QR e mostrato nell'App Rider, per un controllo a occhio
-            window.codiceBreveOrdine = (id) => String(id || '').slice(-6).toUpperCase();
-
-            // QR come immagine raster ESC/POS (GS v 0): la stampano tutte le termiche, senza
-            // dipendere dal comando QR nativo. Restituisce i byte in base64 (QZ li invia così come sono).
-            function rasterQrBase64(testo, modulo = 5, margine = 4) {
-                if (typeof window.qrcode !== 'function') return null;
-                const qr = window.qrcode(0, 'M');
-                qr.addData(testo);
-                qr.make();
-                const n = qr.getModuleCount();
-                const lato = (n + margine * 2) * modulo;
-                const byteRiga = Math.ceil(lato / 8);
-                const bytes = [0x1D, 0x76, 0x30, 0x00, byteRiga & 0xFF, byteRiga >> 8, lato & 0xFF, lato >> 8];
-                for (let y = 0; y < lato; y++) {
-                    const r = Math.floor(y / modulo) - margine;
-                    for (let b = 0; b < byteRiga; b++) {
-                        let v = 0;
-                        for (let bit = 0; bit < 8; bit++) {
-                            const x = b * 8 + bit;
-                            const c = Math.floor(x / modulo) - margine;
-                            if (x < lato && r >= 0 && r < n && c >= 0 && c < n && qr.isDark(r, c)) v |= 0x80 >> bit;
-                        }
-                        bytes.push(v);
-                    }
-                }
-                let bin = '';
-                for (const v of bytes) bin += String.fromCharCode(v);
-                return btoa(bin);
-            }
-
-            window.datiQrConsegnaESC = function(ordine) {
-                const isDomicilio = ordine && (ordine.tipo === 'DOMICILIO' || (ordine.indirizzo && String(ordine.indirizzo).trim() !== ''));
-                if (!isDomicilio || !ordine.id) return [];
-                let raster = null;
-                try { raster = rasterQrBase64(window.urlQrConsegna(ordine)); } catch (e) { console.error("QR consegna:", e); }
-                if (!raster) return [];
-                const cliente = `${ordine.cognome || ''} ${ordine.nome || ''}`.trim().toUpperCase();
-                return [
-                    '\x1B\x61\x01' + SEPARATORE_TRATTO + '\n',
-                    '\x1B\x45\x01RIDER: SCANSIONA PER PRENDERE IN CARICO\x1B\x45\x00\n',
-                    { type: 'raw', format: 'command', flavor: 'base64', data: raster },
-                    '\x1B\x61\x01\x1D\x21\x01ORDINE #' + window.codiceBreveOrdine(ordine.id) + '\x1D\x21\x00\n'
-                        + (cliente ? cliente.slice(0, LARGHEZZA_CARTA) + '\n' : '')
-                ];
-            };
+            const urlBaseSito = () => location.origin + location.pathname.replace(/[^/]*$/, '');
+            window.urlQrConsegna = (ordine) => urlQrConsegna(ordine, urlBaseSito(), window.TENANT_ID);
+            window.codiceBreveOrdine = codiceBreveOrdine;
+            window.datiQrConsegnaESC = (ordine) => datiQrConsegnaESC(ordine, { qrcode: window.qrcode, urlBase: urlBaseSito(), locale: window.TENANT_ID });
 
             window.generaBloccoTermicoDomicilioHTML = function(ordine) {
                 if (!ordine) return "";
@@ -2171,54 +1991,18 @@
                 });
             }
 
-            // Voce di stampa con testo normale (non i byte in base64/hex di immagini come il QR)
-            function isTestoSemplice(item) {
-                return !!item && typeof item.data === 'string'
-                    && (!item.format || item.format === 'plain' || item.format === 'command')
-                    && (!item.flavor || item.flavor === 'plain');
-            }
-
             // Ritocchi a ogni stampa termica: blocco domicilio e testo solo ASCII.
             // Li usano sia QZ Tray (intercettore qui sotto) sia la coda dell'Agente di stampa.
             window.preparaDatiStampaTermica = function(data) {
                 try {
                     if (Array.isArray(data)) {
                         const testoCompleto = data.map(item => (typeof item === 'string' ? item : (isTestoSemplice(item) ? item.data : ''))).join('\n');
-                        const ordineDom = trovaOrdineDomicilioDaTesto(testoCompleto);
-
-                        if (ordineDom && !testoCompleto.includes('CONSEGNA A DOMICILIO')) {
-                            const bloccoESC = window.generaBloccoTermicoDomicilioESC(ordineDom, false);
-
-                            data = data.map(item => {
-                                if (typeof item === 'string') {
-                                    return item
-                                        .replace(/ASPORTO/gi, 'CONSEGNA A DOMICILIO')
-                                        .replace(/RITIRO/gi, 'DOMICILIO');
-                                } else if (isTestoSemplice(item)) {
-                                    item.data = item.data
-                                        .replace(/ASPORTO/gi, 'CONSEGNA A DOMICILIO')
-                                        .replace(/RITIRO/gi, 'DOMICILIO');
-                                }
-                                return item;
-                            });
-
-                            const indiceInserimento = data.length > 1 ? 1 : 0;
-                            data.splice(indiceInserimento, 0, bloccoESC);
-                        }
+                        data = applicaBloccoDomicilio(data, trovaOrdineDomicilioDaTesto(testoCompleto));
                     }
                 } catch (err) {
                     console.error("Errore iniezione dati domicilio nella stampa:", err);
                 }
-                if (Array.isArray(data)) {
-                    data = data.map(item => {
-                        if (typeof item === 'string') return pulisciTestoESC(item);
-                        if (isTestoSemplice(item)) {
-                            return { ...item, data: pulisciTestoESC(item.data) };
-                        }
-                        return item;
-                    });
-                }
-                return data;
+                return pulisciDatiStampa(data);
             };
 
             // Intercettore automatico QZ Tray (Stampa Termica IP porta 9100)
@@ -2255,7 +2039,6 @@
                 });
                 printObs.observe(printAreaEl, { childList: true, subtree: true });
             }
-        })();
     </script>
 </body>
 </html>
