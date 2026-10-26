@@ -318,6 +318,21 @@
             </select>
         </div>
 
+        <div class="control-group" style="margin-left:20px; background:#ede7f6; padding:5px 15px; border-radius:8px; border:1px solid #d1c4e9; color:#4527a0;" title="Numero massimo di consegne a domicilio per ogni fascia di 15 minuti nell'App Clienti">
+            <i class="fa-solid fa-motorcycle"></i> CONSEGNE:
+            <select id="delivery-limit" style="border:1px solid #ccc; padding:5px; border-radius:5px; margin-left:5px; font-weight:bold; color:#4527a0;" onchange="updateDeliveryLimit(this.value)">
+                <option value="0" selected>Senza limite</option>
+                <option value="1">1 ogni 15m</option>
+                <option value="2">2 ogni 15m</option>
+                <option value="3">3 ogni 15m</option>
+                <option value="4">4 ogni 15m</option>
+                <option value="5">5 ogni 15m</option>
+                <option value="6">6 ogni 15m</option>
+                <option value="8">8 ogni 15m</option>
+                <option value="10">10 ogni 15m</option>
+            </select>
+        </div>
+
         <div class="control-group" style="margin-left:auto; background:#fff3e0; padding:5px 15px; border-radius:8px; border:1px solid #ffe0b2;">
             <span style="color:#e65100;"><i class="fa-solid fa-store-slash"></i> GIORNO RIPOSO:</span>
             <select id="day-closed" style="border:1px solid #ccc; padding:5px; border-radius:5px; margin-left:5px; font-weight:bold;" onchange="salvaChiusura(this.value)">

@@ -563,6 +563,7 @@
         let tempPhoneDirect = "";
         window.storicoOrdiniDati = {}; 
         let limiteFornoDinamico = 10;
+        let limiteConsegneDinamico = 0;   // consegne a domicilio per fascia di 15 minuti (0 = senza limite)
         let crossSellAttivo = false;
 
         // --- STATO MODALITÀ CONSEGNA (ASPORTO / DOMICILIO) ---
@@ -1180,7 +1181,11 @@
                 }
             });
 
-            onSnapshot(doc(db, "impostazioni", "forno"), (d) => { if(d.exists() && d.data().limite_pizze) limiteFornoDinamico = d.data().limite_pizze; });
+            onSnapshot(doc(db, "impostazioni", "forno"), (d) => {
+                if (!d.exists()) return;
+                if (d.data().limite_pizze) limiteFornoDinamico = d.data().limite_pizze;
+                limiteConsegneDinamico = parseInt(d.data().limite_consegne) || 0;
+            });
             onSnapshot(doc(db, "impostazioni", "app_cliente"), (d) => { if(d.exists() && d.data().cross_sell_bibite !== undefined) crossSellAttivo = d.data().cross_sell_bibite; });
             onSnapshot(doc(db, "impostazioni", "fidelity"), (d) => { if(d.exists()) FIDELITY_CONFIG = d.data(); });
             
@@ -1481,16 +1486,18 @@
         window.aggiornaOrari = async () => {
             const sel = document.getElementById('orario'); sel.innerHTML="<option value=''>Caricamento...</option>"; const dateInput = document.getElementById('data-ritiro').value; const d = new Date(dateInput);
             if(GIORNO_CHIUSURA && String(d.getDay()) === String(GIORNO_CHIUSURA)) { sel.innerHTML="<option value=''>CHIUSO</option>"; Swal.fire("Siamo chiusi in questo giorno."); return; }
-            // Pizze già prenotate per fascia oraria: contatore aggregato (senza leggere gli ordini degli altri clienti)
-            let slotCounts = {};
-            try { const occ = await getDoc(doc(db, "occupazione_forno", dateInput)); if (occ.exists()) slotCounts = occ.data().slot || {}; } catch (e) { console.warn("Occupazione forno non disponibile:", e); }
+            // Pizze e consegne già prenotate per fascia oraria: contatori aggregati (senza leggere gli ordini degli altri clienti)
+            let slotCounts = {}, consegneCounts = {};
+            try { const occ = await getDoc(doc(db, "occupazione_forno", dateInput)); if (occ.exists()) { slotCounts = occ.data().slot || {}; consegneCounts = occ.data().consegne || {}; } } catch (e) { console.warn("Occupazione forno non disponibile:", e); }
+            const limitaConsegne = window.modalitaConsegnaApp === 'DOMICILIO' && limiteConsegneDinamico > 0;
             let myCartPizzas = 0; carrello.forEach(p => { if(CATEGORIE_FORNO.includes(p.cat)) myCartPizzas += parseFloat(p.qta || 0); });
             sel.innerHTML="<option value=''>Orario...</option>"; const now = new Date(); const isToday = (dateInput === getTodayLocalStr());
             for(let h=19;h<23;h++) {
                 for(let m=0;m<60;m+=15) {
                     if(isToday && (h < now.getHours() || (h === now.getHours() && m < now.getMinutes()))) continue; 
                     const timeStr = `${h}:${m<10?'0'+m:m}`; const booked = slotCounts[timeStr] || 0; const totalProjected = booked + myCartPizzas;
-                    if (totalProjected > limiteFornoDinamico) { sel.innerHTML += `<option value="" disabled style="color:var(--col-red);">${timeStr} (PIENO)</option>`; } else { sel.innerHTML += `<option value="${timeStr}">${timeStr}</option>`; }
+                    const consegnePiene = limitaConsegne && (consegneCounts[timeStr] || 0) >= limiteConsegneDinamico;
+                    if (totalProjected > limiteFornoDinamico || consegnePiene) { sel.innerHTML += `<option value="" disabled style="color:var(--col-red);">${timeStr} (PIENO)</option>`; } else { sel.innerHTML += `<option value="${timeStr}">${timeStr}</option>`; }
                 }
             }
             // Mantiene l'orario già scelto se è ancora disponibile (la lista si ricarica a ogni modifica del carrello)

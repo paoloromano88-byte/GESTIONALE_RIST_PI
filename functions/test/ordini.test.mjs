@@ -63,7 +63,8 @@ for (const nomeBase of ['', 'ristoranti/pizzeria-test']) {
         const scheda = (await col('clienti').doc('3339998888').get()).data();
         assert.equal(scheda.numOrdini, 4); assert.equal(scheda.totaleSpeso, 69.5);
         assert.equal(scheda.cap, '89122'); assert.equal(scheda.tag, 'VIP');
-        assert.equal((await col('occupazione_forno').doc('2026-10-27').get()).data().slot['20:30'], 4);
+        const occ = (await col('occupazione_forno').doc('2026-10-27').get()).data();
+        assert.equal(occ.slot['20:30'], 4); assert.equal(occ.consegne['20:30'], 1);
         const ord = (await ref.get()).data();
         assert.ok(ord.elaborato_server); assert.equal(ord.anomalia_prezzo, undefined);
     });
@@ -75,6 +76,22 @@ for (const nomeBase of ['', 'ristoranti/pizzeria-test']) {
         const esito = await elaboraOrdineApp(db, base, ref);
         assert.equal(esito.saltato, 'già elaborato');
         assert.equal((await col('prodotti').doc('marg').get()).data().scorta, prima);
+    });
+
+    await t('asporto senza pizze: nessuna consegna, nessuna pizza nel contatore', async () => {
+        const ref = await col('ordini').add(ordineApp({ tipo: 'ASPORTO', orario: '21:45', supplemento_consegna: 0, totale: 2,
+            prodotti: [{ nome: 'Coca Cola Lattina', prezzo: 2, qta: 1, cat: 'bibita_lattina', dettagli: 'Normale' }] }));
+        await elaboraOrdineApp(db, base, ref);
+        const occ = (await col('occupazione_forno').doc('2026-10-27').get()).data();
+        assert.equal(occ.slot['21:45'], undefined); assert.equal(occ.consegne['21:45'], undefined);
+    });
+
+    await t('consegna senza pizze: conta solo la consegna', async () => {
+        const ref = await col('ordini').add(ordineApp({ orario: '22:00', supplemento_consegna: 1.5, totale: 3.5,
+            prodotti: [{ nome: 'Coca Cola Lattina', prezzo: 2, qta: 1, cat: 'bibita_lattina', dettagli: 'Normale' }] }));
+        await elaboraOrdineApp(db, base, ref);
+        const occ = (await col('occupazione_forno').doc('2026-10-27').get()).data();
+        assert.equal(occ.slot['22:00'], undefined); assert.equal(occ.consegne['22:00'], 1);
     });
 
     await t('ordine del personale (senza user_agent) ignorato', async () => {
