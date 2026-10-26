@@ -136,6 +136,23 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('Mario salva il suo profilo registrato', true, () => setDoc(d(mario, 'clienti_registrati/uidMario'), { nome: 'Mario', cognome: 'Rossi', telefono: '3331112222', data_reg: serverTimestamp() }));
   await t('Mario aggiorna nome nella rubrica', true, () => setDoc(d(mario, 'clienti/3331112222'), { nome: 'Mario Rossi', cognome: 'Rossi', telefono: '3331112222', ultimaData: '2026-10-26' }, { merge: true }));
   await t('Mario NON legge dipendenti', false, () => getDocs(c(mario, 'dipendenti')));
+
+  // Coda di stampa e Agente di stampa (si collega con l'account del locale)
+  const comanda = { stampante: 'pizzeria', descrizione: 'PIZZERIA · Rossi 20:00', ip: '192.168.1.50', porta: 9100, dati: 'G0A=', stato: 'da_stampare', tentativi: 0, creato: serverTimestamp() };
+  await t('personale mette una comanda in coda di stampa', true, () => setDoc(d(staff, 'coda_stampa/c1'), comanda));
+  await t('personale (agente) elenca la coda da stampare', true, () => getDocs(query(c(staff, 'coda_stampa'), where('stato', '==', 'da_stampare'))));
+  await t('personale (agente) prenota la comanda', true, () => updateDoc(d(staff, 'coda_stampa/c1'), { stato: 'in_stampa', agente: 'esp1', tentativi: 1 }));
+  await t('personale (agente) scrive il battito', true, () => setDoc(d(staff, 'agenti_stampa/esp1'), { nome: 'ESP32 cucina', ultimo_contatto: serverTimestamp() }, { merge: true }));
+  await t('personale legge gli agenti', true, () => getDocs(c(staff, 'agenti_stampa')));
+  await t('personale scollega un agente', true, () => updateDoc(d(staff, 'agenti_stampa/esp1'), { disattivato: true }));
+  await t('personale di un ALTRO locale NON legge la coda di stampa', false, () => getDocs(c(altroStaff, 'coda_stampa')));
+  await t('personale di un ALTRO locale NON aggiunge stampe', false, () => setDoc(d(altroStaff, 'coda_stampa/c2'), comanda));
+  await t('personale di un ALTRO locale NON legge gli agenti', false, () => getDocs(c(altroStaff, 'agenti_stampa')));
+  await t('anonimo NON legge la coda di stampa', false, () => getDocs(c(anon, 'coda_stampa')));
+  await t('anonimo NON aggiunge stampe', false, () => addDoc(c(anon, 'coda_stampa'), comanda));
+  await t('cliente SMS NON legge la coda di stampa', false, () => getDoc(d(mario, 'coda_stampa/c1')));
+  await t('account email non collegato NON legge la coda di stampa', false, () => getDocs(c(abusivo, 'coda_stampa')));
+  await t('personale (agente) toglie la comanda stampata', true, () => deleteDoc(d(staff, 'coda_stampa/c1')));
 }
 
 // Piattaforma: Super Admin, elenco locali, account
