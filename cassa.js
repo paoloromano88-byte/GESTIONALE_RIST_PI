@@ -1825,7 +1825,7 @@ window.renderEditProdotti = () => {
                         </div>
                         <small style="display:block; color:#666;">${window.sanitizeHtml(dettagliHtml)}</small>
                     </div>
-                    <div style="flex:1; text-align:center;">
+                    <div class="edit-qta" style="flex:1; text-align:center;">
                         <button class="btn-qta" onclick="cambiaQtaModifica(${idx}, -1)">-</button>
                         <span style="margin:0 5px; font-weight:bold;">${qtaDisplay}</span>
                         <button class="btn-qta" onclick="cambiaQtaModifica(${idx}, 1)">+</button>
@@ -3189,9 +3189,9 @@ window.chiediDivisioneEStampa = async (id) => {
         title: 'Stampa Preconto',
         html: `
             <div style="text-align:left; margin-bottom:5px; font-weight:bold; color:#aaa;">In quanti pagano? (Divisione)</div>
-            <input type="number" id="swal-divisore" class="swal2-input" value="${defaultPersone}" min="1" style="margin-top:0; margin-bottom:15px; width: 100%; box-sizing: border-box;">
+            <input type="number" id="swal-divisore" class="swal2-input" value="${defaultPersone}" min="1" style="margin:0 0 15px 0; width: 100%; box-sizing: border-box;">
             <div style="text-align:left; margin-bottom:5px; font-weight:bold; color:#aaa;">Totale Scontrino (€):</div>
-            <input type="number" id="swal-totale-preconto" class="swal2-input" value="${currentTot}" step="0.50" style="margin-top:0; width: 100%; box-sizing: border-box; color: #4caf50; font-weight: bold; font-size: 1.5em;">
+            <input type="number" id="swal-totale-preconto" class="swal2-input" value="${currentTot}" step="0.50" style="margin:0; width: 100%; box-sizing: border-box; color: #4caf50; font-weight: bold; font-size: 1.5em;">
         `,
         showCancelButton: true,
         confirmButtonColor: '#333',
@@ -3411,6 +3411,8 @@ window.stampa = (id, reparto) => {
             data.push(`\n\x1B\x61\x01\x1D\x21\x11\x1B\x45\x01TOTALE: E ${totaleAsporto}\n\x1B\x45\x00\x1D\x21\x00\x1B\x61\x00\n`);
         }
     }
+    // Consegna a domicilio: QR dell'ordine, che il rider scansiona dall'App Rider per prenderlo in carico
+    if (typeof window.datiQrConsegnaESC === 'function') data.push(...window.datiQrConsegnaESC(o));
     data.push(`\x1B\x61\x01\n${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`); 
     qz.print(qz.configs.create({ host: printerIp, port: 9100 }), data).catch(e => console.error(e));
 };
@@ -4754,7 +4756,7 @@ window.renderMappa = () => {
             let nomeCliente = (ordineAttivo.nome || ordineAttivo.cliente?.nome || "").trim();
             if (!nomeCliente || nomeCliente.startsWith("TAVOLO")) nomeCliente = "Occupato";
             let nomeBreve = nomeCliente.split(" ")[0].toUpperCase();
-            div.innerHTML = `<span class="table-num" style="font-size: ${fontSize};">${tavoloNum}</span><div class="table-info" style="line-height: 1.2; padding-top: 3px;"><b style="font-size: 1.1em; color: #fff;">${window.escapeHtml(nomeBreve)}${multiBadge}</b><br><small style="color: #ffcccc;">€ ${tot}</small></div>`;
+            div.innerHTML = `<span class="table-num" style="font-size: ${fontSize};">${tavoloNum}</span><div class="table-info" style="line-height: 1.2; padding-top: 3px;"><b style="font-size: 1.1em; color: #b71c1c;">${window.escapeHtml(nomeBreve)}${multiBadge}</b><br><small style="color: #c62828;">€ ${tot}</small></div>`;
             div.onclick = () => { window.chiudiMappa(); window.apriModifica(ordineAttivo.id); }; 
         } else if (prenotazione) {
             div.className = 'table-box reserved';

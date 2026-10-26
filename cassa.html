@@ -30,6 +30,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="sanitize.js"></script>
+    <!-- QR delle consegne a domicilio stampato sugli scontrini (vedi datiQrConsegnaESC) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/rsvp@4.8.5/dist/rsvp.min.js"></script>
@@ -56,6 +58,8 @@
 
             /* Mostra il pulsante ORARI solo su smartphone */
             #btn-mobile-orari {
+                width: auto !important;
+                flex: 0 0 auto !important;
                 display: inline-flex !important;
                 align-items: center;
                 gap: 5px;
@@ -83,14 +87,15 @@
                 font-size: 0.8em !important;
             }
 
+            /* Pulsanti della barra in alto: tutti visibili, su più righe */
             .top-bar > div:last-child {
                 width: 100% !important;
                 display: flex !important;
-                overflow-x: auto !important;
-                flex-wrap: nowrap !important;
+                overflow-x: visible !important;
+                flex-wrap: wrap !important;
+                justify-content: center !important;
                 gap: 6px !important;
                 padding-bottom: 4px !important;
-                scrollbar-width: none;
             }
 
             .top-bar > div:last-child::-webkit-scrollbar {
@@ -117,7 +122,24 @@
                 padding: 8px !important;
                 gap: 12px !important;
                 position: relative !important;
-                z-index: 5 !important;
+                z-index: auto !important;            /* vedi la colonna ORARI qui sotto */
+                box-sizing: border-box !important;   /* il padding resta dentro lo schermo */
+            }
+
+            /* Schede ordine larghe quanto lo schermo, senza uscire a destra */
+            .order-card {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Pulsanti di stampa della scheda: 3 + 2 per riga, scritte intere */
+            .card-actions .action-btn {
+                flex: 1 1 30% !important;
+                min-width: 0 !important;
+                padding: 10px 4px !important;
+                font-size: 0.8em !important;
+                white-space: nowrap !important;
             }
 
             /* Nasconde la colonna degli orari su smartphone finché non viene richiesta */
@@ -125,30 +147,104 @@
                 display: none !important;
             }
 
-            /* Quando l'utente apre gli orari su smartphone, li mostra in un pannello scorrevole */
+            /* Quando l'utente apre gli orari su smartphone, li mostra in un pannello scorrevole
+               a schermo intero (inset 0: altezza dello schermo visibile, anche con le barre di Safari) */
             .mobile-orari-open {
                 display: block !important;
                 position: fixed !important;
                 inset: 0 !important;
                 top: 0 !important;
                 left: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
+                width: auto !important;
+                height: auto !important;
+                max-height: none !important;
+                border-radius: 0 !important;
+                border: none !important;
                 z-index: 99990 !important;
                 background: #121212 !important;
                 overflow-y: auto !important;
-                padding: 60px 12px 30px 12px !important;
+                padding: 92px 12px 30px 12px !important;   /* sotto il pulsante rosso CHIUDI (due righe) */
                 box-sizing: border-box !important;
             }
 
-            /* Modali responsive su smartphone */
+            /* Modali responsive su smartphone: si scorrono fino in fondo */
             .modal-box {
                 width: 96% !important;
                 max-width: 100% !important;
-                max-height: 92vh !important;
+                max-height: none !important;
                 padding: 15px !important;
                 box-sizing: border-box !important;
             }
+
+            /* Incasso: il pulsante MODIFICA va sotto il totale invece di coprirne la scritta */
+            .btn-modifica-totale {
+                position: static !important;
+                margin-top: 8px !important;
+            }
+
+            /* ---------- Rifiniture smartphone ---------- */
+
+            /* Barra in alto compatta: nome del locale ed ESCI sulla stessa riga */
+            .top-bar { flex-direction: row !important; }
+            .top-bar .top-icons { flex: 1 1 0; min-width: 0; }
+            .top-bar #nome-locale-ui { font-size: 1.1em !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+            /* Barra della data: frecce, data e OGGI dentro lo schermo */
+            .timeline-bar { gap: 6px !important; padding: 8px !important; }
+            .timeline-bar .time-btn { padding: 8px 12px !important; flex: 0 0 auto; }
+            .timeline-bar .time-display { flex: 1 1 auto; min-width: 0; justify-content: center; gap: 6px !important; font-size: 1em !important; }
+            .timeline-bar .time-display > i { display: none; }
+            .timeline-bar .date-picker-dark { min-width: 0; width: 100%; max-width: 160px; }
+
+            /* Ricerca e NUOVO ORDINE sulla stessa riga senza tagli */
+            .search-container { padding: 8px !important; gap: 8px !important; }
+            .search-input { min-width: 0; font-size: 0.95em !important; padding: 10px 14px !important; }
+            .btn-new-order { flex: 0 0 auto; padding: 10px 14px !important; }
+
+            /* Campi uno sotto l'altro a tutta larghezza: il CAP non diventa altissimo,
+               Data e Ora non restano strette al centro */
+            .form-row { align-items: stretch !important; }
+            .form-row > * { flex: 0 0 auto !important; max-width: 100%; }
+
+            /* Nessun campo delle finestre più largo del riquadro */
+            .modal-box input:not([type="checkbox"]):not([type="radio"]),
+            .modal-box select,
+            .modal-box textarea { max-width: 100%; box-sizing: border-box; }
+
+            /* Riga per aggiungere un prodotto (Nuovo ordine e Modifica): va a capo */
+            .riga-aggiunta { flex-wrap: wrap !important; }
+            .riga-aggiunta > * { min-width: 0; }
+            .riga-aggiunta > span { flex: 1 1 100%; }
+            .riga-aggiunta > input[type="text"] { flex: 1 1 100% !important; }
+            .riga-aggiunta > input[type="number"] { flex: 1 1 60px !important; width: auto !important; }
+            .riga-aggiunta > select { flex: 1 1 80px !important; width: auto !important; }
+            .riga-aggiunta > button { flex: 1 1 60px !important; }
+
+            /* Elenco prodotti: si scorre con la finestra, non in un riquadro piccolo a parte */
+            #new-order-preview-list, #edit-list-container { max-height: none !important; }
+            .edit-qta { white-space: nowrap; }
+
+            /* Statistiche: numeri e grafici dentro lo schermo */
+            #modal-stats .modal-box { padding: 15px !important; }
+            #modal-stats .stat-titolo { font-size: 1.4em !important; }
+            #stat-incasso, #stat-ordini, #stat-coperti { font-size: 2em !important; white-space: nowrap; }
+            #modal-stats .stat-grafico { min-width: 0 !important; flex: 1 1 100% !important; padding: 12px !important; }
+
+            /* Mappa tavoli: titolo, legenda e TAVOLO EXTRA visibili */
+            .map-controls { flex-wrap: wrap !important; justify-content: flex-start !important; gap: 10px 14px !important; padding: 12px 50px 12px 12px !important; }
+            .map-controls h2 { margin-right: 0 !important; flex: 1 1 100%; font-size: 1.3em; }
+            .map-controls button { margin-left: 0 !important; }
+            #mappa-grid { padding: 12px !important; gap: 10px !important; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important; }
+
+            /* Gestionale: tutte le sezioni visibili su più righe (prima solo due, le altre nascoste a destra) */
+            #modal-gestionale .tabs { flex-wrap: wrap !important; overflow-x: visible !important; gap: 6px; border-bottom: none !important; }
+            #modal-gestionale .tab { flex: 1 1 30%; padding: 9px 4px !important; font-size: 0.78em; text-align: center; white-space: normal !important; border: 1px solid #ddd; border-radius: 8px; }
+            #modal-gestionale .tab.active { border: 2px solid #c62828 !important; background: #ffebee; }
+
+            /* Rubrica clienti: ricerca, NUOVO e IMPORTA senza tagli */
+            .crm-search-box { flex-wrap: wrap !important; padding: 10px !important; }
+            .crm-search-box input { flex: 1 1 100% !important; }
+            .crm-search-box button { flex: 1 1 40%; }
         }
 
         /* Stile ad alto contrasto per stampa termica via browser (#print-area) */
@@ -454,7 +550,7 @@
                         <i class="fa fa-star"></i> STIRATA BI-GUSTO
                     </button>
                 </div>
-                <div style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap;">
+                <div class="riga-aggiunta" style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap;">
                     <input type="text" id="quick-prod-search" list="menu-suggestions" class="input-std" placeholder="Cerca..." style="flex:2;" onchange="autoFillPriceCreation(this)">
                     <input type="number" id="quick-prod-price" class="input-std" placeholder="€" style="width:60px; padding:5px;">
                     <input type="number" id="quick-prod-qty" class="input-std" value="1" style="width:45px; padding:5px;" step="0.001" title="Quantità">
@@ -537,7 +633,7 @@
                 <h3 style="margin:0 0 10px 0;">Prodotti</h3>
                 <div id="edit-list-container" style="max-height:300px; overflow-y:auto; background:white; border:1px solid #ccc; border-radius:5px;"></div>
                 
-                <div style="display:flex; gap:5px; margin-top:10px; align-items:center; background:#fff3e0; padding:5px; border-radius:5px;">
+                <div class="riga-aggiunta" style="display:flex; gap:5px; margin-top:10px; align-items:center; background:#fff3e0; padding:5px; border-radius:5px;">
                     <span style="font-weight:bold; font-size:0.8em;">AGGIUNTA:</span>
                     <input type="text" id="manual-name" list="menu-suggestions" class="input-std" placeholder="Cerca..." style="flex:2;" onchange="autoFillPrice(this)">
                     <input type="number" id="manual-price" class="input-std" placeholder="€" step="0.50" style="width:60px; padding:5px;">
@@ -597,7 +693,7 @@
     <div id="modal-stirata" class="modal-overlay" style="z-index: 2400;">
         <div class="modal-box" style="max-width:400px;">
             <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="document.getElementById('modal-stirata').style.display='none'">&times;</div>
-            <h3 style="margin-top:0; color:#ffea00; text-align:center;">Stirata Bi-Gusto</h3>
+            <h3 style="margin-top:0; color:#f57f17; text-align:center;">Stirata Bi-Gusto</h3>
             
             <div style="margin-bottom:15px; background: #eee; padding: 10px; border-radius: 8px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px; align-items:center;">
@@ -694,7 +790,7 @@
         <div class="modal-box" style="max-width: 95%; width: 1100px; background: #111; min-height: 80vh; padding: 25px; overflow-y: auto; color: white; border: 2px solid #9c27b0;">
             <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer; color:white;" onclick="chiudiStatistiche()">&times;</div>
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:20px; padding-right:40px;">
-                <h2 style="color:#9c27b0; margin:0; font-size:2em;"><i class="fa fa-chart-line"></i> ANDAMENTO SERATA</h2>
+                <h2 class="stat-titolo" style="color:#9c27b0; margin:0; font-size:2em;"><i class="fa fa-chart-line"></i> ANDAMENTO SERATA</h2>
                 <button onclick="stampaChiusuraZ('oggi')" style="background:#ff9800; color:black; border:none; padding:12px 20px; border-radius:10px; font-weight:900; font-size:1.1em; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.4);">
                     <i class="fa fa-print"></i> STAMPA CHIUSURA SERATA (Z)
                 </button>
@@ -716,11 +812,11 @@
             </div>
 
             <div style="display:flex; gap:20px; flex-wrap:wrap;">
-                <div style="flex:2; min-width:400px; background:#1a1a1a; padding:20px; border-radius:15px; border: 1px solid #333;">
+                <div class="stat-grafico" style="flex:2; min-width:400px; background:#1a1a1a; padding:20px; border-radius:15px; border: 1px solid #333;">
                     <h3 style="margin-top:0; color:#aaa; text-align:center;">INCASSO PER FASCIA ORARIA</h3>
                     <canvas id="chartAndamento" height="120"></canvas>
                 </div>
-                <div style="flex:1; min-width:300px; background:#1a1a1a; padding:20px; border-radius:15px; border: 1px solid #333;">
+                <div class="stat-grafico" style="flex:1; min-width:300px; background:#1a1a1a; padding:20px; border-radius:15px; border: 1px solid #333;">
                     <h3 style="margin-top:0; color:#aaa; text-align:center;">TOP 5 PRODOTTI PIÙ VENDUTI</h3>
                     <canvas id="chartProdotti" height="200"></canvas>
                 </div>
@@ -1174,7 +1270,7 @@
                 <div style="font-size:1.2em; color:#555;">TOTALE DA PAGARE</div>
                 <div style="font-size:3em; font-weight:900; color:#333;" id="pay-total">€ 0.00</div>
                 
-                <button onclick="modificaTotaleManuale()" style="position:absolute; top:15px; right:15px; background:#ff9800; color:black; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                <button class="btn-modifica-totale" onclick="modificaTotaleManuale()" style="position:absolute; top:15px; right:15px; background:#ff9800; color:black; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                     <i class="fa fa-pencil"></i> MODIFICA
                 </button>
             </div>
@@ -1809,12 +1905,23 @@
         }
 
         window.toggleOrariMobile = (forzaStato) => {
+            const eraAperto = window.orariMobileAperto;
             if (typeof forzaStato === 'boolean') {
                 window.orariMobileAperto = forzaStato;
             } else {
                 window.orariMobileAperto = !window.orariMobileAperto;
             }
+            // La colonna orari sta nella lista Asporto: da Tavoli o Pronti si passa ad Asporto
+            // e alla chiusura si torna alla scheda di prima
+            if (window.orariMobileAperto && !eraAperto && window.currentMainTab && window.currentMainTab !== 'asporto') {
+                window.tabPrimaDegliOrari = window.currentMainTab;
+                window.setMainTab('asporto');
+            } else if (!window.orariMobileAperto && eraAperto && window.tabPrimaDegliOrari) {
+                window.setMainTab(window.tabPrimaDegliOrari);
+                window.tabPrimaDegliOrari = null;
+            }
             applicaStatoOrariMobile();
+            if (window.orariMobileAperto && !eraAperto && window.pannelloOrariRilevato) window.pannelloOrariRilevato.scrollTop = 0;
         };
 
         setInterval(applicaStatoOrariMobile, 400);
@@ -1927,6 +2034,60 @@
                 return righe.join("\n") + "\n";
             };
 
+            // --- QR della consegna: il rider lo scansiona con l'App Rider per prendere in carico
+            // proprio l'ordine della busta che ha in mano (delivery.html?locale=...&ordine=ID) ---
+            window.urlQrConsegna = function(ordine) {
+                const base = location.origin + location.pathname.replace(/[^/]*$/, '');
+                return `${base}delivery.html?locale=${encodeURIComponent(window.TENANT_ID || 'default')}&ordine=${encodeURIComponent(ordine.id)}`;
+            };
+
+            // Codice breve stampato sotto il QR e mostrato nell'App Rider, per un controllo a occhio
+            window.codiceBreveOrdine = (id) => String(id || '').slice(-6).toUpperCase();
+
+            // QR come immagine raster ESC/POS (GS v 0): la stampano tutte le termiche, senza
+            // dipendere dal comando QR nativo. Restituisce i byte in base64 (QZ li invia così come sono).
+            function rasterQrBase64(testo, modulo = 5, margine = 4) {
+                if (typeof window.qrcode !== 'function') return null;
+                const qr = window.qrcode(0, 'M');
+                qr.addData(testo);
+                qr.make();
+                const n = qr.getModuleCount();
+                const lato = (n + margine * 2) * modulo;
+                const byteRiga = Math.ceil(lato / 8);
+                const bytes = [0x1D, 0x76, 0x30, 0x00, byteRiga & 0xFF, byteRiga >> 8, lato & 0xFF, lato >> 8];
+                for (let y = 0; y < lato; y++) {
+                    const r = Math.floor(y / modulo) - margine;
+                    for (let b = 0; b < byteRiga; b++) {
+                        let v = 0;
+                        for (let bit = 0; bit < 8; bit++) {
+                            const x = b * 8 + bit;
+                            const c = Math.floor(x / modulo) - margine;
+                            if (x < lato && r >= 0 && r < n && c >= 0 && c < n && qr.isDark(r, c)) v |= 0x80 >> bit;
+                        }
+                        bytes.push(v);
+                    }
+                }
+                let bin = '';
+                for (const v of bytes) bin += String.fromCharCode(v);
+                return btoa(bin);
+            }
+
+            window.datiQrConsegnaESC = function(ordine) {
+                const isDomicilio = ordine && (ordine.tipo === 'DOMICILIO' || (ordine.indirizzo && String(ordine.indirizzo).trim() !== ''));
+                if (!isDomicilio || !ordine.id) return [];
+                let raster = null;
+                try { raster = rasterQrBase64(window.urlQrConsegna(ordine)); } catch (e) { console.error("QR consegna:", e); }
+                if (!raster) return [];
+                const cliente = `${ordine.cognome || ''} ${ordine.nome || ''}`.trim().toUpperCase();
+                return [
+                    '\x1B\x61\x01' + SEPARATORE_TRATTO + '\n',
+                    '\x1B\x45\x01RIDER: SCANSIONA PER PRENDERE IN CARICO\x1B\x45\x00\n',
+                    { type: 'raw', format: 'command', flavor: 'base64', data: raster },
+                    '\x1B\x61\x01\x1D\x21\x01ORDINE #' + window.codiceBreveOrdine(ordine.id) + '\x1D\x21\x00\n'
+                        + (cliente ? cliente.slice(0, LARGHEZZA_CARTA) + '\n' : '')
+                ];
+            };
+
             window.generaBloccoTermicoDomicilioHTML = function(ordine) {
                 if (!ordine) return "";
                 const isDomicilio = ordine.tipo === 'DOMICILIO' || (ordine.indirizzo && String(ordine.indirizzo).trim() !== '');
@@ -1967,6 +2128,13 @@
                 });
             }
 
+            // Voce di stampa con testo normale (non i byte in base64/hex di immagini come il QR)
+            function isTestoSemplice(item) {
+                return !!item && typeof item.data === 'string'
+                    && (!item.format || item.format === 'plain' || item.format === 'command')
+                    && (!item.flavor || item.flavor === 'plain');
+            }
+
             // Intercettore automatico QZ Tray (Stampa Termica IP porta 9100)
             function agganciaInterceptorQZ() {
                 if (!window.qz || !window.qz.print || window.qz._domicilioHooked) return;
@@ -1975,7 +2143,7 @@
                 window.qz.print = function(config, data) {
                     try {
                         if (Array.isArray(data)) {
-                            const testoCompleto = data.map(item => (typeof item === 'string' ? item : (item?.data || ''))).join('\n');
+                            const testoCompleto = data.map(item => (typeof item === 'string' ? item : (isTestoSemplice(item) ? item.data : ''))).join('\n');
                             const ordineDom = trovaOrdineDomicilioDaTesto(testoCompleto);
 
                             if (ordineDom && !testoCompleto.includes('CONSEGNA A DOMICILIO')) {
@@ -1986,7 +2154,7 @@
                                         return item
                                             .replace(/ASPORTO/gi, 'CONSEGNA A DOMICILIO')
                                             .replace(/RITIRO/gi, 'DOMICILIO');
-                                    } else if (item && typeof item.data === 'string') {
+                                    } else if (isTestoSemplice(item)) {
                                         item.data = item.data
                                             .replace(/ASPORTO/gi, 'CONSEGNA A DOMICILIO')
                                             .replace(/RITIRO/gi, 'DOMICILIO');
@@ -2004,7 +2172,7 @@
                     if (Array.isArray(data)) {
                         data = data.map(item => {
                             if (typeof item === 'string') return pulisciTestoESC(item);
-                            if (item && typeof item.data === 'string' && (!item.format || item.format === 'plain' || item.format === 'command')) {
+                            if (isTestoSemplice(item)) {
                                 return { ...item, data: pulisciTestoESC(item.data) };
                             }
                             return item;
