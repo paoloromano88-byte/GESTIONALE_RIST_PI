@@ -346,8 +346,9 @@
                 const esc = window.escapeHtml;
                 const nomeCompleto = `${o.cognome || ''} ${o.nome || ''}`.trim() || 'Cliente';
                 const prodottiStr = (o.prodotti || []).map(p => `${esc(p.qta)}x ${esc(p.nome)}`).join(' • ');
-                const indirizzoCompleto = `${o.indirizzo || 'Indirizzo non specificato'} ${o.zona ? '(' + o.zona + ')' : ''}`;
-                const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(indirizzoCompleto)}`;
+                const capOrdine = o.cap || o.cliente?.cap || '';
+                const indirizzoCompleto = `${o.indirizzo || 'Indirizzo non specificato'}${capOrdine ? ', ' + capOrdine : ''} ${o.zona ? '(' + o.zona + ')' : ''}`;
+                const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([o.indirizzo || '', capOrdine].filter(Boolean).join(', '))}`;
                 const telUrl = `tel:${String(o.telefono || '').replace(/[^\d+]/g, '')}`;
 
                 // Indica al fattorino se lo scontrino è già stato battuto/chiuso in cassa

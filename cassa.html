@@ -401,7 +401,8 @@
                     <input type="text" id="new-ord-citofono" class="input-std" placeholder="Citofono / Scala" style="flex:1;">
                 </div>
                 <div class="form-row" style="margin:0;">
-                    <input type="text" id="new-ord-zona" class="input-std" placeholder="Zona / Quartiere" style="flex:1;">
+                    <input type="tel" id="new-ord-cap" class="input-std" placeholder="CAP" maxlength="5" inputmode="numeric" style="width:80px; flex:0 0 80px;" oninput="this.value = this.value.replace(/[^0-9]/g, ''); zonaDaCapNuovoOrdine()">
+                    <input type="text" id="new-ord-zona" class="input-std" placeholder="Zona (dal CAP)" style="flex:1;">
                     <div style="flex:1; display:flex; align-items:center; gap:6px; background:#0f172a; padding:0 10px; border-radius:6px; border:1px solid #475569;">
                         <span style="font-size:0.85em; color:#94a3b8; white-space:nowrap;">Supplemento (€):</span>
                         <input type="number" id="new-ord-supplemento" class="input-std" step="0.50" min="0" value="2.00" style="border:none; margin:0; font-weight:bold; color:#fbbf24; background:transparent;" onchange="renderNewOrderPreview()" oninput="renderNewOrderPreview()">
@@ -503,7 +504,8 @@
                         <input type="text" id="edit-citofono" class="input-std" placeholder="Citofono / Scala" style="flex:1; margin:0;">
                     </div>
                     <div class="form-row" style="margin:0;">
-                        <input type="text" id="edit-zona" class="input-std" placeholder="Zona / Quartiere" style="flex:1; margin:0;">
+                        <input type="tel" id="edit-cap" class="input-std" placeholder="CAP" maxlength="5" inputmode="numeric" style="width:80px; flex:0 0 80px; margin:0;" oninput="this.value = this.value.replace(/[^0-9]/g, ''); zonaDaCapModifica()">
+                        <input type="text" id="edit-zona" class="input-std" placeholder="Zona (dal CAP)" style="flex:1; margin:0;">
                         <div style="flex:1; display:flex; align-items:center; gap:6px; background:#fff; padding:0 10px; border-radius:6px; border:1px solid #cbd5e1;">
                             <span style="font-size:0.85em; color:#475569; white-space:nowrap; font-weight:bold;">Suppl. (€):</span>
                             <input type="number" id="edit-supplemento" class="input-std" step="0.50" min="0" value="2.00" style="border:none; margin:0; font-weight:bold; color:#d97706;" oninput="ricalcolaTotaleEditLive()">
@@ -768,6 +770,27 @@
                     </button>
                 </div>
 
+                <!-- ZONE DI CONSEGNA A DOMICILIO (riconosciute dal CAP) -->
+                <div style="background:#fff8e1; padding:20px; border-radius:8px; margin-bottom:15px; border:1px solid #ffe082; color:#333;">
+                    <h3 style="margin-top:0; color:#e65100;"><i class="fa fa-motorcycle"></i> Zone di Consegna a Domicilio</h3>
+                    <p style="margin:0 0 12px 0; font-size:0.85em; color:#6d4c41;">Il cliente inserisce il CAP: zona, supplemento e ordine minimo si applicano da soli. CAP separati da virgola, intervalli con il trattino (es. <b>89100, 89121-89135</b>). Senza zone si usa il supplemento base per tutti.</p>
+                    <div class="form-row">
+                        <div style="flex:1; display:flex; align-items:center; gap:8px; background:white; padding:0 10px; border-radius:5px; border:1px solid #ccc;">
+                            <label style="font-weight:bold; font-size:0.85em; color:#555; white-space:nowrap;">Supplemento base (€):</label>
+                            <input type="number" id="setting-supp-base" class="input-std" step="0.50" min="0" value="2.00" style="border:none; margin:0; font-weight:bold;">
+                        </div>
+                        <div style="flex:1; display:flex; align-items:center; gap:8px; background:white; padding:0 10px; border-radius:5px; border:1px solid #ccc;">
+                            <label style="font-weight:bold; font-size:0.85em; color:#555; white-space:nowrap;">Fuori zona (€):</label>
+                            <input type="number" id="setting-supp-fuori-zona" class="input-std" step="0.50" min="0" value="4.00" style="border:none; margin:0; font-weight:bold;">
+                        </div>
+                    </div>
+                    <div id="lista-zone-consegna" style="display:flex; flex-direction:column; gap:8px; margin:10px 0;"></div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button class="btn-save" style="background:#fb8c00; flex:1;" onclick="aggiungiZonaConsegna()"><i class="fa fa-plus"></i> AGGIUNGI ZONA</button>
+                        <button class="btn-save" style="background:#e65100; flex:2;" onclick="salvaZoneConsegna()">💾 SALVA ZONE DI CONSEGNA</button>
+                    </div>
+                </div>
+
                 <!-- BOX QR CODE PRONTI PER LA STAMPA -->
                 <div style="display:flex; gap:15px; flex-wrap:wrap;">
                     <div style="flex:1; min-width:250px; background:white; padding:20px; border-radius:8px; border:1px solid #ddd; text-align:center; color:#333;">
@@ -985,6 +1008,7 @@
                                     <span class="stat-lbl-mini">Quote Rider</span>
                                 </div>
                             </div>
+                            <div id="st-zone-dom" style="margin-top:8px; font-size:0.8em;"></div>
                         </div>
 
                         <div class="stat-section stat-split-box" style="flex:1; min-width:250px;">
@@ -1547,6 +1571,7 @@
                     let pizzeDom = 0;
                     let ordDom = 0;
                     let suppDom = 0;
+                    const perZona = {};
 
                     snap.forEach(d => {
                         const o = d.data();
@@ -1557,6 +1582,10 @@
                         ordDom++;
                         incDom += parseFloat(o.totale) || 0;
                         suppDom += parseFloat(o.supplemento_consegna) || 0;
+                        const nomeZona = (o.zona || '').trim() || 'Senza zona';
+                        perZona[nomeZona] = perZona[nomeZona] || { ordini: 0, incasso: 0 };
+                        perZona[nomeZona].ordini++;
+                        perZona[nomeZona].incasso += parseFloat(o.totale) || 0;
 
                         const items = Array.isArray(o.prodotti) ? o.prodotti : (Array.isArray(o.items) ? o.items : []);
                         items.forEach(it => {
@@ -1577,6 +1606,17 @@
                     if (elPiz) elPiz.innerText = Math.round(pizzeDom);
                     if (elOrd) elOrd.innerText = ordDom;
                     if (elSup) elSup.innerText = `€ ${suppDom.toFixed(2)}`;
+
+                    // Consegne divise per zona (dal CAP)
+                    const elZone = document.getElementById('st-zone-dom');
+                    if (elZone) {
+                        const righe = Object.entries(perZona).sort((a, b) => b[1].ordini - a[1].ordini);
+                        elZone.innerHTML = righe.length === 0 ? '' : righe.map(([nome, z]) => `
+                            <div style="display:flex; justify-content:space-between; padding:3px 6px; border-bottom:1px dashed #f59e0b55;">
+                                <span>📍 ${window.escapeHtml(nome)}</span>
+                                <span><b>${z.ordini}</b> cons. · € ${z.incasso.toFixed(2)}</span>
+                            </div>`).join('');
+                    }
                 } catch (e) {
                     console.error("Errore calcolo statistiche domicilio:", e);
                 }
@@ -1660,7 +1700,7 @@
                         }
 
                         const newHtml = `
-                            📍 ${window.escapeHtml(ordineMatch.indirizzo || 'Indirizzo non specificato')}
+                            📍 ${window.escapeHtml(ordineMatch.indirizzo || 'Indirizzo non specificato')}${(ordineMatch.cap || ordineMatch.cliente?.cap) ? `, ${window.escapeHtml(ordineMatch.cap || ordineMatch.cliente?.cap)}` : ''}
                             ${ordineMatch.zona ? ` (${window.escapeHtml(ordineMatch.zona)})` : ''}
                             ${ordineMatch.citofono ? ` • 🔔 Citofono: <b>${window.escapeHtml(ordineMatch.citofono)}</b>` : ''}
                             ${badgeRider}
@@ -1856,6 +1896,10 @@
                 if (ordine.citofono) {
                     wrapTestoTermica(`CITOFONO:  ${ordine.citofono.toUpperCase()}`).forEach(r => righe.push(r));
                 }
+                const capOrdine = ordine.cap || ordine.cliente?.cap || '';
+                if (capOrdine) {
+                    righe.push(`CAP:       ${pulisciTestoESC(capOrdine)}`);
+                }
                 if (ordine.zona) {
                     wrapTestoTermica(`ZONA:      ${ordine.zona.toUpperCase()}`).forEach(r => righe.push(r));
                 }
@@ -1886,6 +1930,7 @@
                         </div>
                         <div class="print-domicilio-row"><b>📍 INDIRIZZO:</b> ${window.escapeHtml((ordine.indirizzo || 'Non specificato').toUpperCase())}</div>
                         ${ordine.citofono ? `<div class="print-domicilio-row"><b>🔔 CITOFONO/SCALA:</b> ${window.escapeHtml(ordine.citofono.toUpperCase())}</div>` : ''}
+                        ${(ordine.cap || ordine.cliente?.cap) ? `<div class="print-domicilio-row"><b>📮 CAP:</b> ${window.escapeHtml(ordine.cap || ordine.cliente?.cap)}</div>` : ''}
                         ${ordine.zona ? `<div class="print-domicilio-row"><b>🗺️ ZONA:</b> ${window.escapeHtml(ordine.zona.toUpperCase())}</div>` : ''}
                         ${ordine.telefono ? `<div class="print-domicilio-row"><b>📞 TELEFONO:</b> ${window.escapeHtml(ordine.telefono)}</div>` : ''}
                         ${ordine.fattorino ? `<div class="print-domicilio-row"><b>🛵 RIDER:</b> ${window.escapeHtml(ordine.fattorino.toUpperCase())}</div>` : ''}

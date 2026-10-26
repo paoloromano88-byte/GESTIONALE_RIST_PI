@@ -306,8 +306,9 @@
                 <input type="text" id="indirizzo-domicilio" class="clean-input" placeholder="Indirizzo (Via e Numero Civico) *">
                 <div style="display:flex; gap:10px;">
                     <input type="text" id="citofono-domicilio" class="clean-input" placeholder="Citofono / Scala *" style="flex:1; margin-bottom:0;">
-                    <input type="text" id="zona-domicilio" class="clean-input" placeholder="Zona / Quartiere" style="flex:1; margin-bottom:0;">
+                    <input type="tel" id="cap-domicilio" class="clean-input" placeholder="CAP *" maxlength="5" inputmode="numeric" autocomplete="postal-code" style="flex:1; margin-bottom:0;" oninput="this.value = this.value.replace(/[^0-9]/g, ''); window.aggiornaZonaApp()">
                 </div>
+                <div id="info-zona-domicilio" style="display:none; margin-top:10px; font-size:0.85em; line-height:1.4; color:#ddd; background:rgba(255,255,255,0.05); border-radius:8px; padding:8px 10px;"></div>
             </div>
 
             <h3 style="margin-top:10px;">I tuoi dati</h3>
@@ -482,6 +483,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc as _doc, getDoc, query, where, orderBy, limit, setDoc, writeBatch, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { calcolaConsegna } from "./zone-consegna.js";
         import { getAuth, signInWithPhoneNumber, RecaptchaVerifier, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // --- CONFIGURAZIONE PROGETTO FIREBASE ---
@@ -566,6 +568,34 @@
         // --- STATO MODALITÀ CONSEGNA (ASPORTO / DOMICILIO) ---
         window.modalitaConsegnaApp = 'ASPORTO';
         window.supplementoConsegnaApp = 2.00;
+        window.configConsegnaApp = {};   // impostazioni/negozio: zone di consegna per CAP
+
+        const totaleProdottiCarrello = () => carrello.reduce((t, i) => t + (i.isPeso ? 0 : (parseFloat(i.prezzo) || 0) * (parseFloat(i.qta) || 0)), 0);
+        const consegnaCorrente = () => calcolaConsegna(window.configConsegnaApp, document.getElementById('cap-domicilio')?.value || '', totaleProdottiCarrello());
+        const euro = (n) => `€ ${(parseFloat(n) || 0).toFixed(2)}`;
+
+        function aggiornaInfoZona(c) {
+            const box = document.getElementById('info-zona-domicilio');
+            if (!box) return;
+            if (window.modalitaConsegnaApp !== 'DOMICILIO' || !c.zoneConfigurate) { box.style.display = 'none'; return; }
+            box.style.display = 'block';
+            const righe = [];
+            if (!c.capValido) {
+                righe.push(`📍 Inserisci il <b>CAP</b> per calcolare la consegna (da ${euro(c.supplemento)}).`);
+            } else if (c.fuoriZona) {
+                righe.push(`📍 <b>Fuori zona</b> · consegna ${euro(c.supplemento)}`);
+            } else {
+                let riga = `📍 Zona <b>${window.escapeHtml(c.zona)}</b> · consegna ${c.gratuita ? '<b style="color:var(--col-green);">GRATIS</b>' : euro(c.supplemento)}`;
+                if (c.minimo > 0) riga += ` · minimo ${euro(c.minimo)}`;
+                righe.push(riga);
+                if (c.mancanoPerMinimo > 0) righe.push(`<span style="color:var(--col-red); font-weight:bold;">Mancano ${euro(c.mancanoPerMinimo)} per l'ordine minimo.</span>`);
+                else if (c.gratisSopra > 0 && !c.gratuita) righe.push(`🎁 Consegna gratis da ${euro(c.gratisSopra)} (mancano ${euro(c.gratisSopra - totaleProdottiCarrello())}).`);
+                else if (c.gratuita) righe.push(`🎉 Consegna gratuita!`);
+            }
+            box.innerHTML = righe.join('<br>');
+        }
+
+        window.aggiornaZonaApp = () => updateCartUI();
 
         window.setModalitaConsegnaApp = (modalita) => {
             window.modalitaConsegnaApp = modalita === 'DOMICILIO' ? 'DOMICILIO' : 'ASPORTO';
@@ -894,14 +924,14 @@
                 const iTel = document.getElementById('telefono');
                 const iInd = document.getElementById('indirizzo-domicilio');
                 const iCit = document.getElementById('citofono-domicilio');
-                const iZon = document.getElementById('zona-domicilio');
+                const iCap = document.getElementById('cap-domicilio');
 
                 if(iNome && !iNome.value) iNome.value = currentUserData.nome || '';
                 if(iCognome && !iCognome.value) iCognome.value = currentUserData.cognome || '';
                 if(iTel && !iTel.value) iTel.value = currentUserData.telefono || '';
                 if(iInd && !iInd.value && currentUserData.indirizzo) iInd.value = currentUserData.indirizzo;
                 if(iCit && !iCit.value && currentUserData.citofono) iCit.value = currentUserData.citofono;
-                if(iZon && !iZon.value && currentUserData.zona) iZon.value = currentUserData.zona;
+                if(iCap && !iCap.value && currentUserData.cap) iCap.value = currentUserData.cap;
             }
 
             // Ripristina anche l'ultimo indirizzo salvato localmente sul dispositivo
@@ -910,10 +940,10 @@
                 if (savedAddr) {
                     const iInd = document.getElementById('indirizzo-domicilio');
                     const iCit = document.getElementById('citofono-domicilio');
-                    const iZon = document.getElementById('zona-domicilio');
+                    const iCap = document.getElementById('cap-domicilio');
                     if (iInd && !iInd.value && savedAddr.indirizzo) iInd.value = savedAddr.indirizzo;
                     if (iCit && !iCit.value && savedAddr.citofono) iCit.value = savedAddr.citofono;
-                    if (iZon && !iZon.value && savedAddr.zona) iZon.value = savedAddr.zona;
+                    if (iCap && !iCap.value && savedAddr.cap) iCap.value = savedAddr.cap;
                 }
             } catch (e) {}
         }
@@ -1068,7 +1098,9 @@
                         window.setModalitaConsegnaApp('DOMICILIO');
                         if (ordineTarget.indirizzo) document.getElementById('indirizzo-domicilio').value = ordineTarget.indirizzo;
                         if (ordineTarget.citofono) document.getElementById('citofono-domicilio').value = ordineTarget.citofono;
-                        if (ordineTarget.zona) document.getElementById('zona-domicilio').value = ordineTarget.zona;
+                        const capPrecedente = ordineTarget.cap || ordineTarget.cliente?.cap;
+                        if (capPrecedente) document.getElementById('cap-domicilio').value = capPrecedente;
+                        updateCartUI();
                     }
                     
                     window.chiudiModalAuth();
@@ -1116,12 +1148,14 @@
                         document.getElementById('home-logo-img').src = dn.logo_url;
                         document.getElementById('menu-logo-img').src = dn.logo_url;
                     }
+                    window.configConsegnaApp = dn;
                     if (dn.supplemento_consegna !== undefined && !isNaN(parseFloat(dn.supplemento_consegna))) {
                         window.supplementoConsegnaApp = parseFloat(dn.supplemento_consegna);
-                        const lblSupp = document.getElementById('lbl-supp-domicilio');
-                        if (lblSupp) lblSupp.innerText = `+ € ${window.supplementoConsegnaApp.toFixed(2)}`;
-                        updateCartUI();
                     }
+                    const infoBase = calcolaConsegna(dn, '', 0);
+                    const lblSupp = document.getElementById('lbl-supp-domicilio');
+                    if (lblSupp) lblSupp.innerText = `${infoBase.zoneConfigurate ? 'da' : '+'} € ${infoBase.supplemento.toFixed(2)}`;
+                    updateCartUI();
                 }
             });
 
@@ -1188,7 +1222,6 @@
                 legContainer.innerHTML += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #333;"><i class="fa-solid ${icon}" style="color:var(--col-red);width:25px;text-align:center;"></i><span>${key}</span></div>`;
             }
         }
-        init();
 
         window.filtra = (cat, el) => { document.querySelectorAll('.cat-pill').forEach(c=>c.classList.remove('active')); el.classList.add('active'); curCat=cat; renderMenu(); };
         window.cercaProdotto = (val) => renderMenu(val.toLowerCase());
@@ -1395,19 +1428,22 @@
 
             // Riga supplemento consegna se è attivo DOMICILIO
             const isDom = window.modalitaConsegnaApp === 'DOMICILIO';
-            const supp = (isDom && carrello.length > 0) ? (parseFloat(window.supplementoConsegnaApp) || 0) : 0;
+            const consegna = consegnaCorrente();
+            const supp = (isDom && carrello.length > 0) ? consegna.supplemento : 0;
             if (isDom && carrello.length > 0) {
+                const zonaLbl = consegna.zona ? ` · ${window.escapeHtml(consegna.zona)}` : '';
                 box.innerHTML += `
                     <div class="cart-item-card" style="border-left-color: var(--col-gold); padding: 14px 20px;">
                         <div class="cart-item-info">
-                            <div class="cart-item-name" style="font-size: 0.98em; margin:0;">🛵 Supplemento Consegna a Domicilio</div>
+                            <div class="cart-item-name" style="font-size: 0.98em; margin:0;">🛵 Consegna a Domicilio${zonaLbl}</div>
                         </div>
                         <div class="cart-item-actions">
-                            <div class="cart-item-price" style="color: var(--col-gold);">€ ${supp.toFixed(2)}</div>
+                            <div class="cart-item-price" style="color: var(--col-gold);">${consegna.gratuita && isDom ? 'GRATIS' : `€ ${supp.toFixed(2)}`}</div>
                         </div>
                     </div>
                 `;
             }
+            aggiornaInfoZona(consegna);
 
             let totFin = calcolaTotaleConSconto(tot) + supp;
             document.getElementById('btn-invia').innerText = `CONFERMA - € ${totFin.toFixed(2)}`;
@@ -1438,6 +1474,10 @@
             updateCartUI();
         };
 
+        // Orario scelto dal cliente: salvato alla selezione, perché più ricaricamenti della lista possono sovrapporsi
+        let orarioSceltoCliente = '';
+        document.getElementById('orario').addEventListener('change', (e) => { orarioSceltoCliente = e.target.value; });
+
         window.aggiornaOrari = async () => {
             const sel = document.getElementById('orario'); sel.innerHTML="<option value=''>Caricamento...</option>"; const dateInput = document.getElementById('data-ritiro').value; const d = new Date(dateInput);
             if(GIORNO_CHIUSURA && String(d.getDay()) === String(GIORNO_CHIUSURA)) { sel.innerHTML="<option value=''>CHIUSO</option>"; Swal.fire("Siamo chiusi in questo giorno."); return; }
@@ -1453,6 +1493,8 @@
                     if (totalProjected > limiteFornoDinamico) { sel.innerHTML += `<option value="" disabled style="color:var(--col-red);">${timeStr} (PIENO)</option>`; } else { sel.innerHTML += `<option value="${timeStr}">${timeStr}</option>`; }
                 }
             }
+            // Mantiene l'orario già scelto se è ancora disponibile (la lista si ricarica a ogni modifica del carrello)
+            if (orarioSceltoCliente && [...sel.options].some(o => o.value === orarioSceltoCliente && !o.disabled)) sel.value = orarioSceltoCliente;
         };
 
         window.preInviaOrdine = async () => {
@@ -1466,18 +1508,22 @@
             const isDom = window.modalitaConsegnaApp === 'DOMICILIO';
             const indirizzo = document.getElementById('indirizzo-domicilio')?.value.trim() || '';
             const citofono = document.getElementById('citofono-domicilio')?.value.trim() || '';
-            const zona = document.getElementById('zona-domicilio')?.value.trim() || '';
+            const consegna = consegnaCorrente();
+            const cap = consegna.cap;
+            const zona = consegna.zona;
 
             if(!nome || !cognome || !tel || !ora) return Swal.fire("Attenzione", "Compila tutti i campi obbligatori (Nome, Cognome, Telefono e Orario).", "warning"); 
             if(isDom && !indirizzo) return Swal.fire("Indirizzo Mancante", "Inserisci la Via e il Numero Civico per la consegna a domicilio.", "warning");
             if(isDom && !citofono) return Swal.fire("Citofono Mancante", "Indica il nome sul citofono o la scala per aiutare il fattorino.", "warning");
+            if(isDom && !consegna.capValido) return Swal.fire("CAP Mancante", "Inserisci il CAP (5 cifre) per calcolare la consegna.", "warning");
+            if(isDom && consegna.mancanoPerMinimo > 0) return Swal.fire("Ordine minimo", `Per la zona ${consegna.zona} l'ordine minimo è € ${consegna.minimo.toFixed(2)}: mancano € ${consegna.mancanoPerMinimo.toFixed(2)}.`, "warning");
             if(!/^[a-zA-Z\sàèéìíòóùú']+$/i.test(nome) || !/^[a-zA-Z\sàèéìíòóùú']+$/i.test(cognome)) return Swal.fire("Attenzione", "Inserisci nome e cognome reali (solo lettere).", "warning");
             if(!/^(3\d{9})$/.test(tel)) return Swal.fire("Attenzione", "Inserisci un numero di cellulare valido di 10 cifre (deve iniziare con 3).", "warning");
             if(!priv) return Swal.fire("Attenzione", "Devi accettare la Privacy Policy per continuare.", "warning");
             if(carrello.length === 0) return Swal.fire("Attenzione", "Il carrello è vuoto!", "warning");
 
             if (!currentUserData || !currentUserData.telefono) {
-                impostaUtenteLoggato({ nome, cognome, telefono: tel, indirizzo, citofono, zona });
+                impostaUtenteLoggato({ nome, cognome, telefono: tel, indirizzo, citofono, zona, cap });
             }
 
             const haBibite = carrello.some(p => p.cat && (p.cat.includes('bibita') || p.cat.includes('birra')));
@@ -1502,8 +1548,10 @@
             const isDom = window.modalitaConsegnaApp === 'DOMICILIO';
             const indirizzo = isDom ? (document.getElementById('indirizzo-domicilio')?.value.trim() || '') : '';
             const citofono = isDom ? (document.getElementById('citofono-domicilio')?.value.trim() || '') : '';
-            const zona = isDom ? (document.getElementById('zona-domicilio')?.value.trim() || '') : '';
-            const supp = isDom ? (parseFloat(window.supplementoConsegnaApp) || 0) : 0;
+            const consegna = consegnaCorrente();
+            const zona = isDom ? consegna.zona : '';
+            const cap = isDom ? consegna.cap : '';
+            const supp = isDom ? consegna.supplemento : 0;
             
             let totBase = 0;
             carrello.forEach(i => { if(!i.isPeso) totBase += (parseFloat(i.prezzo) * parseFloat(i.qta)); });
@@ -1514,7 +1562,7 @@
             try {
                 const dataRitiroVal = document.getElementById('data-ritiro').value;
                 const nuovoOrdineRef = await addDoc(collection(db, "ordini"), {
-                    cliente: { nome, cognome, telefono: tel, indirizzo, citofono, zona },
+                    cliente: { nome, cognome, telefono: tel, indirizzo, citofono, zona, cap },
                     nome: nome,
                     cognome: cognome,
                     telefono: tel,
@@ -1546,7 +1594,7 @@
 
                 // Salva l'indirizzo sul dispositivo per comodità nei prossimi ordini
                 if (isDom && indirizzo) {
-                    localStorage.setItem(ADDRESS_STORAGE_KEY, JSON.stringify({ indirizzo, citofono, zona }));
+                    localStorage.setItem(ADDRESS_STORAGE_KEY, JSON.stringify({ indirizzo, citofono, zona, cap }));
                 }
 
                 // Scala Scorte Zero-Click (inclusa Stirata Bi-Gusto) e aggiorna CRM Cliente con Indirizzo
@@ -1652,6 +1700,10 @@
                 document.getElementById('fidelity-container').innerHTML = `<div class="fidelity-box"><div class="fidelity-title"><i class="fa-solid fa-gift"></i> Fidelity Card</div><div style="font-size:0.9em; color:#ccc;">Hai ordinato storicamente <b>${totalPizze}</b> pizze.</div><div class="progress-bg"><div class="progress-fill" style="width: ${percentage}%; ${premioSbloccato ? 'background: #4caf50;' : ''}"></div></div><div style="font-size:0.85em; color:var(--col-gold); font-weight:bold; line-height: 1.3;">${premioSbloccato ? winText : waitText}</div></div>`;
             } catch (e) { console.log("Errore fidelity:", e); }
         };
+
+        // Avvio dopo che tutte le funzioni dello script sono definite
+        // (init usa window.aggiornaOrari, definita più in basso)
+        init();
     </script>
 </body>
 </html>
