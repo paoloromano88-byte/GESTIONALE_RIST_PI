@@ -71,10 +71,12 @@ function mostraAccountNonAbilitato(user) {
         <div style="max-width:380px;">
             <div style="font-size:2.4em; margin-bottom:8px;">⛔</div>
             <h2 style="margin:0 0 10px 0; font-size:1.2em;">Account non abilitato</h2>
-            <p style="color:#cbd5e1; font-size:0.95em; margin:0 0 18px 0;">L'account <b data-email></b> non è collegato a nessun locale. Contatta l'assistenza.</p>
+            <p style="color:#cbd5e1; font-size:0.95em; margin:0 0 12px 0;">L'account <b data-email></b> non è collegato a nessun locale. Contatta l'assistenza indicando questo codice:</p>
+            <code data-uid style="display:block; margin:0 0 18px 0; padding:10px; background:#1e293b; border-radius:8px; word-break:break-all; color:#fbbf24; user-select:all;"></code>
             <button type="button" style="padding:12px 22px; border:none; border-radius:10px; background:#2563eb; color:#fff; font-weight:900; cursor:pointer;">ESCI E USA UN ALTRO ACCOUNT</button>
         </div>`;
     overlay.querySelector('[data-email]').textContent = user.email || user.uid;
+    overlay.querySelector('[data-uid]').textContent = user.uid;
     overlay.querySelector('button').addEventListener('click', async () => {
         await signOut(getAuth(getApps()[0]));
         location.reload();

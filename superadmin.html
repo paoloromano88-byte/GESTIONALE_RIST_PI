@@ -247,12 +247,24 @@
                 return window.esciSuperAdmin();
             }
 
-            await Swal.fire({
+            // Senza profilo e senza poter verificare se esiste un Super Admin (regole definitive attive):
+            // il primo Super Admin va creato a mano dalla Firebase Console, che non è soggetta alle regole.
+            const istruzioniPrimoAvvio = !profilo ? `
+                <div style="text-align:left; margin-top:14px; font-size:0.85em; color:#c9d1d9; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:12px;">
+                    <b>È il primo avvio?</b> Crea il Super Admin dalla Firebase Console:<br>
+                    Firestore → Dati → raccolta <code>utenti</code> → documento con ID:<br>
+                    <code id="uid-da-copiare" style="display:block; margin:8px 0; padding:8px; background:#161b22; border-radius:6px; word-break:break-all; color:#f59e0b; user-select:all;">${window.escapeHtml(utenteCorrente.uid)}</code>
+                    con i campi (tipo string) <code>ruolo</code> = <code>superadmin</code> e <code>email</code> = <code>${window.escapeHtml(utenteCorrente.email)}</code>.
+                    Poi ricarica questa pagina.
+                </div>` : '';
+            const res = await Swal.fire({
                 icon: 'error', title: 'Accesso negato',
-                html: `L'account <b>${window.escapeHtml(utenteCorrente.email)}</b> non è Super Admin.`,
-                confirmButtonText: 'Esci e usa un altro account', allowOutsideClick: false, ...SWAL_SCURO
+                html: `L'account <b>${window.escapeHtml(utenteCorrente.email)}</b> non è Super Admin.${istruzioniPrimoAvvio}`,
+                showDenyButton: !profilo, denyButtonText: '📋 Copia UID', denyButtonColor: '#1f6feb',
+                preDeny: () => { navigator.clipboard.writeText(utenteCorrente.uid).catch(() => {}); return false; },
+                confirmButtonText: 'Esci e usa un altro account', allowOutsideClick: false, width: 560, ...SWAL_SCURO
             });
-            window.esciSuperAdmin();
+            if (res.isConfirmed) window.esciSuperAdmin();
         }
 
         window.esciSuperAdmin = async () => {
