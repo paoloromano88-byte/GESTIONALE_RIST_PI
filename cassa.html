@@ -1049,7 +1049,7 @@
                         📥 SCARICA EXCEL (CSV)
                     </button>
                     <button onclick="stampaChiusuraZ('periodo')" style="flex:1; background:#ff9800; color:black; padding:15px; border:none; border-radius:5px; font-weight:900; font-size:1.05em; cursor:pointer;">
-                        🖨️ STAMPA CHIUSURA FISCALE / RIEPILOGO Z DEL PERIODO
+                        🖨️ STAMPA RIEPILOGO Z DEL PERIODO (NON FISCALE)
                     </button>
                 </div>
 
@@ -1181,7 +1181,19 @@
                 <div class="printer-config-box"><strong>🔥 PIZZERIA</strong> <input type="text" id="ip-pizzeria" class="input-std"><div class="cat-checkboxes" id="cats-pizzeria"></div></div>
                 <div class="printer-config-box"><strong>👨‍🍳 CUCINA</strong> <input type="text" id="ip-cucina" class="input-std"><div class="cat-checkboxes" id="cats-cucina"></div></div>
                 <div class="printer-config-box"><strong>🍺 BAR</strong> <input type="text" id="ip-bar" class="input-std"><div class="cat-checkboxes" id="cats-bar"></div></div>
-                <button class="btn-save" style="width:100%; font-size: 1.1em; padding: 15px;" onclick="salvaConfigStampanti()">💾 SALVA CONFIGURAZIONE RETE</button>
+                <div class="printer-config-box" style="border-color:#ffe082; background:#fffdf5;">
+                    <strong>🧾 SCONTRINO FISCALE</strong>
+                    <p style="margin:6px 0 10px 0; font-size:0.85em; color:#6d4c41;">Il gestionale non emette scontrini fiscali: stampi il preconto e batti il totale sul registratore di cassa del locale, di qualunque marca. Solo con un registratore Olivetti e il programma ElaExecute sul PC della cassa puoi collegarlo qui (serve QZ Tray).</p>
+                    <select id="fiscale-modo" class="input-std" style="width:100%; box-sizing:border-box;" onchange="aggiornaVistaFiscale()">
+                        <option value="nessuno">Nessuno: batto il totale a mano</option>
+                        <option value="olivetti">Olivetti collegato (ElaExecute)</option>
+                    </select>
+                    <div id="fiscale-olivetti-box" style="display:none; margin-top:10px;">
+                        <label style="font-size:0.9em;">Cartella IN di ElaExecute sul PC della cassa:</label>
+                        <input type="text" id="fiscale-cartella" class="input-std" style="width:100%; box-sizing:border-box; margin-top:5px;" placeholder="Es. C:/Olivetti/ElaExecute/IN/">
+                    </div>
+                </div>
+                <button class="btn-save" style="width:100%; font-size: 1.1em; padding: 15px;" onclick="salvaConfigStampanti()">💾 SALVA CONFIGURAZIONE</button>
             </div>
             
             <div id="view-kdsconfig" style="display:none;">
@@ -1299,20 +1311,27 @@
                 </div>
             </div>
 
-            <div class="payment-grid">
-                <button class="btn-pay pay-cash" onclick="confermaPagamento('CONTANTI')"><i class="fa fa-money-bill-wave"></i> SOLO GESTIONALE (Contanti)</button>
-                <button class="btn-pay pay-card" onclick="confermaPagamento('CARTA')"><i class="fa fa-credit-card"></i> SOLO GESTIONALE (Carta)</button>
+            <div id="pay-promemoria-fiscale" style="display:none; background:#fff8e1; border:1px solid #ffe082; color:#6d4c41; border-radius:8px; padding:8px 10px; margin-top:15px; font-size:0.9em; text-align:left;">
+                <i class="fa fa-receipt"></i> Lo scontrino fiscale si fa sul <b>registratore di cassa</b> del locale: dopo l'incasso batti lì il totale.
             </div>
-            
-            <hr style="border:0; border-top:1px dashed #ccc; margin: 15px 0;">
-            
-            <div style="display:flex; gap:10px;">
-                <button onclick="emettiScontrinoFiscale('CONTANTI')" style="flex:1; padding:15px; font-size:1.1em; background:#4caf50; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-                    <i class="fa fa-receipt"></i> FISCALE CONTANTI
-                </button>
-                <button onclick="emettiScontrinoFiscale('CARTA')" style="flex:1; padding:15px; font-size:1.1em; background:#2196f3; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-                    <i class="fa fa-credit-card"></i> FISCALE CARTA
-                </button>
+
+            <div class="payment-grid">
+                <button class="btn-pay pay-cash" onclick="confermaPagamento('CONTANTI')"><i class="fa fa-money-bill-wave"></i> <span><span class="pay-etichetta">SOLO GESTIONALE</span> (Contanti)</span></button>
+                <button class="btn-pay pay-card" onclick="confermaPagamento('CARTA')"><i class="fa fa-credit-card"></i> <span><span class="pay-etichetta">SOLO GESTIONALE</span> (Carta)</span></button>
+            </div>
+
+            <!-- Solo con il registratore Olivetti collegato (Gestionale > Stampanti) -->
+            <div id="pay-fiscale-box">
+                <hr style="border:0; border-top:1px dashed #ccc; margin: 15px 0;">
+
+                <div style="display:flex; gap:10px;">
+                    <button onclick="emettiScontrinoFiscale('CONTANTI')" style="flex:1; padding:15px; font-size:1.1em; background:#4caf50; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                        <i class="fa fa-receipt"></i> FISCALE CONTANTI
+                    </button>
+                    <button onclick="emettiScontrinoFiscale('CARTA')" style="flex:1; padding:15px; font-size:1.1em; background:#2196f3; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                        <i class="fa fa-credit-card"></i> FISCALE CARTA
+                    </button>
+                </div>
             </div>
 
             <button class="btn-pay pay-unpaid" style="width:100%; margin-top:15px; font-size:1em; padding:10px;" onclick="confermaPagamento('NON PAGATO')">CHIUDI SENZA PAGARE (Sospeso)</button>
