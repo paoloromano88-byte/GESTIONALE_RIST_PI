@@ -107,6 +107,7 @@
         .btn-call { background: #0d9488; color: #fff; flex: 0.6; }
         .btn-take { background: var(--gold); color: #000; }
         .btn-done { background: var(--free); color: #000; }
+        .btn-release { background: none; border: none; color: #94a3b8; font-size: 0.78em; text-decoration: underline; cursor: pointer; padding: 6px 0 0; width: 100%; }
 
         /* LOGIN OVERLAY FATTORINO */
         #driver-login-overlay {
@@ -162,7 +163,7 @@
 
     <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection as _collection, doc as _doc, onSnapshot, updateDoc, getDocs, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection as _collection, doc as _doc, onSnapshot, updateDoc, getDocs, query, where, serverTimestamp, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
 
@@ -210,6 +211,11 @@
         let currentDriver = currentDriverId ? (localStorage.getItem('delivery_driver_name') || "") : "";
         let filtroCorrente = 'attive';
         let ordiniCache = [];
+
+        // Un ordine preso in carico è visibile solo al rider che lo ha preso
+        const haRider = (o) => !!(o.fattorino_id || o.fattorino);
+        const isMio = (o) => o.fattorino_id ? o.fattorino_id === currentDriverId : (!!currentDriver && o.fattorino === currentDriver);
+        const presoDaAltri = (o) => haRider(o) && !isMio(o);
 
         function getTodayLocal() {
             const d = new Date();
@@ -318,6 +324,7 @@
             let countAttive = 0, countConsegnate = 0;
             const filtered = ordiniCache.filter(o => {
                 if (o.stato === 'Annullato') return false;
+                if (presoDaAltri(o)) return false;
                 // Usa stato_consegna indipendente dallo stato fiscale della Cassa
                 const isDone = o.stato_consegna === 'Consegnato';
                 if (isDone) countConsegnate++;
@@ -411,6 +418,11 @@
                                 </div>
                             `}
                         </div>
+                        ${isInDelivery && isMio(o) ? `
+                            <button class="btn-release" onclick="window.rilasciaOrdine('${window.safeId(o.id)}')">
+                                <i class="fa fa-rotate-left"></i> Presa per errore? Rilascia l'ordine agli altri rider
+                            </button>
+                        ` : ''}
                     </div>
                 `;
             }).join('');
@@ -418,16 +430,65 @@
 
         window.assegnaFattorino = async (docId) => {
             if (!currentDriver) return window.cambiaFattorino();
-            await updateDoc(doc(db, "ordini", docId), {
-                stato_consegna: "In consegna",
-                fattorino: currentDriver,
-                fattorino_id: currentDriverId,
-                timestamp_consegna_avvio: serverTimestamp()
-            });
+            const ref = doc(db, "ordini", docId);
+            let giaPresoDa = "";
+            try {
+                // Transazione: se due rider premono insieme, solo il primo prende l'ordine
+                await runTransaction(db, async (tx) => {
+                    const snap = await tx.get(ref);
+                    if (!snap.exists()) throw new Error('ordine-inesistente');
+                    const o = snap.data();
+                    if (presoDaAltri(o)) { giaPresoDa = o.fattorino || 'un altro rider'; return; }
+                    if (isMio(o) && o.stato_consegna) return;
+                    tx.update(ref, {
+                        stato_consegna: "In consegna",
+                        fattorino: currentDriver,
+                        fattorino_id: currentDriverId,
+                        timestamp_consegna_avvio: serverTimestamp()
+                    });
+                });
+            } catch (e) {
+                console.error(e);
+                return Swal.fire({
+                    icon: 'error', title: 'Ordine non preso in carico',
+                    text: e.message === 'ordine-inesistente' ? "L'ordine è stato eliminato." : 'Serve la connessione internet per prendere un ordine. Riprova.',
+                    background: '#1e293b', color: '#fff'
+                });
+            }
+            if (giaPresoDa) {
+                return Swal.fire({ icon: 'info', title: 'Ordine già preso', text: `Lo ha appena preso in carico ${giaPresoDa}.`, background: '#1e293b', color: '#fff' });
+            }
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ordine preso in carico!', showConfirmButton: false, timer: 1400 });
         };
 
+        window.rilasciaOrdine = async (docId) => {
+            const o = ordiniCache.find(x => x.id === docId);
+            if (!o || !isMio(o) || o.stato_consegna !== 'In consegna') return;
+            const res = await Swal.fire({
+                title: "Rilasciare l'ordine?",
+                text: 'Tornerà visibile a tutti i rider come "da consegnare".',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sì, rilascia',
+                cancelButtonText: 'Annulla',
+                background: '#1e293b', color: '#fff'
+            });
+            if (!res.isConfirmed) return;
+            await updateDoc(doc(db, "ordini", docId), {
+                stato_consegna: deleteField(),
+                fattorino: deleteField(),
+                fattorino_id: deleteField(),
+                timestamp_consegna_avvio: deleteField()
+            });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ordine rilasciato', showConfirmButton: false, timer: 1400 });
+        };
+
         window.segnaConsegnato = async (docId) => {
+            const ordine = ordiniCache.find(x => x.id === docId);
+            if (!currentDriver) return window.cambiaFattorino();
+            if (ordine && presoDaAltri(ordine)) {
+                return Swal.fire({ icon: 'info', title: 'Ordine di un altro rider', text: `Questo ordine è in carico a ${ordine.fattorino || 'un altro rider'}.`, background: '#1e293b', color: '#fff' });
+            }
             const res = await Swal.fire({
                 title: 'Confermare consegna?',
                 text: "L'ordine verrà segnato come Consegnato al cliente.",
