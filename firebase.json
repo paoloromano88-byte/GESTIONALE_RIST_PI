@@ -21,6 +21,7 @@
       "firestore.rules",
       "test/**",
       "functions/**",
+      "docs/**",
       "**/.*",
       "**/node_modules/**"
     ]
