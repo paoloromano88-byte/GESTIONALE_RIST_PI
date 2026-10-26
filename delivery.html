@@ -77,7 +77,7 @@
 
         /* LISTA CONSEGNE */
         .deliveries-container {
-            flex: 1; overflow-y: auto; padding: 12px;
+            flex: 1; overflow-y: auto; padding: 12px 12px 96px;   /* spazio per il pulsante SCANSIONA QR */
             display: flex; flex-direction: column; gap: 12px;
             -webkit-overflow-scrolling: touch;
         }
@@ -124,6 +124,30 @@
         .btn-take { background: var(--gold); color: #000; }
         .btn-done { background: var(--free); color: #000; }
         .btn-release { background: none; border: none; color: #94a3b8; font-size: 0.78em; text-decoration: underline; cursor: pointer; padding: 6px 0 0; width: 100%; }
+        .codice-ordine { font-size: 0.72em; color: #94a3b8; font-weight: 800; letter-spacing: 1px; margin-top: 4px; text-align: right; }
+
+        /* PRESA IN CARICO CON IL QR DELLA BUSTA */
+        .btn-scan-fab {
+            position: fixed; left: 50%; transform: translateX(-50%);
+            bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 900;
+            background: var(--gold); color: #000; border: none; border-radius: 30px;
+            padding: 14px 26px; font-weight: 900; font-size: 1.05em; display: none;
+            align-items: center; gap: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.6); cursor: pointer; white-space: nowrap;
+        }
+        #scanner-overlay {
+            position: fixed; inset: 0; z-index: 10000; background: #000; display: none;
+            flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+            padding: calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));
+        }
+        .scanner-titolo { color: #fff; font-weight: 900; font-size: 1.15em; text-align: center; }
+        .scanner-atteso { color: var(--gold); font-weight: 800; text-align: center; font-size: 0.95em; min-height: 1.2em; }
+        .scanner-video-box { position: relative; width: min(86vw, 360px); aspect-ratio: 1 / 1; border-radius: 16px; overflow: hidden; background: #111; }
+        .scanner-video-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .scanner-mirino { position: absolute; inset: 14%; border: 3px solid var(--gold); border-radius: 12px; box-shadow: 0 0 0 999px rgba(0,0,0,0.35); pointer-events: none; }
+        .scanner-stato { color: #cbd5e1; font-size: 0.9em; text-align: center; min-height: 1.2em; max-width: 360px; }
+        .btn-scanner { width: min(86vw, 360px); padding: 14px; border-radius: 12px; border: none; font-weight: 900; font-size: 1em; cursor: pointer; text-align: center; display: block; }
+        .btn-scanner-foto { background: #334155; color: #fff; }
+        .btn-scanner-chiudi { background: #ef4444; color: #fff; }
 
         /* LOGIN OVERLAY FATTORINO */
         #driver-login-overlay {
@@ -182,9 +206,26 @@
     <!-- LISTA CONSEGNE -->
     <div class="deliveries-container" id="deliveries-list"></div>
 
+    <!-- PULSANTE SCANNER: il rider prende in carico la busta che ha in mano scansionando il QR dello scontrino -->
+    <button class="btn-scan-fab" id="btn-scan-fab" onclick="window.apriScanner()"><i class="fa fa-qrcode"></i> SCANSIONA QR</button>
+
+    <div id="scanner-overlay">
+        <div class="scanner-titolo">📷 Inquadra il QR sullo scontrino</div>
+        <div class="scanner-atteso" id="scanner-atteso"></div>
+        <div class="scanner-video-box">
+            <video id="scanner-video" playsinline muted autoplay></video>
+            <div class="scanner-mirino"></div>
+        </div>
+        <div class="scanner-stato" id="scanner-stato"></div>
+        <label class="btn-scanner btn-scanner-foto">📸 Fai una foto al QR
+            <input type="file" id="scanner-foto" accept="image/*" capture="environment" style="display:none;" onchange="window.leggiFotoQr(this)">
+        </label>
+        <button class="btn-scanner btn-scanner-chiudi" onclick="window.chiudiScanner()">Chiudi</button>
+    </div>
+
     <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection as _collection, doc as _doc, onSnapshot, updateDoc, getDocs, query, where, serverTimestamp, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection as _collection, doc as _doc, onSnapshot, updateDoc, getDoc, getDocs, query, where, serverTimestamp, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
 
@@ -279,6 +320,7 @@
             document.getElementById('count-pronte').innerText = n;
             document.getElementById('label-pronte').innerText = n === 1 ? 'pronta' : 'pronte';
             document.title = n > 0 ? `(${n}) App Rider` : 'App Rider';
+            document.getElementById('btn-scan-fab').style.display = currentDriver ? 'flex' : 'none';
             try { if (navigator.setAppBadge) (n > 0 ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
         }
 
@@ -322,7 +364,8 @@
                 document.getElementById('current-driver-display').innerText = rider.nome;
                 document.getElementById('driver-login-overlay').style.display = 'none';
                 renderDeliveries();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Buon turno, ${rider.nome}!`, showConfirmButton: false, timer: 1500 });
+                if (window.ordineDaLink) gestisciOrdineDaLink();
+                else Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Buon turno, ${rider.nome}!`, showConfirmButton: false, timer: 1500 });
             } catch (e) {
                 console.error(e);
                 Swal.fire({ icon: 'error', title: 'Errore di connessione', text: 'Riprova tra qualche secondo.', background: '#1e293b', color: '#fff' });
@@ -453,7 +496,10 @@
                                 <div class="client-name">${esc(nomeCompleto.toUpperCase())}</div>
                                 <div style="font-size:0.82em; color:#94a3b8; font-weight:bold;">${esc(o.telefono || 'Nessun telefono')}</div>
                             </div>
-                            <div class="order-time"><i class="fa fa-clock"></i> ${esc(o.orario || '--:--')}</div>
+                            <div>
+                                <div class="order-time"><i class="fa fa-clock"></i> ${esc(o.orario || '--:--')}</div>
+                                <div class="codice-ordine">#${esc(codiceBreve(o.id))}</div>
+                            </div>
                         </div>
 
                         <div class="address-box">
@@ -487,8 +533,8 @@
                             </a>
                             ${!isDone ? `
                                 ${!isInDelivery ? `
-                                    <button class="btn-action btn-take" onclick="window.assegnaFattorino('${window.safeId(o.id)}')">
-                                        <i class="fa fa-motorcycle"></i> Prendi in Carico
+                                    <button class="btn-action btn-take" onclick="window.apriScanner('${window.safeId(o.id)}')">
+                                        <i class="fa fa-qrcode"></i> Scansiona e prendi
                                     </button>
                                 ` : `
                                     <button class="btn-action btn-done" onclick="window.segnaConsegnato('${window.safeId(o.id)}')">
@@ -501,6 +547,11 @@
                                 </div>
                             `}
                         </div>
+                        ${!isDone && !isInDelivery ? `
+                            <button class="btn-release" onclick="window.prendiSenzaQr('${window.safeId(o.id)}')">
+                                Scontrino senza QR? Prendi a mano
+                            </button>
+                        ` : ''}
                         ${isInDelivery && isMio(o) ? `
                             <button class="btn-release" onclick="window.rilasciaOrdine('${window.safeId(o.id)}')">
                                 <i class="fa fa-rotate-left"></i> Presa per errore? Rilascia l'ordine agli altri rider
@@ -511,18 +562,23 @@
             }).join('');
         };
 
-        window.assegnaFattorino = async (docId) => {
-            if (!currentDriver) return window.cambiaFattorino();
+        // Presa in carico in una transazione: se due rider ci provano insieme vince il primo.
+        // Restituisce { codice, ordine } con codice: ok, gia-tuo, altro, consegnato, annullato,
+        // non-domicilio, inesistente, offline
+        async function eseguiPresaInCarico(docId) {
             const ref = doc(db, "ordini", docId);
-            let giaPresoDa = "";
+            const esito = { codice: 'ok', ordine: null };
             try {
-                // Transazione: se due rider premono insieme, solo il primo prende l'ordine
                 await runTransaction(db, async (tx) => {
                     const snap = await tx.get(ref);
-                    if (!snap.exists()) throw new Error('ordine-inesistente');
+                    if (!snap.exists()) { esito.codice = 'inesistente'; return; }
                     const o = snap.data();
-                    if (presoDaAltri(o)) { giaPresoDa = o.fattorino || 'un altro rider'; return; }
-                    if (isMio(o) && o.stato_consegna) return;
+                    esito.ordine = { id: docId, ...o };
+                    if (o.stato === 'Annullato') { esito.codice = 'annullato'; return; }
+                    if (o.tipo !== 'DOMICILIO' && !String(o.indirizzo || '').trim()) { esito.codice = 'non-domicilio'; return; }
+                    if (o.stato_consegna === 'Consegnato') { esito.codice = 'consegnato'; return; }
+                    if (presoDaAltri(o)) { esito.codice = 'altro'; return; }
+                    if (isMio(o) && o.stato_consegna) { esito.codice = 'gia-tuo'; return; }
                     tx.update(ref, {
                         stato_consegna: "In consegna",
                         fattorino: currentDriver,
@@ -532,17 +588,228 @@
                 });
             } catch (e) {
                 console.error(e);
-                return Swal.fire({
-                    icon: 'error', title: 'Ordine non preso in carico',
-                    text: e.message === 'ordine-inesistente' ? "L'ordine è stato eliminato." : 'Serve la connessione internet per prendere un ordine. Riprova.',
-                    background: '#1e293b', color: '#fff'
+                esito.codice = 'offline';
+            }
+            return esito;
+        }
+
+        const nomeOrdine = (o) => (o ? `${o.cognome || ''} ${o.nome || ''}`.trim().toUpperCase() : '') || 'CLIENTE';
+        const codiceBreve = (id) => String(id || '').slice(-6).toUpperCase();
+        const dialogo = { background: '#1e293b', color: '#fff' };
+
+        function mostraEsitoPresa(esito, conQr) {
+            const o = esito.ordine;
+            switch (esito.codice) {
+                case 'ok':
+                    if (!conQr) return Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ordine preso in carico!', showConfirmButton: false, timer: 1400 });
+                    return Swal.fire({ icon: 'success', title: 'Preso in carico!', timer: 2600, showConfirmButton: false, ...dialogo,
+                        html: `<b style="font-size:1.2em;">${window.escapeHtml(nomeOrdine(o))}</b><br>${window.escapeHtml(o.indirizzo || '')}<br><small>Ordine #${window.escapeHtml(codiceBreve(o.id))}</small>` });
+                case 'gia-tuo':
+                    return Swal.fire({ icon: 'info', title: 'È già tuo', text: `L'ordine di ${nomeOrdine(o)} è già in carico a te.`, ...dialogo });
+                case 'altro':
+                    return Swal.fire({ icon: 'info', title: 'Ordine già preso', text: `Lo ha appena preso in carico ${o.fattorino || 'un altro rider'}.`, ...dialogo });
+                case 'consegnato':
+                    return Swal.fire({ icon: 'info', title: 'Ordine già consegnato', text: `L'ordine di ${nomeOrdine(o)} risulta già consegnato.`, ...dialogo });
+                case 'annullato':
+                    return Swal.fire({ icon: 'error', title: 'Ordine annullato', text: `L'ordine di ${nomeOrdine(o)} è stato annullato: chiedi in cassa.`, ...dialogo });
+                case 'non-domicilio':
+                    return Swal.fire({ icon: 'error', title: 'Non è una consegna', text: 'Questo ordine non è a domicilio.', ...dialogo });
+                case 'inesistente':
+                    return Swal.fire({ icon: 'error', title: 'Ordine non preso in carico', text: "L'ordine non esiste più (eliminato).", ...dialogo });
+                default:
+                    return Swal.fire({ icon: 'error', title: 'Ordine non preso in carico', text: 'Serve la connessione internet per prendere un ordine. Riprova.', ...dialogo });
+            }
+        }
+
+        window.assegnaFattorino = async (docId) => {
+            if (!currentDriver) return window.cambiaFattorino();
+            mostraEsitoPresa(await eseguiPresaInCarico(docId), false);
+        };
+
+        // Uscita di emergenza se lo scontrino non ha il QR (stampante spenta, carta strappata...)
+        window.prendiSenzaQr = async (docId) => {
+            if (!currentDriver) return window.cambiaFattorino();
+            const o = ordiniCache.find(x => x.id === docId);
+            const res = await Swal.fire({
+                icon: 'warning', title: 'Prendere senza QR?', showCancelButton: true,
+                confirmButtonText: 'Sì, è la mia busta', cancelButtonText: 'Annulla', ...dialogo,
+                html: `Controlla che sulla busta ci sia <b>${window.escapeHtml(nomeOrdine(o))}</b><br>${window.escapeHtml(o?.indirizzo || '')}`
+            });
+            if (res.isConfirmed) await window.assegnaFattorino(docId);
+        };
+
+        // --- SCANNER QR ---
+        // Sugli scontrini delle consegne la cassa stampa un QR con il link
+        // delivery.html?locale=...&ordine=ID: il rider prende in carico proprio la busta che ha in mano.
+        const JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+        const scanner = { stream: null, attivo: false, idAtteso: null, timer: null, detector: null, canvas: null };
+
+        function caricaJsQR() {
+            if (window.jsQR) return Promise.resolve(window.jsQR);
+            if (!caricaJsQR.promessa) {
+                caricaJsQR.promessa = new Promise((ok, ko) => {
+                    const script = document.createElement('script');
+                    script.src = JSQR_URL;
+                    script.onload = () => ok(window.jsQR);
+                    script.onerror = () => { caricaJsQR.promessa = null; ko(new Error('jsQR non caricato')); };
+                    document.head.appendChild(script);
                 });
             }
-            if (giaPresoDa) {
-                return Swal.fire({ icon: 'info', title: 'Ordine già preso', text: `Lo ha appena preso in carico ${giaPresoDa}.`, background: '#1e293b', color: '#fff' });
+            return caricaJsQR.promessa;
+        }
+
+        // Dal testo del QR all'ID dell'ordine
+        function idOrdineDaQr(testo) {
+            testo = String(testo || '').trim();
+            let url = null;
+            try { url = new URL(testo); } catch (e) { /* non è un link */ }
+            if (!url) return /^[A-Za-z0-9]{6,40}$/.test(testo) ? { id: testo } : { errore: 'Questo QR non è di una consegna.' };
+            const id = url.searchParams.get('ordine');
+            if (!id) return { errore: 'Questo QR non è di una consegna.' };
+            if ((url.searchParams.get('locale') || 'default') !== (window.TENANT_ID || 'default')) return { errore: 'Questo QR è di un altro locale.' };
+            return { id };
+        }
+
+        // Legge un QR da video, foto o immagine: lettore nativo del telefono se c'è, altrimenti jsQR
+        async function decodificaQr(sorgente, larghezza, altezza, accurata) {
+            if (scanner.detector) {
+                try {
+                    const trovati = await scanner.detector.detect(sorgente);
+                    if (trovati.length) return trovati[0].rawValue;
+                } catch (e) { /* si prova con jsQR */ }
             }
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ordine preso in carico!', showConfirmButton: false, timer: 1400 });
+            const jsQR = await caricaJsQR();
+            const scala = Math.min(1, (accurata ? 1600 : 720) / Math.max(larghezza, altezza));
+            const w = Math.max(1, Math.round(larghezza * scala)), h = Math.max(1, Math.round(altezza * scala));
+            scanner.canvas = scanner.canvas || document.createElement('canvas');
+            scanner.canvas.width = w; scanner.canvas.height = h;
+            const ctx = scanner.canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(sorgente, 0, 0, w, h);
+            const r = jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: accurata ? 'attemptBoth' : 'dontInvert' });
+            return r ? r.data : null;
+        }
+
+        const statoScanner = (testo) => { document.getElementById('scanner-stato').innerText = testo; };
+
+        window.apriScanner = async (idAtteso = null) => {
+            if (!currentDriver) return window.cambiaFattorino();
+            scanner.idAtteso = idAtteso;
+            const atteso = idAtteso ? ordiniCache.find(o => o.id === idAtteso) : null;
+            document.getElementById('scanner-atteso').innerText = atteso ? `Busta di ${nomeOrdine(atteso)} · #${codiceBreve(atteso.id)}` : '';
+            document.getElementById('scanner-overlay').style.display = 'flex';
+            statoScanner('Avvio fotocamera...');
+            caricaJsQR().catch(() => {});
+            if (!scanner.detector && 'BarcodeDetector' in window) {
+                try {
+                    const formati = await window.BarcodeDetector.getSupportedFormats();
+                    if (formati.includes('qr_code')) scanner.detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+                } catch (e) { /* lettore nativo non disponibile */ }
+            }
+            try {
+                scanner.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+            } catch (e) {
+                console.warn('Fotocamera:', e);
+                return statoScanner('Fotocamera non disponibile qui: usa "Fai una foto al QR".');
+            }
+            if (document.getElementById('scanner-overlay').style.display === 'none') return window.chiudiScanner();
+            const video = document.getElementById('scanner-video');
+            video.srcObject = scanner.stream;
+            try { await video.play(); } catch (e) { /* parte comunque con autoplay */ }
+            scanner.attivo = true;
+            statoScanner('Avvicina il QR al riquadro giallo');
+            cicloScanner();
         };
+
+        async function cicloScanner() {
+            if (!scanner.attivo) return;
+            const video = document.getElementById('scanner-video');
+            if (video.readyState >= 2 && video.videoWidth) {
+                let testo = null;
+                try {
+                    testo = await decodificaQr(video, video.videoWidth, video.videoHeight, false);
+                } catch (e) {
+                    // lettore QR non scaricato (connessione assente): riprova con calma
+                    statoScanner('Lettore QR non disponibile: controlla la connessione.');
+                    scanner.timer = setTimeout(cicloScanner, 2000);
+                    return;
+                }
+                if (testo && scanner.attivo) return qrLetto(testo);
+            }
+            scanner.timer = setTimeout(cicloScanner, 150);
+        }
+
+        window.chiudiScanner = () => {
+            scanner.attivo = false;
+            clearTimeout(scanner.timer);
+            if (scanner.stream) scanner.stream.getTracks().forEach(t => t.stop());
+            scanner.stream = null;
+            document.getElementById('scanner-video').srcObject = null;
+            document.getElementById('scanner-overlay').style.display = 'none';
+        };
+        // App in secondo piano: la fotocamera si spegne
+        document.addEventListener('visibilitychange', () => { if (document.hidden && scanner.stream) window.chiudiScanner(); });
+
+        window.leggiFotoQr = async (input) => {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            statoScanner('Lettura della foto...');
+            try {
+                const url = URL.createObjectURL(file);
+                const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+                const testo = await decodificaQr(img, img.naturalWidth, img.naturalHeight, true);
+                URL.revokeObjectURL(url);
+                if (testo) return qrLetto(testo);
+                statoScanner('QR non trovato nella foto: riprova più vicino e con più luce.');
+            } catch (e) {
+                console.warn('Foto QR:', e);
+                statoScanner('Foto non leggibile, riprova.');
+            }
+        };
+
+        async function qrLetto(testo) {
+            const idAtteso = scanner.idAtteso;
+            window.chiudiScanner();
+            if (navigator.vibrate) navigator.vibrate(120);
+            const letto = idOrdineDaQr(testo);
+            if (letto.errore) return Swal.fire({ icon: 'error', title: 'QR non valido', text: letto.errore, ...dialogo });
+            await prendiInCaricoDaQr(letto.id, idAtteso);
+        }
+
+        async function prendiInCaricoDaQr(id, idAtteso) {
+            if (idAtteso && id !== idAtteso) {
+                const scansionato = ordiniCache.find(o => o.id === id);
+                const atteso = ordiniCache.find(o => o.id === idAtteso);
+                const res = await Swal.fire({
+                    icon: 'warning', title: 'Busta diversa!', showCancelButton: true,
+                    confirmButtonText: 'Prendo quella che ho in mano', cancelButtonText: 'Annulla', ...dialogo,
+                    html: `Hai scansionato la busta di <b>${window.escapeHtml(scansionato ? nomeOrdine(scansionato) : 'un altro ordine')}</b>, non quella di <b>${window.escapeHtml(nomeOrdine(atteso))}</b>.`
+                });
+                if (!res.isConfirmed) return;
+            }
+            mostraEsitoPresa(await eseguiPresaInCarico(id), true);
+        }
+
+        // Link del QR aperto con la fotocamera del telefono: dopo l'accesso chiede conferma e prende in carico
+        window.ordineDaLink = _urlParams.get('ordine');
+        if (window.ordineDaLink) {
+            const pulito = new URL(location.href);
+            pulito.searchParams.delete('ordine');
+            history.replaceState(null, '', pulito.pathname + pulito.search);
+        }
+        async function gestisciOrdineDaLink() {
+            const id = window.ordineDaLink;
+            if (!id || !currentDriver) return;
+            window.ordineDaLink = null;
+            let o = null;
+            try { const snap = await getDoc(doc(db, "ordini", id)); o = snap.exists() ? { id, ...snap.data() } : null; } catch (e) { /* gestito sotto */ }
+            const res = await Swal.fire({
+                icon: 'question', title: 'Prendere in carico?', showCancelButton: true,
+                confirmButtonText: 'Sì, prendo', cancelButtonText: 'No', ...dialogo,
+                html: o ? `<b>${window.escapeHtml(nomeOrdine(o))}</b><br>${window.escapeHtml(o.indirizzo || '')}<br><small>Ordine #${window.escapeHtml(codiceBreve(id))}</small>` : 'Ordine del QR scansionato.'
+            });
+            if (res.isConfirmed) mostraEsitoPresa(await eseguiPresaInCarico(id), true);
+        }
 
         window.rilasciaOrdine = async (docId) => {
             const o = ordiniCache.find(x => x.id === docId);
@@ -595,6 +862,7 @@
         };
 
         initDelivery();
+        gestisciOrdineDaLink();
     </script>
 </body>
 </html>

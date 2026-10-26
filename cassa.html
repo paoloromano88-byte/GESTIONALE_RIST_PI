@@ -30,6 +30,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="sanitize.js"></script>
+    <!-- QR delle consegne a domicilio stampato sugli scontrini (vedi datiQrConsegnaESC) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/rsvp@4.8.5/dist/rsvp.min.js"></script>
@@ -2032,6 +2034,60 @@
                 return righe.join("\n") + "\n";
             };
 
+            // --- QR della consegna: il rider lo scansiona con l'App Rider per prendere in carico
+            // proprio l'ordine della busta che ha in mano (delivery.html?locale=...&ordine=ID) ---
+            window.urlQrConsegna = function(ordine) {
+                const base = location.origin + location.pathname.replace(/[^/]*$/, '');
+                return `${base}delivery.html?locale=${encodeURIComponent(window.TENANT_ID || 'default')}&ordine=${encodeURIComponent(ordine.id)}`;
+            };
+
+            // Codice breve stampato sotto il QR e mostrato nell'App Rider, per un controllo a occhio
+            window.codiceBreveOrdine = (id) => String(id || '').slice(-6).toUpperCase();
+
+            // QR come immagine raster ESC/POS (GS v 0): la stampano tutte le termiche, senza
+            // dipendere dal comando QR nativo. Restituisce i byte in base64 (QZ li invia così come sono).
+            function rasterQrBase64(testo, modulo = 5, margine = 4) {
+                if (typeof window.qrcode !== 'function') return null;
+                const qr = window.qrcode(0, 'M');
+                qr.addData(testo);
+                qr.make();
+                const n = qr.getModuleCount();
+                const lato = (n + margine * 2) * modulo;
+                const byteRiga = Math.ceil(lato / 8);
+                const bytes = [0x1D, 0x76, 0x30, 0x00, byteRiga & 0xFF, byteRiga >> 8, lato & 0xFF, lato >> 8];
+                for (let y = 0; y < lato; y++) {
+                    const r = Math.floor(y / modulo) - margine;
+                    for (let b = 0; b < byteRiga; b++) {
+                        let v = 0;
+                        for (let bit = 0; bit < 8; bit++) {
+                            const x = b * 8 + bit;
+                            const c = Math.floor(x / modulo) - margine;
+                            if (x < lato && r >= 0 && r < n && c >= 0 && c < n && qr.isDark(r, c)) v |= 0x80 >> bit;
+                        }
+                        bytes.push(v);
+                    }
+                }
+                let bin = '';
+                for (const v of bytes) bin += String.fromCharCode(v);
+                return btoa(bin);
+            }
+
+            window.datiQrConsegnaESC = function(ordine) {
+                const isDomicilio = ordine && (ordine.tipo === 'DOMICILIO' || (ordine.indirizzo && String(ordine.indirizzo).trim() !== ''));
+                if (!isDomicilio || !ordine.id) return [];
+                let raster = null;
+                try { raster = rasterQrBase64(window.urlQrConsegna(ordine)); } catch (e) { console.error("QR consegna:", e); }
+                if (!raster) return [];
+                const cliente = `${ordine.cognome || ''} ${ordine.nome || ''}`.trim().toUpperCase();
+                return [
+                    '\x1B\x61\x01' + SEPARATORE_TRATTO + '\n',
+                    '\x1B\x45\x01RIDER: SCANSIONA PER PRENDERE IN CARICO\x1B\x45\x00\n',
+                    { type: 'raw', format: 'command', flavor: 'base64', data: raster },
+                    '\x1B\x61\x01\x1D\x21\x01ORDINE #' + window.codiceBreveOrdine(ordine.id) + '\x1D\x21\x00\n'
+                        + (cliente ? cliente.slice(0, LARGHEZZA_CARTA) + '\n' : '')
+                ];
+            };
+
             window.generaBloccoTermicoDomicilioHTML = function(ordine) {
                 if (!ordine) return "";
                 const isDomicilio = ordine.tipo === 'DOMICILIO' || (ordine.indirizzo && String(ordine.indirizzo).trim() !== '');
@@ -2072,6 +2128,13 @@
                 });
             }
 
+            // Voce di stampa con testo normale (non i byte in base64/hex di immagini come il QR)
+            function isTestoSemplice(item) {
+                return !!item && typeof item.data === 'string'
+                    && (!item.format || item.format === 'plain' || item.format === 'command')
+                    && (!item.flavor || item.flavor === 'plain');
+            }
+
             // Intercettore automatico QZ Tray (Stampa Termica IP porta 9100)
             function agganciaInterceptorQZ() {
                 if (!window.qz || !window.qz.print || window.qz._domicilioHooked) return;
@@ -2080,7 +2143,7 @@
                 window.qz.print = function(config, data) {
                     try {
                         if (Array.isArray(data)) {
-                            const testoCompleto = data.map(item => (typeof item === 'string' ? item : (item?.data || ''))).join('\n');
+                            const testoCompleto = data.map(item => (typeof item === 'string' ? item : (isTestoSemplice(item) ? item.data : ''))).join('\n');
                             const ordineDom = trovaOrdineDomicilioDaTesto(testoCompleto);
 
                             if (ordineDom && !testoCompleto.includes('CONSEGNA A DOMICILIO')) {
@@ -2091,7 +2154,7 @@
                                         return item
                                             .replace(/ASPORTO/gi, 'CONSEGNA A DOMICILIO')
                                             .replace(/RITIRO/gi, 'DOMICILIO');
-                                    } else if (item && typeof item.data === 'string') {
+                                    } else if (isTestoSemplice(item)) {
                                         item.data = item.data
                                             .replace(/ASPORTO/gi, 'CONSEGNA A DOMICILIO')
                                             .replace(/RITIRO/gi, 'DOMICILIO');
@@ -2109,7 +2172,7 @@
                     if (Array.isArray(data)) {
                         data = data.map(item => {
                             if (typeof item === 'string') return pulisciTestoESC(item);
-                            if (item && typeof item.data === 'string' && (!item.format || item.format === 'plain' || item.format === 'command')) {
+                            if (isTestoSemplice(item)) {
                                 return { ...item, data: pulisciTestoESC(item.data) };
                             }
                             return item;

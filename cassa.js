@@ -3411,6 +3411,8 @@ window.stampa = (id, reparto) => {
             data.push(`\n\x1B\x61\x01\x1D\x21\x11\x1B\x45\x01TOTALE: E ${totaleAsporto}\n\x1B\x45\x00\x1D\x21\x00\x1B\x61\x00\n`);
         }
     }
+    // Consegna a domicilio: QR dell'ordine, che il rider scansiona dall'App Rider per prenderlo in carico
+    if (typeof window.datiQrConsegnaESC === 'function') data.push(...window.datiQrConsegnaESC(o));
     data.push(`\x1B\x61\x01\n${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}\n\x1B\x64\x08\x1D\x56\x01`); 
     qz.print(qz.configs.create({ host: printerIp, port: 9100 }), data).catch(e => console.error(e));
 };
