@@ -1642,20 +1642,13 @@
 
             grids.forEach(grid => {
                 if (!grid) return;
-                Array.from(grid.children).forEach(card => {
+                // Solo le card dei singoli ordini (le card asporto stanno dentro un contenitore della griglia)
+                grid.querySelectorAll('.order-card, .kds-card').forEach(card => {
                     const htmlCard = card.innerHTML || "";
-                    const textCard = (card.innerText || "").toUpperCase();
 
-                    let ordineMatch = listaDomicilio.find(o => htmlCard.includes(o.id));
-                    if (!ordineMatch) {
-                        ordineMatch = listaDomicilio.find(o => {
-                            const nomeCompleto = `${o.cognome || ''} ${o.nome || ''}`.trim().toUpperCase();
-                            const soloNome = (o.nome || '').trim().toUpperCase();
-                            const ora = (o.orario || '').trim();
-                            return (nomeCompleto && textCard.includes(nomeCompleto) && ora && textCard.includes(ora)) ||
-                                   (soloNome && textCard.includes(soloNome) && ora && textCard.includes(ora));
-                        });
-                    }
+                    // Ogni card contiene l'ID del proprio ordine nei pulsanti (es. apriModifica('ID')):
+                    // il confronto per nome/orario associava la consegna a ordini di asporto
+                    const ordineMatch = listaDomicilio.find(o => htmlCard.includes(`'${o.id}'`));
 
                     if (!ordineMatch) return;
 
@@ -1697,6 +1690,8 @@
                             badgeRider = `<div style="margin-top:4px; background:#0284c7; color:#fff; padding:2px 8px; border-radius:4px; display:inline-block;">🛵 IN CONSEGNA CON: ${window.escapeHtml((ordineMatch.fattorino || 'RIDER').toUpperCase())}</div>`;
                         } else if (ordineMatch.fattorino) {
                             badgeRider = `<br><span style="color:#0284c7;">🛵 Fattorino: <b>${window.escapeHtml(ordineMatch.fattorino)}</b></span>`;
+                        } else {
+                            badgeRider = `<br><span style="color:#d97706;">⏳ Rider da assegnare</span>`;
                         }
 
                         const newHtml = `

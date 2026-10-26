@@ -280,6 +280,8 @@ window.generaSidebarOrari = () => {
             </div>
     `;
 
+    htmlSidebar += htmlConsegneDelGiorno();
+
     orari.forEach(ora => {
         let conteggioPizze = orariMap[ora] || 0;
         let clientiOra = window.ordiniPerOrarioMap[ora] || [];
@@ -320,6 +322,51 @@ window.generaSidebarOrari = () => {
     htmlSidebar += `</div>`;
     return htmlSidebar;
 };
+
+// --- CONSEGNE DI OGGI: tutti gli ordini a domicilio del giorno con lo stato del rider ---
+function htmlConsegneDelGiorno() {
+    const esc = window.escapeHtml;
+    const consegne = ordiniCache
+        .filter(o => o.stato !== 'Annullato' && (o.tipo === 'DOMICILIO' || String(o.indirizzo || '').trim() !== ''))
+        .sort((a, b) => (a.orario || '99:99').localeCompare(b.orario || '99:99'));
+    if (consegne.length === 0) return '';
+
+    const statoRider = (o) => {
+        if (o.stato_consegna === 'Consegnato') return { testo: `✅ Consegnato${o.fattorino ? ' da ' + o.fattorino : ''}`, colore: '#10b981' };
+        if (o.stato_consegna === 'In consegna') return { testo: `🛵 In consegna con ${o.fattorino || 'rider'}`, colore: '#0284c7' };
+        if (o.fattorino) return { testo: `👤 Assegnato a ${o.fattorino}`, colore: '#6366f1' };
+        return { testo: '⏳ Da assegnare', colore: '#d97706' };
+    };
+    const daAssegnare = consegne.filter(o => !o.stato_consegna && !o.fattorino).length;
+    const inConsegna = consegne.filter(o => o.stato_consegna === 'In consegna').length;
+    const consegnate = consegne.filter(o => o.stato_consegna === 'Consegnato').length;
+
+    return `
+        <div style="margin-bottom:15px; border:1px solid #f59e0b; border-radius:8px; overflow:hidden;">
+            <div style="background:#f59e0b; color:#000; font-weight:900; padding:6px 10px; display:flex; justify-content:space-between; font-size:0.85em;">
+                <span>🛵 CONSEGNE DI OGGI</span><span>${consegne.length}</span>
+            </div>
+            <div style="display:flex; gap:4px; padding:6px; font-size:0.7em; font-weight:bold; text-align:center;">
+                <span style="flex:1; background:#d9770633; color:#fbbf24; border-radius:4px; padding:3px;">⏳ ${daAssegnare}</span>
+                <span style="flex:1; background:#0284c733; color:#7dd3fc; border-radius:4px; padding:3px;">🛵 ${inConsegna}</span>
+                <span style="flex:1; background:#10b98133; color:#6ee7b7; border-radius:4px; padding:3px;">✅ ${consegnate}</span>
+            </div>
+            ${consegne.map(o => {
+                const st = statoRider(o);
+                const cliente = ((o.cognome || '') + ' ' + (o.nome || '')).trim() || 'Cliente';
+                const dove = o.zona || o.indirizzo || '';
+                return `
+                <div onclick="window.apriModifica('${window.safeId(o.id)}')" title="${esc(o.indirizzo || '')}" style="padding:6px 8px; border-top:1px solid #333; cursor:pointer; font-size:0.8em; ${o.stato_consegna === 'Consegnato' ? 'opacity:0.6;' : ''}">
+                    <div style="display:flex; justify-content:space-between; gap:6px;">
+                        <b style="white-space:nowrap;">${esc(o.orario || '--:--')}</b>
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${esc(cliente)}</span>
+                    </div>
+                    ${dove ? `<div style="color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${esc(dove)}</div>` : ''}
+                    <div style="color:${st.colore}; font-weight:bold;">${esc(st.testo)}</div>
+                </div>`;
+            }).join('')}
+        </div>`;
+}
 
 window.toggleTendinaOrario = (ora) => {
     const clientiOra = window.ordiniPerOrarioMap[ora] || [];
@@ -1260,6 +1307,8 @@ function renderOrdine(o, container) {
         const totaleStr = o.totale ? parseFloat(o.totale).toFixed(2) : "0.00";
         const orarioPrenotazioneHtml = o.orario ? `<div style="margin-top:5px; color:#1976d2; font-size:0.9em;"><b><i class="fa fa-calendar-check"></i> Prenotato per le: ${window.escapeHtml(o.orario)}</b></div>` : '';
         const noteHtml = o.note_ordine ? `<div style="margin-top:10px; background:#fff8e1; border:1px solid #ffe0b2; color:#e65100; padding:8px; border-radius:5px; font-weight:bold;">NOTE: ${window.escapeHtml(o.note_ordine)}</div>` : '';
+        // Segnalazione del server: i prezzi dell'ordine non tornano con il listino (vedi functions/ordini.js)
+        const anomaliaHtml = (o.anomalia_prezzo && Array.isArray(o.anomalia_prezzo.motivi)) ? `<div style="margin-top:10px; background:#ffebee; border:2px solid #d32f2f; color:#b71c1c; padding:8px; border-radius:5px; font-weight:bold;">⚠️ PREZZI DA VERIFICARE<br><small style="font-weight:normal;">${o.anomalia_prezzo.motivi.map(m => window.escapeHtml(m)).join('<br>')}${o.anomalia_prezzo.totale_atteso !== undefined ? `<br>Totale atteso: € ${window.escapeHtml(Number(o.anomalia_prezzo.totale_atteso).toFixed(2))}` : ''}</small></div>` : '';
 
         let orarioDisplay = o.orario || "--:--"; 
         let iconaOrario = "fa-clock"; 
@@ -1326,7 +1375,7 @@ function renderOrdine(o, container) {
             </div>
             <div class="card-client-box"><span class="client-name">${nomeCli} ${copertiHtml}</span><a href="tel:${String(telCli).replace(/[^\d+]/g, '')}" class="client-phone"><i class="fa fa-phone"></i> ${window.escapeHtml(telCli)}</a></div>
             ${agendaBadgesHtml}
-            <div class="card-body">${alertViaHtml}${itemsHtml}${orarioPrenotazioneHtml}${noteHtml}<div class="card-total-box"><span>TOTALE</span><span>€ ${totaleStr}</span></div>
+            <div class="card-body">${alertViaHtml}${anomaliaHtml}${itemsHtml}${orarioPrenotazioneHtml}${noteHtml}<div class="card-total-box"><span>TOTALE</span><span>€ ${totaleStr}</span></div>
             <div class="status-row"><button class="status-btn ${o.stato.includes('Pronto')?'active-pronto':''}" onclick="cambiaStato('${window.safeId(o.id)}','Pronto')">PRONTO</button><button class="status-btn" style="background:#333; color:white;" onclick="apriPagamento('${window.safeId(o.id)}')">PAGA & CHIUDI</button></div>
             <div class="card-actions"><button class="action-btn" style="border-left:3px solid #2962ff; background:#e3f2fd; color:#1565c0;" onclick="apriModifica('${window.safeId(o.id)}')">✏️ MODIFICA</button><button class="action-btn" style="border-left:3px solid black;" onclick="chiediDivisioneEStampa('${window.safeId(o.id)}')">PRECONTO</button><button class="action-btn" style="border-left:3px solid #d32f2f;" onclick="stampa('${window.safeId(o.id)}', 'PIZZERIA')">PIZZA</button><button class="action-btn" style="border-left:3px solid #f57c00;" onclick="stampa('${window.safeId(o.id)}', 'CUCINA')">CUCINA</button><button class="action-btn" style="border-left:3px solid #1976d2;" onclick="stampa('${window.safeId(o.id)}', 'BAR')">BAR</button></div></div>`;
         container.appendChild(div);

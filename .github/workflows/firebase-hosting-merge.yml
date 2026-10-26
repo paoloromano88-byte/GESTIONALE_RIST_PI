@@ -1,4 +1,6 @@
-# Pubblica il sito su Firebase Hosting (produzione) a ogni push su main
+# A ogni push su main: test, poi Cloud Functions + regole Firestore, poi il sito (Hosting).
+# Il sito viene pubblicato solo se backend e regole sono andati a buon fine, così
+# l'App Clienti nuova non va online senza le funzioni che aggiornano scorte e rubrica.
 name: Deploy Firebase Hosting (produzione)
 
 on:
@@ -7,7 +9,31 @@ on:
       - main
 
 jobs:
+  test:
+    uses: ./.github/workflows/test-emulatori.yml
+
+  backend:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Dipendenze delle funzioni
+        run: cd functions && npm ci --no-audit --no-fund
+      - name: Deploy Cloud Functions e regole Firestore
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GESTIONALE_RISTORANTI_96C5B }}
+        run: |
+          printf '%s' "$FIREBASE_SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx --yes firebase-tools@13.29.1 deploy --only functions,firestore:rules \
+            --project gestionale-ristoranti-96c5b --non-interactive --force
+          rm -f "$RUNNER_TEMP/sa.json"
+
   deploy:
+    needs: backend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

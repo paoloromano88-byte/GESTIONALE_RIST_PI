@@ -102,14 +102,14 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('anonimo NON cancella un ordine', false, () => deleteDoc(d(anon, 'ordini/o1')));
 
   // Batch scorte + CRM come fa l'App Clienti
-  await t('batch ordine: scala scorte + nuovo cliente CRM', true, () => {
+  await t('anonimo NON scala scorte né crea la scheda in rubrica (lo fa il server)', false, () => {
     const b = writeBatch(anon);
     b.update(d(anon, 'prodotti/margherita'), { scorta: 8, attivo: true });
     b.update(d(anon, 'prodotti/bufala'), { scorta: 3, attivo: true });
     b.set(d(anon, 'clienti/3334445555'), { nome: 'Luca Verdi', cognome: 'Verdi', telefono: '3334445555', totaleSpeso: increment(12), numOrdini: increment(1), ultimaData: '2026-10-26' }, { merge: true });
     return b.commit();
   });
-  await t('batch ordine: cliente CRM esistente +1 ordine', true, () => {
+  await t('anonimo NON aggiorna la rubrica dopo un ordine (lo fa il server)', false, () => {
     const b = writeBatch(anon);
     b.set(d(anon, 'clienti/3339998888'), { nome: 'Anna', cognome: '', telefono: '3339998888', totaleSpeso: increment(20), numOrdini: increment(1), ultimaData: '2026-10-26', indirizzo: 'Via Roma 1', citofono: 'A', zona: 'Centro' }, { merge: true });
     return b.commit();
@@ -118,9 +118,10 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('CRM: modifica tag VIP rifiutata', false, () => setDoc(d(anon, 'clienti/3339998888'), { tag: 'NO' }, { merge: true }));
   await t('anonimo NON cambia il prezzo di un prodotto', false, () => updateDoc(d(anon, 'prodotti/margherita'), { prezzo: 0.1 }));
   await t('anonimo NON aumenta le scorte', false, () => updateDoc(d(anon, 'prodotti/margherita'), { scorta: 999, attivo: true }));
-  await t('occupazione forno: incremento slot', true, () => setDoc(d(anon, 'occupazione_forno/2026-10-26'), { slot: { '20:30': increment(2) } }, { merge: true }));
-  await t('occupazione forno: incremento dopo aggiornamento cassa', true, () => setDoc(d(anon, 'occupazione_forno/2026-10-27'), { slot: { '20:00': increment(2) } }, { merge: true }));
+  await t('anonimo NON scrive il contatore del forno (lo fa il server)', false, () => setDoc(d(anon, 'occupazione_forno/2026-10-26'), { slot: { '20:30': increment(2) } }, { merge: true }));
+  await t('anonimo NON incrementa il contatore dopo la cassa', false, () => setDoc(d(anon, 'occupazione_forno/2026-10-27'), { slot: { '20:00': increment(2) } }, { merge: true }));
   await t('occupazione forno: cliente NON tocca aggiornato', false, () => setDoc(d(anon, 'occupazione_forno/2026-10-27'), { aggiornato: 'x' }, { merge: true }));
+  await t('personale aggiorna il contatore del forno', true, () => setDoc(d(staff, 'occupazione_forno/2026-10-27'), { slot: { '20:00': 7 }, aggiornato: 'x' }));
   await t('occupazione forno: id non-data rifiutato', false, () => setDoc(d(anon, 'occupazione_forno/hack'), { slot: {} }));
 
   // Cliente verificato via SMS (Mario)

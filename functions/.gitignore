@@ -1,0 +1,3 @@
+node_modules/
+# Copiato da ../zone-consegna.js prima del deploy e dei test (firebase.json predeploy)
+zone-consegna.js
