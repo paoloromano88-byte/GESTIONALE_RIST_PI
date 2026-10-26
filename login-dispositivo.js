@@ -64,14 +64,19 @@ function isAccountPersonale(user) {
     return !!user && (user.providerData || []).some(p => p.providerId === 'password');
 }
 
-function mostraAccountNonAbilitato(user) {
+// ID di locale validi: 'default' o lo slug creato da Super Admin (minuscole, cifre, trattini)
+const LOCALE_VALIDO = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+function mostraAccountNonAbilitato(user, senzaLocale = false) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed; inset:0; z-index:2147483000; display:flex; align-items:center; justify-content:center; padding:20px; background:#0f172a; color:#fff; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align:center;';
     overlay.innerHTML = `
         <div style="max-width:380px;">
             <div style="font-size:2.4em; margin-bottom:8px;">⛔</div>
-            <h2 style="margin:0 0 10px 0; font-size:1.2em;">Account non abilitato</h2>
-            <p style="color:#cbd5e1; font-size:0.95em; margin:0 0 12px 0;">L'account <b data-email></b> non è collegato a nessun locale. Contatta l'assistenza indicando questo codice:</p>
+            <h2 style="margin:0 0 10px 0; font-size:1.2em;">${senzaLocale ? 'Account senza locale assegnato' : 'Account non abilitato'}</h2>
+            <p style="color:#cbd5e1; font-size:0.95em; margin:0 0 12px 0;">${senzaLocale
+                ? `L'account <b data-email></b> è del personale ma nella sua scheda manca il locale (campo "locale" vuoto o scritto male), quindi non può salvare nulla. Contatta l'assistenza indicando questo codice:`
+                : `L'account <b data-email></b> non è collegato a nessun locale. Contatta l'assistenza indicando questo codice:`}</p>
             <code data-uid style="display:block; margin:0 0 18px 0; padding:10px; background:#1e293b; border-radius:8px; word-break:break-all; color:#fbbf24; user-select:all;"></code>
             <button type="button" style="padding:12px 22px; border:none; border-radius:10px; background:#2563eb; color:#fff; font-weight:900; cursor:pointer;">ESCI E USA UN ALTRO ACCOUNT</button>
         </div>`;
@@ -96,6 +101,11 @@ export async function verificaAccountLocale(user) {
     }
     if (!profilo || !['locale', 'superadmin'].includes(profilo.ruolo)) {
         mostraAccountNonAbilitato(user);
+        return null;
+    }
+    // Senza un locale valido le regole del database rifiutano ogni scrittura: meglio dirlo subito
+    if (profilo.ruolo === 'locale' && !LOCALE_VALIDO.test(String(profilo.locale ?? ''))) {
+        mostraAccountNonAbilitato(user, true);
         return null;
     }
     if (profilo.ruolo === 'locale') {
