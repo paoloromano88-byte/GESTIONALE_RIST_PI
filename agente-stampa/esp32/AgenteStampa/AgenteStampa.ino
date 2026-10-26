@@ -33,6 +33,7 @@
 #include "mbedtls/base64.h"
 #include "certificati.h"
 #include "pagine.h"
+#include "comanda.h"
 
 #define VERSIONE "1.0.0"
 
@@ -368,13 +369,6 @@ void battito() {
 }
 
 // ---------- Coda di stampa ----------
-struct Comanda {
-  String nome, id, aggiornato, ip, stampante, descrizione;
-  int porta = 9100, tentativi = 0;
-  time_t creato = 0;
-  JsonVariantConst dati;
-};
-
 // Cambia stato alla comanda solo se nessuno l'ha toccata (commit con currentDocument.updateTime).
 // 1 = fatto, 0 = presa da un altro agente o già tolta, -1 = errore di rete
 int aggiornaComanda(Comanda &c, const char *stato, int tentativi, const String &errore, bool conAgente) {
@@ -422,8 +416,7 @@ bool inviaAllaStampante(const String &ip, int porta, const char *base64, String 
     if (n == 0) break;
     inviati += n;
   }
-  stampante.flush();
-  delay(100);
+  delay(100);  // lascia partire gli ultimi byte prima di chiudere
   stampante.stop();
   free(byteDati);
   if (inviati < uscita) { errore = "collegamento interrotto durante la stampa"; return false; }
