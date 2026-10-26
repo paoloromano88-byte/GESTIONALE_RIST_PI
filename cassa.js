@@ -92,6 +92,12 @@ window.ordiniFuturiCache = [];
 window.prezzoCopertoLocale = 2.50;
 window.supplementoConsegnaLocale = 2.00;
 let PRINTER_CONFIG = { pizzeria: {ip:'', cats:[]}, cucina: {ip:'', cats:[]}, bar: {ip:'', cats:[]}, conto: {ip:''}, preconto: {ip:''} };
+// Il gestionale non è fiscale: lo scontrino si batte sul registratore del locale, di qualunque marca.
+// Solo l'Olivetti con ElaExecute sul PC della cassa si può collegare (Gestionale > Stampanti).
+// Finché non viene salvata un'impostazione, il locale "default" resta collegato alla sua cartella di sempre.
+const CARTELLA_OLIVETTI_LOCALE_DEFAULT = "C:/Users/paolo/OneDrive/Desktop/SwInstallato/Olivetti/ElaExecute/IN/";
+window.configFiscale = () => PRINTER_CONFIG.fiscale
+    || (window.TENANT_ID === 'default' ? { modo: 'olivetti', cartella: CARTELLA_OLIVETTI_LOCALE_DEFAULT } : { modo: 'nessuno' });
 let printedViaCache = new Set();
 let ALL_RIMOZIONI_CACHE = [];
 window.notifiedMessages = new Set();
@@ -807,8 +813,19 @@ window.apriPagamento = (id) => {
     document.getElementById('pay-resto').innerText = "€ 0.00";
     
     renderDiscountBar();
+    aggiornaModalitaFiscaleIncasso();
     document.getElementById('modal-payment').style.display = 'flex';
 };
+
+// Senza registratore collegato i pulsanti FISCALE spariscono e la cassa ricorda di battere il totale sul registratore
+function aggiornaModalitaFiscaleIncasso() {
+    const conOlivetti = window.configFiscale().modo === 'olivetti';
+    const boxFiscale = document.getElementById('pay-fiscale-box');
+    if (boxFiscale) boxFiscale.style.display = conOlivetti ? '' : 'none';
+    const promemoria = document.getElementById('pay-promemoria-fiscale');
+    if (promemoria) promemoria.style.display = conOlivetti ? 'none' : 'block';
+    document.querySelectorAll('#modal-payment .pay-etichetta').forEach(el => { el.textContent = conOlivetti ? 'SOLO GESTIONALE' : 'INCASSA'; });
+}
 
 window.chiudiPagamento = () => {
     document.getElementById('modal-payment').style.display = 'none';
@@ -911,7 +928,7 @@ window.confermaPagamento = async (metodo) => {
     
     Swal.fire({
         title: 'Pagamento OK',
-        text: "Stampare ricevuta/preconto?",
+        text: "Stampare il conto (non fiscale)?",
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Sì, stampa',
@@ -935,7 +952,12 @@ window.confermaPagamento = async (metodo) => {
         }
         
         chiudiPagamento();
-        Swal.fire({title:'Incasso Registrato!', icon:'success', timer:1500, showConfirmButton:false});
+        if (metodo !== 'NON PAGATO' && window.configFiscale().modo !== 'olivetti') {
+            const aTesta = window.divisoreConto > 1 ? `<br><small>Diviso per ${window.divisoreConto}: € ${(finalPrice / window.divisoreConto).toFixed(2)} a testa</small>` : '';
+            Swal.fire({ title: 'Incasso registrato!', html: `Ora batti <b>€ ${finalPrice.toFixed(2)}</b> sul registratore di cassa.${aTesta}`, icon: 'success', timer: 4000, showConfirmButton: false });
+        } else {
+            Swal.fire({title:'Incasso Registrato!', icon:'success', timer:1500, showConfirmButton:false});
+        }
     });
 };
 
@@ -3190,7 +3212,7 @@ window.chiediDivisioneEStampa = async (id) => {
         html: `
             <div style="text-align:left; margin-bottom:5px; font-weight:bold; color:#aaa;">In quanti pagano? (Divisione)</div>
             <input type="number" id="swal-divisore" class="swal2-input" value="${defaultPersone}" min="1" style="margin:0 0 15px 0; width: 100%; box-sizing: border-box;">
-            <div style="text-align:left; margin-bottom:5px; font-weight:bold; color:#aaa;">Totale Scontrino (€):</div>
+            <div style="text-align:left; margin-bottom:5px; font-weight:bold; color:#aaa;">Totale del conto (€):</div>
             <input type="number" id="swal-totale-preconto" class="swal2-input" value="${currentTot}" step="0.50" style="margin:0; width: 100%; box-sizing: border-box; color: #4caf50; font-weight: bold; font-size: 1.5em;">
         `,
         showCancelButton: true,
@@ -3249,8 +3271,9 @@ window.stampa = (id, reparto) => {
 
     var data = [];
     data.push('\x1B\x40\x1B\x61\x01'); 
-    let headerTitle = repKey === 'preconto' ? "PRECONTO" : (repKey === 'conto' ? "RICEVUTA" : reparto.toUpperCase());
-    data.push('\x1D\x21\x11\x1B\x45\x01' + headerTitle + '\n\x1D\x21\x00\x1B\x45\x00'); 
+    let headerTitle = repKey === 'preconto' ? "PRECONTO" : (repKey === 'conto' ? "CONTO" : reparto.toUpperCase());
+    data.push('\x1D\x21\x11\x1B\x45\x01' + headerTitle + '\n\x1D\x21\x00\x1B\x45\x00');
+    if (isConto) data.push('DOCUMENTO NON FISCALE\n');
     if (!o.tavolo) {
         const oggiTopStr = new Date().toISOString().split('T')[0];
         if (o.data_ritiro && o.data_ritiro !== oggiTopStr) {
@@ -3907,6 +3930,7 @@ window.stampaChiusuraZ = async (modalita = 'oggi') => {
         let data = [];
         data.push('\x1B\x40\x1B\x61\x01');
         data.push('\x1D\x21\x11\x1B\x45\x01REPORT CHIUSURA Z\n\x1D\x21\x00\x1B\x45\x00');
+        data.push('DOCUMENTO NON FISCALE\n');
         data.push(`Periodo: ${dStart} -> ${dEnd}\n`);
         data.push('--------------------------------\n\x1B\x61\x00');
         data.push(`Ordini Totali:       ${numOrd}\n`);
@@ -4339,6 +4363,18 @@ window.renderizzaConfigStampanti = () => {
     renderCats('cats-pizzeria', PRINTER_CONFIG.pizzeria?.cats || []);
     renderCats('cats-cucina', PRINTER_CONFIG.cucina?.cats || []);
     renderCats('cats-bar', PRINTER_CONFIG.bar?.cats || []);
+
+    const fiscale = window.configFiscale();
+    if (document.getElementById('fiscale-modo')) {
+        document.getElementById('fiscale-modo').value = fiscale.modo === 'olivetti' ? 'olivetti' : 'nessuno';
+        document.getElementById('fiscale-cartella').value = fiscale.cartella || '';
+        window.aggiornaVistaFiscale();
+    }
+};
+
+window.aggiornaVistaFiscale = () => {
+    const box = document.getElementById('fiscale-olivetti-box');
+    if (box) box.style.display = document.getElementById('fiscale-modo').value === 'olivetti' ? 'block' : 'none';
 };
 
 window.salvaConfigStampanti = async () => {
@@ -4347,12 +4383,18 @@ window.salvaConfigStampanti = async () => {
         document.querySelectorAll(`#${containerId} input:checked`).forEach(c => arr.push(c.value));
         return arr;
     };
+    const fiscale = {
+        modo: document.getElementById('fiscale-modo')?.value === 'olivetti' ? 'olivetti' : 'nessuno',
+        cartella: (document.getElementById('fiscale-cartella')?.value || '').trim()
+    };
+    if (fiscale.modo === 'olivetti' && !fiscale.cartella) return Swal.fire("Manca la cartella", "Per collegare l'Olivetti scrivi la cartella IN di ElaExecute.", "warning");
     const newConfig = {
         conto: { ip: document.getElementById('ip-conto').value.trim() },
         preconto: { ip: document.getElementById('ip-preconto') ? document.getElementById('ip-preconto').value.trim() : '' },
         pizzeria: { ip: document.getElementById('ip-pizzeria').value.trim(), cats: getCats('cats-pizzeria') },
         cucina: { ip: document.getElementById('ip-cucina').value.trim(), cats: getCats('cats-cucina') },
-        bar: { ip: document.getElementById('ip-bar').value.trim(), cats: getCats('cats-bar') }
+        bar: { ip: document.getElementById('ip-bar').value.trim(), cats: getCats('cats-bar') },
+        fiscale
     };
     try {
         await setDoc(doc(db, "impostazioni", "stampanti"), newConfig);
@@ -4920,6 +4962,13 @@ window.emettiScontrinoFiscale = async (metodoPagamento) => {
     const o = ordiniCache.find(x => x.id === id);
     if(!o) return;
 
+    const fiscale = window.configFiscale();
+    let cartella = (fiscale.cartella || '').trim().replace(/\\/g, '/');
+    if (fiscale.modo !== 'olivetti' || !cartella) {
+        return Swal.fire('Registratore non collegato', "Collega l'Olivetti in Gestionale > Stampanti, oppure incassa e batti il totale sul registratore.", 'warning');
+    }
+    if (!cartella.endsWith('/')) cartella += '/';
+
     let righe = ["ANNULLO", "CHIAVE|1"];
     (o.prodotti || []).forEach(p => {
         let prezzo = parseFloat(p.prezzo).toFixed(2).replace('.', ',');
@@ -4940,9 +4989,8 @@ window.emettiScontrinoFiscale = async (metodoPagamento) => {
 
     try {
         Swal.fire({ title: 'Invio alla cassa...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        const percorsoDesktop = "C:/Users/paolo/OneDrive/Desktop/SwInstallato/Olivetti/ElaExecute/IN/";
         const nomeFile = `sc${Math.floor(Math.random() * 9000)}.txt`;
-        const config = qz.configs.create({ file: percorsoDesktop + nomeFile });
+        const config = qz.configs.create({ file: cartella + nomeFile });
         await qz.print(config, [ { type: 'raw', format: 'plain', data: testoFinale } ]);
 
         await updateDoc(doc(db, "ordini", id), { stato: 'Consegnato', pagato_finora: totaleVal, metodo_pagamento: metodoPagamento });

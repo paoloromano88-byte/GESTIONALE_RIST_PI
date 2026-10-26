@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 26/10/2026, dopo la PR #24 (QR delle consegne, scanner nell'App Rider, Cassa su smartphone).
+**Ultimo aggiornamento:** 26/10/2026, con la PR #27 (Cassa non fiscale: preconto e totale battuto sul registratore del locale).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -82,6 +82,21 @@ File condivisi:
    - Un ordine preso è visibile **solo** a quel rider. "Rilascia" lo restituisce agli altri.
 5. **Consegna**: il rider preme "Consegnato". La Cassa vede tutto in "🛵 CONSEGNE DI OGGI".
 
+### Scontrino fiscale: il gestionale NON è fiscale (decisione del 26/10/2026)
+- Ogni locale stampa il **preconto** dal gestionale e batte il totale sul **proprio registratore di cassa**, di qualunque marca. Così non serve nessun accordo con l'Agenzia delle Entrate.
+- Su preconto, conto e riepilogo Z c'è scritto **"DOCUMENTO NON FISCALE"**; il conto si intitola "CONTO" e non più "RICEVUTA".
+- Incasso senza registratore collegato:
+  - i pulsanti si chiamano **"INCASSA (Contanti/Carta)"** e non c'è più "FISCALE";
+  - un riquadro ricorda di battere il totale sul registratore;
+  - alla fine compare "Ora batti € X sul registratore di cassa", con la quota a testa se il conto è diviso.
+- **Olivetti** (solo chi ha ElaExecute sul PC della cassa e QZ Tray): si collega in Gestionale → Stampanti → "Scontrino fiscale", scrivendo la cartella IN di ElaExecute.
+  - Il valore è salvato in `impostazioni/stampanti`, campo `fiscale: { modo: "nessuno" | "olivetti", cartella }`.
+  - Da Mimmo (`default`) resta collegato alla cartella di sempre finché in quella pagina non si salva un'altra scelta. Gli altri locali partono da "Nessuno: batto il totale a mano".
+- Strade valutate e scartate per ora:
+  - scontrino online tramite servizi a pagamento che usano la procedura "Documento commerciale online" dell'Agenzia;
+  - software certificato (provvedimento del 7/3/2025, operativo secondo gli addetti dal 2027).
+  - Se un giorno servirà, si riparte da qui.
+
 ### Regole di sicurezza (`firestore.rules`)
 - Super Admin: tutto.
 - Personale: solo il proprio locale. La licenza la cambia solo il Super Admin.
@@ -147,6 +162,8 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #22 | Limite di consegne ogni 15 minuti ("PIENO" nell'App Clienti); messaggio chiaro per gli account senza locale |
 | #23 | Questo diario del progetto (`docs/`, escluso dal sito) |
 | #24 | **QR delle consegne**: stampato sugli scontrini a domicilio, scanner nell'App Rider. **Avviso "ordine pronto"** al rider (suono, vibrazione, badge). App Rider: schede intere anche con tante consegne. **Cassa su smartphone**: controllo di 32 schermate (liste, colonna Orari, barra della data, finestre che si scorrono fino in fondo, Incasso, Nuovo ordine/Modifica, Statistiche, Mappa, Gestionale). Anche sul computer: Preconto, scritte illeggibili su tavoli occupati, "DA FARE" e titolo Bi-Gusto |
+| #25 | Aggiornamento di questo diario |
+| #27 | **Cassa non fiscale**: per ogni locale "Scontrino fiscale" in Gestionale → Stampanti (Nessuno / Olivetti con cartella impostabile). Incasso con "INCASSA" e promemoria "batti € X sul registratore". "DOCUMENTO NON FISCALE" su preconto, conto e riepilogo Z |
 
 ## 6. Issue
 
@@ -160,7 +177,8 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 - #7 capacità consegne;
 - #8 minimo e consegna gratuita;
 - #9 avviso al rider quando un ordine è pronto;
-- #18 errore all'apertura dell'App Clienti.
+- #18 errore all'apertura dell'App Clienti;
+- #26 cassa non fiscale (preconto + totale a mano sul registratore).
 
 **Da fare, in ordine**:
 1. **#16**: chiave privata di QZ Tray (stampa) scritta nel codice della cassa → firma lato server.
@@ -171,6 +189,11 @@ Da verificare sul posto:
 - **QR sugli scontrini**: al primo ordine a domicilio, controllare che il QR esca nitido dalla stampante vera e che il rider lo scansioni. Non è stato provato con una stampante reale. Se esce male, servono il modello della stampante e una foto dello scontrino. Alternative: comando QR nativo `GS ( k`, oppure moduli più grandi in `rasterQrBase64`.
 
 Idee per dopo (non richieste):
+- **Stampa delle comande senza QZ Tray**, per i locali che non lo installano (discusso il 26/10/2026, da decidere):
+  - oggi, se QZ Tray manca o è spento, la comanda non esce e la cassa non avvisa → serve almeno un avviso ben visibile;
+  - stampa dal browser come riserva (rotolo 80 mm; c'è già una base inutilizzata, `#print-area`);
+  - stampanti "cloud" che prendono da sole le comande: Star CloudPRNT, Epson Server Direct Print;
+  - il Monitor Cucina (KDS) già esistente, al posto della carta.
 - Togliere "Prendi a mano" dall'App Rider se si vuole la presa **solo** con il QR.
 - Notifiche push al rider anche con l'app chiusa (oggi l'avviso "pronto" richiede l'app aperta).
 - Ritocchi minori su smartphone:
