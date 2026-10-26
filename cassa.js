@@ -2,6 +2,7 @@ import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { verificaAccountLocale } from "./login-dispositivo.js";
+import { calcolaConsegna } from "./zone-consegna.js";
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
 // --- CONFIGURAZIONE PROGETTO FIREBASE ---
@@ -587,6 +588,8 @@ NLg/qXlDavq+hN/q9BoFp6VP9e5sC0dBnMmT0WQLk7QppCI64qe3bUEYHGirnDsL
             if (dn.supplemento_consegna !== undefined && !isNaN(parseFloat(dn.supplemento_consegna))) {
                 window.supplementoConsegnaLocale = parseFloat(dn.supplemento_consegna);
             }
+            window.configConsegna = dn;
+            caricaEditorZone(dn);
             if (dn.piva && document.getElementById('setting-piva')) document.getElementById('setting-piva').value = dn.piva;
             if (dn.indirizzo && document.getElementById('setting-indirizzo')) document.getElementById('setting-indirizzo').value = dn.indirizzo;
             if (dn.logo_url && document.getElementById('setting-logo-preview')) document.getElementById('setting-logo-preview').src = dn.logo_url;
@@ -1385,6 +1388,7 @@ window.apriNuovoOrdine = () => {
     document.getElementById('new-ord-indirizzo').value = "";
     document.getElementById('new-ord-citofono').value = "";
     document.getElementById('new-ord-zona').value = "";
+    document.getElementById('new-ord-cap').value = "";
 
     let defaultDate = document.getElementById('timeline-date').value;
     if(!defaultDate) defaultDate = new Date().toISOString().split('T')[0];
@@ -1594,6 +1598,7 @@ window.creaNuovoOrdine = async () => {
     const indirizzo = isDom ? document.getElementById('new-ord-indirizzo').value.trim() : '';
     const citofono = isDom ? document.getElementById('new-ord-citofono').value.trim() : '';
     const zona = isDom ? document.getElementById('new-ord-zona').value.trim() : '';
+    const cap = isDom ? document.getElementById('new-ord-cap').value.trim() : '';
     const supplemento = isDom ? (parseFloat(document.getElementById('new-ord-supplemento').value) || 0) : 0;
     if (isDom && !indirizzo) return Swal.fire("Attenzione", "Inserisci l'indirizzo per la consegna a domicilio!", "warning");
 
@@ -1624,7 +1629,7 @@ window.creaNuovoOrdine = async () => {
         operatore: op
     };
     if (isDom) {
-        Object.assign(newOrderData, { indirizzo, citofono, zona, supplemento_consegna: supplemento });
+        Object.assign(newOrderData, { indirizzo, citofono, zona, cap, supplemento_consegna: supplemento });
     }
 
     try {
@@ -1670,6 +1675,7 @@ window.apriModifica = (id) => {
     document.getElementById('edit-indirizzo').value = o.indirizzo || '';
     document.getElementById('edit-citofono').value = o.citofono || '';
     document.getElementById('edit-zona').value = o.zona || '';
+    document.getElementById('edit-cap').value = o.cap || o.cliente?.cap || '';
     const suppSalvato = parseFloat(o.supplemento_consegna);
     document.getElementById('edit-supplemento').value = (isDom && !isNaN(suppSalvato) ? suppSalvato : (window.supplementoConsegnaLocale || 0)).toFixed(2);
     document.getElementById('edit-domicilio-fields').style.display = isDom ? 'block' : 'none';
@@ -1697,6 +1703,25 @@ window.autoFillPrice = (input) => {
             break;
         }
     }
+};
+
+// Zona e supplemento proposti dal CAP (stesso calcolo dell'App Clienti); il supplemento resta modificabile
+function applicaZonaDaCap(prefisso, prodotti) {
+    const totaleProdotti = (prodotti || []).reduce((t, p) => t + (parseFloat(p.prezzo) || 0) * (parseFloat(p.qta) || 0), 0);
+    const c = calcolaConsegna(window.configConsegna, document.getElementById(`${prefisso}-cap`).value, totaleProdotti);
+    if (!c.zoneConfigurate || !c.capValido) return;
+    document.getElementById(`${prefisso}-zona`).value = c.zona;
+    document.getElementById(`${prefisso}-supplemento`).value = c.supplemento.toFixed(2);
+}
+
+window.zonaDaCapNuovoOrdine = () => {
+    applicaZonaDaCap('new-ord', tempNewOrderItems);
+    renderNewOrderPreview();
+};
+
+window.zonaDaCapModifica = () => {
+    applicaZonaDaCap('edit', currentEditProducts);
+    ricalcolaTotaleEditLive();
 };
 
 function getSupplementoEdit() {
@@ -2101,6 +2126,7 @@ window.salvaModificheOrdine = async () => {
         indirizzo: isDom ? indirizzoEdit : "",
         citofono: isDom ? document.getElementById('edit-citofono').value.trim() : "",
         zona: isDom ? document.getElementById('edit-zona').value.trim() : "",
+        cap: isDom ? document.getElementById('edit-cap').value.trim() : "",
         supplemento_consegna: supplementoEdit
     };
     if (isDom) {
@@ -3385,6 +3411,87 @@ window.salvaImpostazioniLocale = async () => {
         document.getElementById('nome-locale-ui').innerText = `${payload.nome.toUpperCase()} - CASSA`;
     }
     Swal.fire({ icon: 'success', title: 'Dati Locale Aggiornati!', timer: 1500, showConfirmButton: false });
+};
+
+// --- ZONE DI CONSEGNA (impostazioni/negozio: zone_consegna, supplemento_fuori_zona) ---
+window.configConsegna = {};
+let zoneEditor = [];
+let zoneModificate = false;
+
+function caricaEditorZone(dn) {
+    if (zoneModificate) return;   // non sovrascrivere modifiche non ancora salvate
+    zoneEditor = (Array.isArray(dn.zone_consegna) ? dn.zone_consegna : []).map(z => ({ ...z }));
+    const base = document.getElementById('setting-supp-base');
+    const fuori = document.getElementById('setting-supp-fuori-zona');
+    if (base && dn.supplemento_consegna !== undefined) base.value = parseFloat(dn.supplemento_consegna) || 0;
+    if (fuori && dn.supplemento_fuori_zona !== undefined) fuori.value = parseFloat(dn.supplemento_fuori_zona) || 0;
+    renderZoneConsegna();
+}
+
+function renderZoneConsegna() {
+    const box = document.getElementById('lista-zone-consegna');
+    if (!box) return;
+    if (zoneEditor.length === 0) {
+        box.innerHTML = `<div style="color:#8d6e63; font-size:0.85em;">Nessuna zona: tutti i clienti pagano il supplemento base.</div>`;
+        return;
+    }
+    const esc = window.escapeHtml;
+    const campo = (i, chiave, etichetta, tipo, extra = '') => `
+        <label style="display:flex; flex-direction:column; font-size:0.72em; font-weight:bold; color:#6d4c41; ${extra}">${etichetta}
+            <input type="${tipo}" class="input-std" style="margin:2px 0 0 0;" ${tipo === 'number' ? 'step="0.50" min="0"' : ''}
+                value="${esc(zoneEditor[i][chiave] ?? '')}" oninput="aggiornaZonaConsegna(${i}, '${chiave}', this.value)">
+        </label>`;
+    box.innerHTML = zoneEditor.map((z, i) => `
+        <div style="background:white; border:1px solid #ffcc80; border-radius:8px; padding:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; ${z.attiva === false ? 'opacity:0.55;' : ''}">
+            ${campo(i, 'nome', 'Nome zona', 'text', 'flex:1; min-width:120px;')}
+            ${campo(i, 'cap', 'CAP', 'text', 'flex:2; min-width:160px;')}
+            ${campo(i, 'supplemento', 'Supplemento €', 'number', 'width:95px;')}
+            ${campo(i, 'ordine_minimo', 'Minimo €', 'number', 'width:85px;')}
+            ${campo(i, 'gratis_sopra', 'Gratis sopra €', 'number', 'width:95px;')}
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.8em; font-weight:bold; padding-bottom:8px;">
+                <input type="checkbox" ${z.attiva === false ? '' : 'checked'} onchange="aggiornaZonaConsegna(${i}, 'attiva', this.checked)"> Attiva
+            </label>
+            <button onclick="rimuoviZonaConsegna(${i})" style="background:#ef5350; color:white; border:none; padding:9px 11px; border-radius:5px; cursor:pointer; margin-bottom:5px;"><i class="fa fa-trash"></i></button>
+        </div>`).join('');
+}
+
+window.aggiornaZonaConsegna = (i, chiave, valore) => {
+    zoneEditor[i][chiave] = valore;
+    zoneModificate = true;
+    if (chiave === 'attiva') renderZoneConsegna();
+};
+
+window.aggiungiZonaConsegna = () => {
+    zoneEditor.push({ nome: '', cap: '', supplemento: parseFloat(document.getElementById('setting-supp-base')?.value) || 0, ordine_minimo: 0, gratis_sopra: 0, attiva: true });
+    zoneModificate = true;
+    renderZoneConsegna();
+};
+
+window.rimuoviZonaConsegna = (i) => {
+    zoneEditor.splice(i, 1);
+    zoneModificate = true;
+    renderZoneConsegna();
+};
+
+window.salvaZoneConsegna = async () => {
+    const num = (v) => Math.max(0, parseFloat(v) || 0);
+    const zone = [];
+    for (const z of zoneEditor) {
+        const nome = String(z.nome || '').trim();
+        const cap = String(z.cap || '').trim();
+        if (!nome || !cap) return Swal.fire("Attenzione", "Ogni zona deve avere un nome e almeno un CAP.", "warning");
+        const vociNonValide = cap.split(/[,;\s]+/).filter(v => v && !/^\d{5}(-\d{5})?$/.test(v.replace(/\s/g, '')));
+        if (vociNonValide.length) return Swal.fire("CAP non valido", `Zona "${nome}": controlla ${vociNonValide.join(', ')} (5 cifre, intervalli come 89121-89135).`, "warning");
+        zone.push({ nome, cap, supplemento: num(z.supplemento), ordine_minimo: num(z.ordine_minimo), gratis_sopra: num(z.gratis_sopra), attiva: z.attiva !== false && z.attiva !== 'false' });
+    }
+    const payload = {
+        zone_consegna: zone,
+        supplemento_consegna: num(document.getElementById('setting-supp-base')?.value),
+        supplemento_fuori_zona: num(document.getElementById('setting-supp-fuori-zona')?.value)
+    };
+    await setDoc(doc(db, "impostazioni", "negozio"), payload, { merge: true });
+    zoneModificate = false;
+    Swal.fire({ icon: 'success', title: 'Zone di consegna salvate!', timer: 1500, showConfirmButton: false });
 };
 
 // --- GESTIONALE E PRODOTTI CON DOPPIO SWITCH (MENU QR + PALMARE SALA) ---
