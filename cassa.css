@@ -699,9 +699,8 @@ body {
         height: 100dvh;
         overflow-y: auto !important;
     }
+    /* Niente "display" forzato: la lista mostrata la sceglie la scheda Asporto / Tavoli / Pronti */
     .orders-grid {
-        display: flex !important;
-        flex-direction: column !important;
         position: relative !important;
         width: 100% !important;
         height: auto !important;

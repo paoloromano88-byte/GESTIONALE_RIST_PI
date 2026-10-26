@@ -56,6 +56,8 @@
 
             /* Mostra il pulsante ORARI solo su smartphone */
             #btn-mobile-orari {
+                width: auto !important;
+                flex: 0 0 auto !important;
                 display: inline-flex !important;
                 align-items: center;
                 gap: 5px;
@@ -83,14 +85,15 @@
                 font-size: 0.8em !important;
             }
 
+            /* Pulsanti della barra in alto: tutti visibili, su più righe */
             .top-bar > div:last-child {
                 width: 100% !important;
                 display: flex !important;
-                overflow-x: auto !important;
-                flex-wrap: nowrap !important;
+                overflow-x: visible !important;
+                flex-wrap: wrap !important;
+                justify-content: center !important;
                 gap: 6px !important;
                 padding-bottom: 4px !important;
-                scrollbar-width: none;
             }
 
             .top-bar > div:last-child::-webkit-scrollbar {
@@ -118,6 +121,23 @@
                 gap: 12px !important;
                 position: relative !important;
                 z-index: 5 !important;
+                box-sizing: border-box !important;   /* il padding resta dentro lo schermo */
+            }
+
+            /* Schede ordine larghe quanto lo schermo, senza uscire a destra */
+            .order-card {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Pulsanti di stampa della scheda: 3 + 2 per riga, scritte intere */
+            .card-actions .action-btn {
+                flex: 1 1 30% !important;
+                min-width: 0 !important;
+                padding: 10px 4px !important;
+                font-size: 0.8em !important;
+                white-space: nowrap !important;
             }
 
             /* Nasconde la colonna degli orari su smartphone finché non viene richiesta */
