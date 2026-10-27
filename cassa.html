@@ -865,6 +865,7 @@
                         <div style="flex:1;">
                             <label style="font-weight:bold; font-size:0.9em; color:#1565c0; display:block; margin-bottom:5px;">Logo del Ristorante (PNG o JPG):</label>
                             <input type="file" id="setting-logo-file" class="input-std" accept="image/*" style="width:100%; margin:0;" onchange="anteprimaLogoLocale(this)">
+                            <button type="button" id="btn-rimuovi-logo" class="btn-agente" onclick="rimuoviLogoLocale()" style="display:none; margin-top:8px;" title="Torna all'icona di base">🗑️ Rimuovi logo</button>
                         </div>
                     </div>
 
@@ -894,7 +895,7 @@
                 <!-- ZONE DI CONSEGNA A DOMICILIO (riconosciute dal CAP) -->
                 <div style="background:#fff8e1; padding:20px; border-radius:8px; margin-bottom:15px; border:1px solid #ffe082; color:#333;">
                     <h3 style="margin-top:0; color:#e65100;"><i class="fa fa-motorcycle"></i> Zone di Consegna a Domicilio</h3>
-                    <p style="margin:0 0 12px 0; font-size:0.85em; color:#6d4c41;">Il cliente inserisce il CAP: zona, supplemento e ordine minimo si applicano da soli. CAP separati da virgola, intervalli con il trattino (es. <b>89100, 89121-89135</b>). Senza zone si usa il supplemento base per tutti.</p>
+                    <p style="margin:0 0 12px 0; font-size:0.85em; color:#6d4c41;">Il cliente inserisce il CAP: zona, supplemento e ordine minimo si applicano da soli. CAP separati da virgola, intervalli con il trattino (es. <b>00100, 00118-00199</b>). Senza zone si usa il supplemento base per tutti.</p>
                     <div class="form-row">
                         <div style="flex:1; display:flex; align-items:center; gap:8px; background:white; padding:0 10px; border-radius:5px; border:1px solid #ccc;">
                             <label style="font-weight:bold; font-size:0.85em; color:#555; white-space:nowrap;">Supplemento base (€):</label>
@@ -1517,26 +1518,21 @@
         };
 
         // 0. PROTEZIONE NOME WHITE-LABEL DEL RISTORANTE IN ALTO A SINISTRA
-        let currentTenantDisplayName = tenantId === 'default' ? 'DA MIMMO' : tenantId.replace(/-/g, ' ').toUpperCase();
+        // Senza nome del locale (Gestionale > Impostazioni) il titolo resta anonimo: "CASSA"
+        let currentTenantDisplayName = tenantId === 'default' ? '' : tenantId.replace(/-/g, ' ').toUpperCase();
         const uiTitleEl = document.getElementById('nome-locale-ui');
-        if (uiTitleEl) uiTitleEl.innerText = `${currentTenantDisplayName} - CASSA`;
+        const mostraTitoloCassa = () => {
+            if (uiTitleEl) uiTitleEl.innerText = currentTenantDisplayName ? `${currentTenantDisplayName} - CASSA` : 'CASSA';
+            document.title = currentTenantDisplayName ? `${currentTenantDisplayName} - Cassa PRO` : 'Cassa PRO';
+        };
+        mostraTitoloCassa();
 
         onSnapshot(doc(db, "impostazioni", "negozio"), (snap) => {
             if (snap.exists() && snap.data().nome) {
                 currentTenantDisplayName = snap.data().nome.toUpperCase();
             }
-            if (uiTitleEl) uiTitleEl.innerText = `${currentTenantDisplayName} - CASSA`;
-            document.title = `${currentTenantDisplayName} - Cassa PRO`;
+            mostraTitoloCassa();
         });
-
-        if (uiTitleEl && tenantId !== 'default') {
-            const observer = new MutationObserver(() => {
-                if (uiTitleEl.innerText.includes('DA MIMMO') && currentTenantDisplayName !== 'DA MIMMO') {
-                    uiTitleEl.innerText = `${currentTenantDisplayName} - CASSA`;
-                }
-            });
-            observer.observe(uiTitleEl, { childList: true, characterData: true, subtree: true });
-        }
 
         // 1. CONTROLLO LICENZA SAAS E MODULO CASSA IN TEMPO REALE
         let ultimoAvvisoMostrato = "";

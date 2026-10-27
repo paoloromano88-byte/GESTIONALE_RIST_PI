@@ -345,6 +345,7 @@
         import { getFirestore, collection as _collection, addDoc, getDocs, onSnapshot, serverTimestamp, query, where, doc as _doc, setDoc, updateDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
+        import { applicaLogoLocale } from "./logo-locale.js";
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -394,6 +395,7 @@
                 document.getElementById('tel-header-logo').innerHTML = `<i class="fa fa-mobile-screen"></i> ${n}`;
                 document.title = `Telecomando - ${n}`;
             }
+            if (snap.exists()) applicaLogoLocale(snap.data().logo_url);
         });
 
         // --- SCORTE INTELLIGENTI ANCHE PER STIRATA BI-GUSTO ---

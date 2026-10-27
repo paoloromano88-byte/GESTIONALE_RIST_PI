@@ -81,7 +81,7 @@ await prova('accesso: password sbagliata rifiutata; account senza locale non par
 
 await prova('locale principale: stampa byte identici, errore dopo 3 tentativi, scaduta, battito', async () => {
   await svuota();
-  const cassa = await creaAccount('cassa@damimmo.it', 'default');
+  const cassa = await creaAccount('cassa@locale-principale.it', 'default');
   const p1 = await stampanteFinta();
   const byte = Buffer.concat([Buffer.from('\x1B\x40\x1B\x61\x01PIZZERIA\n', 'latin1'), crypto.randomBytes(3000), Buffer.from('\x1D\x56\x01', 'latin1')]);
   const buona = await mettiInCoda(cassa, '', { ip: '127.0.0.1', porta: p1.porta, dati: byte.toString('base64'), descrizione: 'PIZZERIA · Rossi 20:00' });
@@ -105,7 +105,7 @@ await prova('locale principale: stampa byte identici, errore dopo 3 tentativi, s
 
 await prova('altro locale: stampa le sue comande e NON tocca quelle del locale principale', async () => {
   await svuota();
-  const cassaDefault = await creaAccount('cassa2@damimmo.it', 'default');
+  const cassaDefault = await creaAccount('cassa2@locale-principale.it', 'default');
   const cassaTest = await creaAccount('cassa@pizzeriatest.it', 'pizzeria-test');
   const p = await stampanteFinta();
   const suaComanda = await mettiInCoda(cassaTest, 'ristoranti/pizzeria-test/', { ip: '127.0.0.1', porta: p.porta, dati: Buffer.from('TEST').toString('base64') });
@@ -124,7 +124,7 @@ await prova('altro locale: stampa le sue comande e NON tocca quelle del locale p
 
 await prova('due agenti nello stesso locale: ogni comanda esce una volta sola', async () => {
   await svuota();
-  const cassa = await creaAccount('cassa3@damimmo.it', 'default');
+  const cassa = await creaAccount('cassa3@locale-principale.it', 'default');
   const p = await stampanteFinta();
   for (let i = 0; i < 8; i++) await mettiInCoda(cassa, '', { ip: '127.0.0.1', porta: p.porta, dati: Buffer.from('C' + i).toString('base64') });
   const a1 = await nuovoAgente(cassa, 'a1', { attesaMs: 50 }), a2 = await nuovoAgente(cassa, 'a2', { attesaMs: 50 });
@@ -138,7 +138,7 @@ await prova('due agenti nello stesso locale: ogni comanda esce una volta sola', 
 
 await prova('"Scollega" dalla cassa: l\'agente si ferma e dimentica il token', async () => {
   await svuota();
-  const cassa = await creaAccount('cassa4@damimmo.it', 'default');
+  const cassa = await creaAccount('cassa4@locale-principale.it', 'default');
   const a = await nuovoAgente(cassa, 'esp-cucina');
   let scollegato = false;
   a.onScollegato = () => { scollegato = true; };
@@ -154,7 +154,7 @@ await prova('"Scollega" dalla cassa: l\'agente si ferma e dimentica il token', a
 
 await prova('il token si rinnova da solo', async () => {
   await svuota();
-  const cassa = await creaAccount('cassa5@damimmo.it', 'default');
+  const cassa = await creaAccount('cassa5@locale-principale.it', 'default');
   const a = await nuovoAgente(cassa, 'pc5');
   let rinnovato = null;
   a.onCredenziali = (c) => { rinnovato = c; };

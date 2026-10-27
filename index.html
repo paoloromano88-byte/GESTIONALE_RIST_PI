@@ -234,12 +234,11 @@
 
         <div class="main-card">
             <img id="home-logo-img" src="logo.png" alt="Logo" class="logo-home" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3132/3132693.png'">
-            <h1 id="home-title-txt" style="margin:0; font-weight:800; text-transform:uppercase;">Da Mimmo</h1>
-            <p id="home-slogan-txt" style="margin-top:10px; font-weight:500; color:#ccc;">La vera pizza, direttamente a casa tua.</p>
+            <!-- Nome, sottotitolo e telefono arrivano da Cassa > Gestionale > Impostazioni: senza, la pagina resta anonima -->
+            <h1 id="home-title-txt" style="margin:0; font-weight:800; text-transform:uppercase;">Ordina online</h1>
+            <p id="home-slogan-txt" style="margin-top:10px; font-weight:500; color:#ccc;"></p>
             
-            <a id="home-tel-link" href="tel:0965370013" class="tel-link">
-                <i class="fa-solid fa-phone"></i> 0965 370013
-            </a>
+            <a id="home-tel-link" href="#" class="tel-link" style="display:none;"></a>
 
             <div class="btn-big-order" onclick="mostraMenu()">
                 <i class="fa-solid fa-pizza-slice"></i> ORDINA ORA
@@ -414,7 +413,7 @@
             
             <div class="modal-scroll-area" style="height: 50vh; padding: 0; margin-bottom: 20px; font-size: 0.85em; color: var(--col-text-muted); line-height: 1.5; text-align: left;">
                 <p><strong>1. Titolare del Trattamento</strong><br>
-                Il Titolare del trattamento dei dati è "<span id="privacy-owner-name">Da Mimmo - Restaurant & Pizza</span>".</p>
+                Il Titolare del trattamento dei dati è <span id="privacy-owner-name">il gestore del locale che riceve l'ordine</span>.</p>
                 
                 <p><strong>2. Finalità del Trattamento</strong><br>
                 I dati personali forniti (Nome, Cognome, Telefono, Indirizzo per eventuale consegna) vengono utilizzati esclusivamente per la gestione e l'evasione dell'ordine, e per contattarti in caso di necessità riguardanti la consegna o il ritiro.</p>
@@ -484,6 +483,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc as _doc, getDoc, query, where, orderBy, limit, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { calcolaConsegna } from "./zone-consegna.js";
+        import { applicaLogoLocale, logoValido, LOGO_BASE } from "./logo-locale.js";
         import { getAuth, signInWithPhoneNumber, RecaptchaVerifier, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // --- CONFIGURAZIONE PROGETTO FIREBASE ---
@@ -525,11 +525,20 @@
         };
 
         // Chiavi LocalStorage isolate per singolo ristorante
-        const CART_STORAGE_KEY = `mimmo_cart_${window.TENANT_ID}`;
-        const SESSION_STORAGE_KEY = `mimmo_user_session_${window.TENANT_ID}`;
-        const LAST_ORDER_STORAGE_KEY = `mimmo_last_order_${window.TENANT_ID}`;
-        const ADDRESS_STORAGE_KEY = `mimmo_user_address_${window.TENANT_ID}`;
-        const LAST_ORDER_ID_STORAGE_KEY = `mimmo_last_order_id_${window.TENANT_ID}`;
+        const CART_STORAGE_KEY = `app_cart_${window.TENANT_ID}`;
+        const SESSION_STORAGE_KEY = `app_user_session_${window.TENANT_ID}`;
+        const LAST_ORDER_STORAGE_KEY = `app_last_order_${window.TENANT_ID}`;
+        const ADDRESS_STORAGE_KEY = `app_user_address_${window.TENANT_ID}`;
+        const LAST_ORDER_ID_STORAGE_KEY = `app_last_order_id_${window.TENANT_ID}`;
+        // Le chiavi di prima avevano un altro prefisso: carrello, accesso e indirizzo si spostano una volta sola
+        try {
+            for (const vecchia of Object.keys(localStorage)) {
+                const m = vecchia.match(/^([a-z]+)_(cart|user_session|last_order_id|last_order|user_address)_(.+)$/);
+                if (!m || m[1] === 'app' || m[3] !== String(window.TENANT_ID)) continue;
+                if (localStorage.getItem(`app_${m[2]}_${m[3]}`) === null) localStorage.setItem(`app_${m[2]}_${m[3]}`, localStorage.getItem(vecchia));
+                localStorage.removeItem(vecchia);
+            }
+        } catch (e) {}
         const CATEGORIE_FORNO = ['pizza', 'stirata', 'gf', 'speciale'];
 
         // Telefono verificato via SMS (Firebase Auth). Solo con questo si possono leggere i propri ordini:
@@ -1137,18 +1146,22 @@
                         document.getElementById('app-window-title').innerText = `${dn.nome} - Ordina Online`;
                         document.getElementById('home-title-txt').innerText = dn.nome;
                         const privOwner = document.getElementById('privacy-owner-name');
-                        if (privOwner) privOwner.innerText = dn.nome;
+                        if (privOwner) privOwner.innerText = `"${dn.nome}"`;
                     }
-                    if (dn.slogan) document.getElementById('home-slogan-txt').innerText = dn.slogan;
+                    document.getElementById('home-slogan-txt').innerText = dn.slogan || '';
+                    const tl = document.getElementById('home-tel-link');
                     if (dn.telefono_ordini) {
-                        const tl = document.getElementById('home-tel-link');
-                        tl.href = `tel:${dn.telefono_ordini}`;
-                        tl.innerHTML = `<i class="fa-solid fa-phone"></i> ${dn.telefono_ordini}`;
+                        tl.href = `tel:${String(dn.telefono_ordini).replace(/[^0-9+]/g, '')}`;
+                        tl.innerHTML = '<i class="fa-solid fa-phone"></i> ';
+                        tl.append(dn.telefono_ordini);
+                        tl.style.display = '';
+                    } else {
+                        tl.style.display = 'none';
                     }
-                    if (dn.logo_url) {
-                        document.getElementById('home-logo-img').src = dn.logo_url;
-                        document.getElementById('menu-logo-img').src = dn.logo_url;
-                    }
+                    // Logo del locale, oppure l'icona di base se è stato rimosso
+                    document.getElementById('home-logo-img').src = logoValido(dn.logo_url) ? dn.logo_url : LOGO_BASE;
+                    document.getElementById('menu-logo-img').src = logoValido(dn.logo_url) ? dn.logo_url : LOGO_BASE;
+                    applicaLogoLocale(dn.logo_url);
                     window.configConsegnaApp = dn;
                     if (dn.supplemento_consegna !== undefined && !isNaN(parseFloat(dn.supplemento_consegna))) {
                         window.supplementoConsegnaApp = parseFloat(dn.supplemento_consegna);

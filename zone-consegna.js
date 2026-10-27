@@ -3,7 +3,7 @@
 // Configurazione in impostazioni/negozio (modificabile da Cassa > Impostazioni):
 //   supplemento_consegna    supplemento base (usato se non ci sono zone)
 //   supplemento_fuori_zona  supplemento per i CAP che non rientrano in nessuna zona
-//   zone_consegna: [{ nome, cap: "89100, 89121-89135", supplemento,
+//   zone_consegna: [{ nome, cap: "00100, 00118-00199", supplemento,
 //                     ordine_minimo, gratis_sopra, attiva }]
 // Usato dall'App Clienti e dalla Cassa, così il calcolo è identico ovunque.
 // ============================================================================
@@ -22,7 +22,7 @@ export function normalizzaCap(cap) {
     return cifre.length === 5 ? cifre : '';
 }
 
-// "89100, 89121-89135" (o un array) -> verifica se il CAP è compreso
+// "00100, 00118-00199" (o un array) -> verifica se il CAP è compreso
 function capInZona(capZona, cap) {
     const voci = Array.isArray(capZona) ? capZona : String(capZona ?? '').split(/[,;\s]+/);
     return voci.some(voce => {

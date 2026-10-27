@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con la PR #34 (QZ Tray: chiave e certificato di ogni locale, non più nel codice).
+**Ultimo aggiornamento:** 27/10/2026, con la PR #38 (logo di ogni locale come icona delle app e delle notifiche al rider).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -58,6 +58,22 @@ File condivisi:
   - ⚠️ Se `locale` manca, le regole rifiutano ogni salvataggio ("Missing or insufficient permissions"). Ora le app mostrano subito "Account senza locale assegnato" con il codice dell'account (PR #22).
   - Gli account creati da Super Admin → "Account del Locale" hanno già la scheda completa.
 - **Immagini** (logo, foto dei prodotti, foto in Agenda): vengono compresse e salvate **dentro il database** (Firestore). Sono quindi protette dalle stesse regole per locale.
+  - **Logo del locale**: ogni ristorante carica il suo in Cassa → Gestionale → Impostazioni (`impostazioni/negozio.logo_url`). Compare in:
+    - App Clienti e Menu;
+    - icona di tutte le app, cioè scheda del browser e schermata Home dell'iPhone (`logo-locale.js`, PR #38);
+    - notifiche «Pronto» al rider.
+  - Senza logo si usa `logo.png`: un'icona neutra uguale per tutti, cioè forchetta e coltello dorati su fondo scuro (icona «utensils» di Font Awesome Free, licenza CC BY 4.0). Prima era un file rotto.
+  - «🗑️ Rimuovi logo» (accanto alla scelta del file, visibile solo se c'è un logo) chiede conferma e cancella `logo_url`. Scarta anche un logo scelto per sbaglio e non ancora salvato. Le app aperte tornano subito all'icona di base, comprese App Clienti e Menu.
+  - L'icona dell'App Rider aggiunta alla schermata Home di **Android** è sempre quella neutra (`delivery.webmanifest`); su iPhone è il logo del locale.
+- **Sito anonimo** (decisione del 27/10/2026, PR #38): il programma si vende a più locali, quindi nel codice non c'è più niente di Da Mimmo.
+  - Finché un locale non inserisce i suoi dati (Cassa → Gestionale → Impostazioni: nome, sottotitolo, telefono, logo) le app mostrano diciture neutre:
+    - «CASSA», «KDS», «Agenda», «Menu»;
+    - nell'App Clienti «Ordina online», senza telefono;
+    - nella privacy, come titolare, «il gestore del locale che riceve l'ordine».
+  - Il locale principale (`default`) non ha più nomi di riserva; gli altri locali usano il loro codice (es. «PIZZERIA BELLA»).
+  - Tolti anche: il telefono 0965 370013 scritto nell'App Clienti, «Da Mimmo - Restaurant & Pizza» nella privacy, la cartella Olivetti del PC di Da Mimmo, gli esempi con CAP e prefissi di Reggio Calabria e il file `sfondo.jpg` (non usato, conteneva solo testo).
+  - Le chiavi del telefono del cliente nell'App Clienti (carrello, accesso, indirizzo, ultimo ordine) ora iniziano con `app_`. Quelle vecchie si spostano da sole una volta, senza perdere niente.
+  - Il diario (`docs/`, non pubblicato) e il nome del progetto Firebase restano come sono.
   - **Firebase Storage non è attivo** nel progetto e il programma non lo usa (verificato il 27/10/2026, PR #33). Non ci sono regole di Storage da gestire.
   - Se un giorno servisse (es. file grandi), attivarlo in **modalità produzione** (tutto chiuso), mettere i file in `locali/{locale}/…`, scrivere `storage.rules` sul modello di `firestore.rules` e aggiungere `storage` al deploy.
 
@@ -85,9 +101,14 @@ File condivisi:
    - Il rider la attiva una volta con «🔔 … ATTIVA» in alto. Il telefono si iscrive in `notifiche_rider/{token}` col suo nome; a «Fine turno» l'iscrizione si cancella, e al rider successivo si rifà da sola.
    - La manda il server (`functions/avvisi-rider.js`, trigger `avvisoRiderPrincipale` / `avvisoRiderLocali`). Destinatari: il rider che ha preso l'ordine; se nessuno l'ha preso, tutti i rider iscritti del locale. Solo ordini a domicilio di oggi (ora italiana), non consegnati.
    - Usa Firebase Cloud Messaging con la chiave web predefinita di Firebase. Il service worker è `firebase-messaging-sw.js`, alla radice del sito. I telefoni che non ricevono più si tolgono da soli dall'elenco.
+   - Dalla PR #38 il server manda **solo dati** (titolo, testo, tag, link, locale). La notifica la compone il service worker, perché il messaggio FCM non può contenere l'immagine (massimo 4 KB):
+     - legge il logo del locale da Firestore (`impostazioni/negozio`, lettura pubblica, solo il campo `logo_url`). Se non c'è, o se la lettura impiega più di 3 secondi, usa `logo.png`;
+     - toccando la notifica torna all'App Rider se è aperta, altrimenti la apre;
+     - con l'app aperta sullo schermo la libreria non mostra la notifica, perché l'avviso lo dà l'app.
    - **Android** (Chrome): funziona dal browser.
    - **iPhone** (iOS 16.4 o più recente): solo se l'App Rider è aggiunta alla schermata Home (Condividi → «Aggiungi alla schermata Home») e aperta da lì. L'app lo spiega da sola. `delivery.webmanifest` serve a questo.
    - Nell'emulatore non c'è FCM: le notifiche finiscono in `_push_emulatore` per i test.
+   - ✅ Provato a Da Mimmo il 27/10/2026 con un telefono Android e l'app chiusa: la notifica arriva.
 4. **Presa in carico (App Rider)**: il rider scansiona il QR della busta che ha in mano.
    - Pulsante "📷 SCANSIONA QR" in basso, oppure "Scansiona e prendi" sulla scheda. Se il QR è di un'altra busta, l'app avvisa ("Busta diversa!").
    - Lettore: quello nativo del telefono (`BarcodeDetector`) o la libreria `jsQR`. Se la fotocamera non va, c'è "Fai una foto al QR".
@@ -154,7 +175,7 @@ File condivisi:
   - alla fine compare "Ora batti € X sul registratore di cassa", con la quota a testa se il conto è diviso.
 - **Olivetti** (solo chi ha ElaExecute sul PC della cassa e QZ Tray): si collega in Gestionale → Stampanti → "Scontrino fiscale", scrivendo la cartella IN di ElaExecute.
   - Il valore è salvato in `impostazioni/stampanti`, campo `fiscale: { modo: "nessuno" | "olivetti", cartella }`.
-  - Da Mimmo (`default`) resta collegato alla cartella di sempre finché in quella pagina non si salva un'altra scelta. Gli altri locali partono da "Nessuno: batto il totale a mano".
+  - Ogni locale, Da Mimmo compreso, parte da "Nessuno: batto il totale a mano" finché non sceglie e salva l'Olivetti con la sua cartella. Fino alla PR #38 il locale `default` aveva come riserva la cartella del PC di Da Mimmo, scritta nel codice: è stata tolta per rendere il sito anonimo.
 - Strade valutate e scartate per ora:
   - scontrino online tramite servizi a pagamento che usano la procedura "Documento commerciale online" dell'Agenzia;
   - software certificato (provvedimento del 7/3/2025, operativo secondo gli addetti dal 2027).
@@ -179,6 +200,9 @@ File condivisi:
   1. test;
   2. **backend**: Cloud Functions e regole Firestore;
   3. **sito**, solo se il backend è andato a buon fine.
+- **Versione sempre aggiornata sui dispositivi** (PR #38): in `firebase.json` c'è `Cache-Control: no-cache` per tutti i file del sito.
+  - Il browser chiede ogni volta se il file è cambiato. Se non è cambiato riceve solo un «304» grazie all'ETag, quindi non lo riscarica.
+  - Prima Firebase lasciava ai browser fino a un'ora di copia vecchia: dopo un aggiornamento un telefono poteva avere ancora la Cassa di prima (successo il 27/10 con l'anteprima del pulsante «Rimuovi logo»).
 - Segreto GitHub: `FIREBASE_SERVICE_ACCOUNT_GESTIONALE_RISTORANTI_96C5B` (account di servizio `firebase-adminsdk-…`).
 - Ruoli dati a quell'account in Google Cloud IAM, che servono tutti:
   - **Editor**;
@@ -234,6 +258,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #32 | **Niente più PIN 0000** in Sala e Agenda: si entra solo col PIN di un dipendente. Nuovo ruolo «Responsabile» (accesso d'emergenza scelto dal locale). Senza dipendenti registrati, Sala e Agenda spiegano dove aggiungerli |
 | #33 | Firebase Storage verificato: non attivo e non usato. Tolto dalla Cassa il codice di Storage rimasto (non si scarica più) |
 | #36 | **Avviso "pronto" al rider anche con l'app chiusa**: notifiche push (Firebase Cloud Messaging), da attivare una volta nell'App Rider; su iPhone dall'app aggiunta alla schermata Home |
+| #38 | **Logo di ogni locale** come icona di tutte le app e nelle notifiche al rider; icona neutra al posto di `logo.png` rotto |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue
@@ -254,7 +279,9 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 - #30 comande preparate dal server (tappa 3);
 - #19 PIN d'emergenza 0000 in Sala e Agenda;
 - #17 regole di Firebase Storage (Storage non attivo: immagini nel database);
-- #16 chiave privata di QZ Tray nel codice (ora una per locale, nel database).
+- #16 chiave privata di QZ Tray nel codice (ora una per locale, nel database);
+- #35 avviso "pronto" al rider anche con l'app chiusa;
+- #37 logo di ogni locale come icona delle app e delle notifiche.
 
 **Da fare, in ordine**: nessuna issue di sicurezza aperta. Sul posto:
 1. ✅ Certificato QZ nuovo installato sul PC della cassa di Da Mimmo (27/10/2026, dopo la PR #34): le stampe funzionano. Il certificato vecchio non vale più.
@@ -272,7 +299,6 @@ Da verificare sul posto:
 
 Idee per dopo (non richieste):
 - Togliere "Prendi a mano" dall'App Rider se si vuole la presa **solo** con il QR.
-- `logo.png` alla radice non è un'immagine vera (contiene testo): l'icona dell'App Rider sulla schermata Home e quella delle notifiche usano quindi le icone predefinite. Basta caricare un PNG quadrato del locale.
 - Ritocchi minori su smartphone:
   - nomi dei prodotti stretti nella finestra Modifica;
   - filtri delle categorie del menu che scorrono di lato;

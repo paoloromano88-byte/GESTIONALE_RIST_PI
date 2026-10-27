@@ -12,7 +12,7 @@ const env = await initializeTestEnvironment({ projectId: 'demo-gestionale', fire
 await env.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore();
   await setDoc(doc(db, 'utenti/super1'), { email: 'admin@piattaforma.it', ruolo: 'superadmin' });
-  await setDoc(doc(db, 'utenti/staffDefault'), { email: 'cassa@damimmo.it', ruolo: 'locale', locale: 'default' });
+  await setDoc(doc(db, 'utenti/staffDefault'), { email: 'cassa@locale-principale.it', ruolo: 'locale', locale: 'default' });
   await setDoc(doc(db, 'utenti/staffTest'), { email: 'cassa@pizzeriatest.it', ruolo: 'locale', locale: 'pizzeria-test' });
   await setDoc(doc(db, 'saas_clienti/pizzeria-test'), { nome: 'Pizzeria Test' });
   for (const base of ['', 'ristoranti/pizzeria-test/']) {
@@ -32,7 +32,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
 
 const conto = (uid, email) => env.authenticatedContext(uid, { firebase: { sign_in_provider: 'password' }, email }).firestore();
 const superAdmin = conto('super1', 'admin@piattaforma.it');
-const staffDefault = conto('staffDefault', 'cassa@damimmo.it');
+const staffDefault = conto('staffDefault', 'cassa@locale-principale.it');
 const staffTest = conto('staffTest', 'cassa@pizzeriatest.it');
 const abusivo = conto('abusivo', 'hacker@example.com');   // account email creato da sé, mai collegato
 const anon = env.unauthenticatedContext().firestore();

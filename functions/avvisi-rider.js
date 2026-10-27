@@ -27,18 +27,20 @@ export function destinatari(iscritti, ordine) {
     return iscritti;
 }
 
+// Solo dati: la notifica la compone il service worker del telefono (firebase-messaging-sw.js),
+// che ci mette il logo del locale (il messaggio FCM non può contenere l'immagine, max 4 KB)
 export function notificaPronto(ordine, ordineId, locale) {
     const nome = `${ordine.cognome || ''} ${ordine.nome || ''}`.trim() || 'Cliente';
     return {
         webpush: {
             headers: { Urgency: 'high', TTL: '1800' },
-            notification: {
-                title: '🍕 Pronto da ritirare',
-                body: `${nome}${ordine.orario ? ' · ore ' + ordine.orario : ''}`,
+            data: {
+                titolo: '🍕 Pronto da ritirare',
+                testo: `${nome}${ordine.orario ? ' · ore ' + ordine.orario : ''}`,
                 tag: `pronto-${ordineId}`,
-                vibrate: [300, 120, 300, 120, 300],
+                link: URL_APP_RIDER + (locale !== 'default' ? `?locale=${encodeURIComponent(locale)}` : ''),
+                locale,
             },
-            fcmOptions: { link: URL_APP_RIDER + (locale !== 'default' ? `?locale=${encodeURIComponent(locale)}` : '') },
         },
     };
 }
