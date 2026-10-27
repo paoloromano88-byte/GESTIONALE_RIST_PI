@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con il controllo generale del codice (sicurezza, stampa, dati: vedi sezione 7, «Controllo generale del 27/10/2026»).
+**Ultimo aggiornamento:** 27/10/2026, con la PR #41 (controllo generale del codice: sicurezza, stampa, dati; vedi sezione 7).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -261,6 +261,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #33 | Firebase Storage verificato: non attivo e non usato. Tolto dalla Cassa il codice di Storage rimasto (non si scarica più) |
 | #36 | **Avviso "pronto" al rider anche con l'app chiusa**: notifiche push (Firebase Cloud Messaging), da attivare una volta nell'App Rider; su iPhone dall'app aggiunta alla schermata Home |
 | #38 | **Logo di ogni locale** come icona di tutte le app e nelle notifiche al rider; icona neutra al posto di `logo.png` rotto |
+| #41 | **Controllo generale del codice**: testi dei clienti mai eseguiti come codice, codici sconto riservati, Super Admin (ID nuovi, account scollegati), controllo prezzi più severo; stampa (cambio turno, niente doppie stampe dell'agente, ESP32 1.0.1, date italiane, domicilio); forno, statistiche, accesso senza internet. Dettagli nella sezione 7 |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue
@@ -336,7 +337,7 @@ Altre note:
   2. controllare che il QR sia del locale giusto (`locale` nel link);
   3. controllare che l'ordine non sia di un altro rider o già consegnato. L'app lo dice con un messaggio.
 
-### Controllo generale del 27/10/2026
+### Controllo generale del 27/10/2026 (PR #41)
 Controllo automatico di tutto il codice più prove a mano; tutto corretto nella stessa PR.
 - **Sicurezza**
   - Testi dei clienti eseguiti come codice: nome, note o piatti di un ordine dall'App con dentro HTML venivano inseriti così com'erano in Cassa (Statistiche, Storico), Palmare Sala, Agenda, Mappa sala, Telecomando. Ora tutto passa da `escapeHtml`/`sanitizeHtml` (`sanitize.js`, caricato anche da Sala, Agenda e Mappa sala). Per gli argomenti di `onclick` c'è `argJs`, per le foto allegate `immagineSicura`. Prova: ordini con testi "trappola" in ogni campo aperti in tutte le pagine del personale, nessuno eseguito.
