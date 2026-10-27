@@ -81,6 +81,13 @@ File condivisi:
    - È stampato come **immagine raster ESC/POS (`GS v 0`)** inviata a QZ in base64 (`datiQrConsegnaESC` in `cassa.html`): funziona con tutte le termiche, senza il comando QR nativo.
    - L'intercettore di stampa in `cassa.html` modifica solo le voci di testo (`isTestoSemplice`), non i byte delle immagini.
 3. **Cucina**: quando l'ordine passa a "Pronto", l'App Rider suona e vibra; in alto compare "🔔 N pronte".
+   - **Anche con l'app chiusa** (PR #36): notifica push «🍕 Pronto da ritirare · Cognome Nome · ore HH:MM». Toccandola si apre l'App Rider.
+   - Il rider la attiva una volta con «🔔 … ATTIVA» in alto. Il telefono si iscrive in `notifiche_rider/{token}` col suo nome; a «Fine turno» l'iscrizione si cancella, e al rider successivo si rifà da sola.
+   - La manda il server (`functions/avvisi-rider.js`, trigger `avvisoRiderPrincipale` / `avvisoRiderLocali`). Destinatari: il rider che ha preso l'ordine; se nessuno l'ha preso, tutti i rider iscritti del locale. Solo ordini a domicilio di oggi (ora italiana), non consegnati.
+   - Usa Firebase Cloud Messaging con la chiave web predefinita di Firebase. Il service worker è `firebase-messaging-sw.js`, alla radice del sito. I telefoni che non ricevono più si tolgono da soli dall'elenco.
+   - **Android** (Chrome): funziona dal browser.
+   - **iPhone** (iOS 16.4 o più recente): solo se l'App Rider è aggiunta alla schermata Home (Condividi → «Aggiungi alla schermata Home») e aperta da lì. L'app lo spiega da sola. `delivery.webmanifest` serve a questo.
+   - Nell'emulatore non c'è FCM: le notifiche finiscono in `_push_emulatore` per i test.
 4. **Presa in carico (App Rider)**: il rider scansiona il QR della busta che ha in mano.
    - Pulsante "📷 SCANSIONA QR" in basso, oppure "Scansiona e prendi" sulla scheda. Se il QR è di un'altra busta, l'app avvisa ("Busta diversa!").
    - Lettore: quello nativo del telefono (`BarcodeDetector`) o la libreria `jsQR`. Se la fotocamera non va, c'è "Fai una foto al QR".
@@ -101,6 +108,7 @@ File condivisi:
   - la cassa firma ogni richiesta (SHA512withRSA) sul PC, quindi la stampa resta veloce. La chiave non è più scritta in `cassa.js`;
   - la vecchia chiave è ancora nella storia di git: è da considerare pubblica. Per questo sul PC della cassa va installato il certificato **nuovo**, e quello vecchio smette di valere;
   - installazione: Gestionale → Stampanti → «Certificato QZ Tray» → «Scarica certificato». Il file `override.crt` va nella cartella di QZ Tray (Windows: `C:\Program Files\QZ Tray`), poi si riavvia QZ Tray;
+  - finché non è installato, QZ Tray mostra «Invalid Certificate / Untrusted website» e chiede il permesso a ogni stampa. Se resta così anche dopo il riavvio, controllare se `qz-tray.properties` ha una riga `authcert.override` che punta a un altro file;
   - «Crea un certificato nuovo» cambia chiave e certificato (es. se un dispositivo del locale è stato rubato). Va poi reinstallato sul PC;
   - strada più severa per il futuro: firma su una Cloud Function, così la chiave non arriva mai sui dispositivi. Serve dare all'account del deploy il ruolo «Amministratore Cloud Run» per le funzioni chiamabili dal browser.
 - **Agente**:
@@ -225,6 +233,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #31 | **Comande dal server**: con «Agente di stampa» ordini nuovi e messaggi alla cucina vanno in coda dal server, anche a cassa chiusa. Testo delle stampe in `comande-escpos.js`, condiviso da cassa e server |
 | #32 | **Niente più PIN 0000** in Sala e Agenda: si entra solo col PIN di un dipendente. Nuovo ruolo «Responsabile» (accesso d'emergenza scelto dal locale). Senza dipendenti registrati, Sala e Agenda spiegano dove aggiungerli |
 | #33 | Firebase Storage verificato: non attivo e non usato. Tolto dalla Cassa il codice di Storage rimasto (non si scarica più) |
+| #36 | **Avviso "pronto" al rider anche con l'app chiusa**: notifiche push (Firebase Cloud Messaging), da attivare una volta nell'App Rider; su iPhone dall'app aggiunta alla schermata Home |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue
@@ -248,7 +257,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 - #16 chiave privata di QZ Tray nel codice (ora una per locale, nel database).
 
 **Da fare, in ordine**: nessuna issue di sicurezza aperta. Sul posto:
-1. dopo la PR #34, installare il **certificato QZ nuovo** sul PC della cassa di Da Mimmo (Gestionale → Stampanti → «Certificato QZ Tray»). Finché non è installato, QZ Tray chiede il permesso a ogni stampa;
+1. ✅ Certificato QZ nuovo installato sul PC della cassa di Da Mimmo (27/10/2026, dopo la PR #34): le stampe funzionano. Il certificato vecchio non vale più.
 2. provare l'**ESP32-C3** con l'apparecchio vero.
 
 **Stampa senza QZ Tray con ESP32** (#28, deciso il 26/10/2026), in tappe:
@@ -263,7 +272,7 @@ Da verificare sul posto:
 
 Idee per dopo (non richieste):
 - Togliere "Prendi a mano" dall'App Rider se si vuole la presa **solo** con il QR.
-- Notifiche push al rider anche con l'app chiusa (oggi l'avviso "pronto" richiede l'app aperta).
+- `logo.png` alla radice non è un'immagine vera (contiene testo): l'icona dell'App Rider sulla schermata Home e quella delle notifiche usano quindi le icone predefinite. Basta caricare un PNG quadrato del locale.
 - Ritocchi minori su smartphone:
   - nomi dei prodotti stretti nella finestra Modifica;
   - filtri delle categorie del menu che scorrono di lato;
