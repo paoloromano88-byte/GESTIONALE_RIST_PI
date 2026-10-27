@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con il sito vetrina **Gestì** e le decisioni di marketing (sezione 2, «Marketing: Gestì»).
+**Ultimo aggiornamento:** 27/10/2026, con la PR #43 (sito vetrina **Gestì** e decisioni di marketing: sezione 2, «Marketing: Gestì»).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
