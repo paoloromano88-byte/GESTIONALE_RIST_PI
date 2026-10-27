@@ -3474,13 +3474,14 @@ window.cambiaTab = (tab) => {
     if(tab === 'kdsconfig') window.renderizzaConfigKDS();
 };
 
+// Prodotti del Gestionale → Menu: un solo ascolto del database, aperto la prima volta che si apre la
+// scheda (prima se ne aggiungeva uno a ogni apertura); le volte dopo si ridisegna soltanto.
+let ascoltoProdottiGestionale = null;
 function caricaProdotti() {
-    const f = document.getElementById('cat-filters-container');
-    if (!f) return;
-    mappaProdotti = {};
-    prodottiPerCategoria = {};
-    
-    onSnapshot(collection(db, "prodotti"), (s) => {
+    if (!document.getElementById('cat-filters-container')) return;
+    if (ascoltoProdottiGestionale) { disegnaProdottiGestionale(); return; }
+    ascoltoProdottiGestionale = onSnapshot(collection(db, "prodotti"), (s) => {
+        mappaProdotti = {};
         prodottiPerCategoria = {};
         s.forEach(d => {
             let p = d.data();
@@ -3489,22 +3490,27 @@ function caricaProdotti() {
             if (!prodottiPerCategoria[p.cat]) prodottiPerCategoria[p.cat] = [];
             prodottiPerCategoria[p.cat].push(p);
         });
-        
-        f.innerHTML = "";
-        const oc = ['ant_pizzeria', 'ant_ristorante', 'pizza', 'speciale', 'stirata', 'gf', 'primo', 'secondo', 'contorno', 'pescato', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro'];
-        oc.forEach(cat => {
-            if (prodottiPerCategoria[cat]) {
-                const lb = CATEGORY_LABELS[cat] || cat.toUpperCase();
-                f.innerHTML += `<button class="cat-filter-btn ${currentBackOfficeCat === cat ? 'active' : ''}" onclick="window.mostraCat('${cat}')">${lb}</button>`;
-            }
-        });
-        
-        if (!currentBackOfficeCat || !prodottiPerCategoria[currentBackOfficeCat]) {
-            const fk = oc.find(c => prodottiPerCategoria[c]);
-            if (fk) currentBackOfficeCat = fk;
-        }
-        renderCategoria(currentBackOfficeCat);
+        disegnaProdottiGestionale();
     });
+}
+
+function disegnaProdottiGestionale() {
+    const f = document.getElementById('cat-filters-container');
+    if (!f) return;
+    f.innerHTML = "";
+    const oc = ['ant_pizzeria', 'ant_ristorante', 'pizza', 'speciale', 'stirata', 'gf', 'primo', 'secondo', 'contorno', 'pescato', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro'];
+    oc.forEach(cat => {
+        if (prodottiPerCategoria[cat]) {
+            const lb = CATEGORY_LABELS[cat] || cat.toUpperCase();
+            f.innerHTML += `<button class="cat-filter-btn ${currentBackOfficeCat === cat ? 'active' : ''}" onclick="window.mostraCat('${cat}')">${lb}</button>`;
+        }
+    });
+    
+    if (!currentBackOfficeCat || !prodottiPerCategoria[currentBackOfficeCat]) {
+        const fk = oc.find(c => prodottiPerCategoria[c]);
+        if (fk) currentBackOfficeCat = fk;
+    }
+    renderCategoria(currentBackOfficeCat);
 }
 
 window.mostraCat = (c) => {
@@ -4046,7 +4052,7 @@ window.eliminaDB = async (coll, id) => {
                 if(coll === 'sconti') window.caricaSconti();
                 if(coll === 'rimozioni') window.caricaRimozioni();
                 if(coll === 'ingredienti') window.caricaIngredienti();
-                if(coll === 'prodotti') window.caricaProdotti();
+                if(coll === 'prodotti') caricaProdotti();
             } catch(e) { 
                 Swal.fire("Errore: " + e.message); 
             }
