@@ -10,6 +10,7 @@
     <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sanitize.js"></script>
     <style>
         :root {
             --primary-color: #1e293b; 
@@ -438,10 +439,10 @@
             const p = (window.prenotazioniCache || []).find(x => x.id === idPren);
             if (!p || !p.allegato_base64) return;
             Swal.fire({
-                title: `📎 Allegato - ${(p.nome || 'Cliente').toUpperCase()}`,
+                title: `📎 Allegato - ${window.escapeHtml((p.nome || 'Cliente').toUpperCase())}`,
                 html: `
                     <div style="text-align:center;">
-                        <img src="${p.allegato_base64}" style="max-width:100%; max-height:65vh; border-radius:10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                        <img src="${window.immagineSicura(p.allegato_base64)}" style="max-width:100%; max-height:65vh; border-radius:10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
                     </div>
                 `,
                 width: 600,
@@ -553,12 +554,12 @@
                 box.style.border = '2px solid #ef4444';
                 box.style.color = '#991b1b';
                 box.innerHTML = `
-                    <i class="fa-solid fa-triangle-exclamation"></i> <b>ATTENZIONE: TAVOLO ${tav.toUpperCase()} ${statoTxt}!</b><br>
-                    Cliente: <b>${c.cliente}</b> alle ore <b>${c.orario}</b> (distanza: <b>${c.diff} min</b>).<br>
+                    <i class="fa-solid fa-triangle-exclamation"></i> <b>ATTENZIONE: TAVOLO ${window.escapeHtml(tav.toUpperCase())} ${statoTxt}!</b><br>
+                    Cliente: <b>${window.escapeHtml(c.cliente)}</b> alle ore <b>${window.escapeHtml(c.orario)}</b> (distanza: <b>${c.diff} min</b>).<br>
                     <small>Servono almeno <b>${MINUTI_MINIMI_STESSO_TAVOLO} minuti</b> di differenza tra due prenotazioni dello stesso tavolo.</small>
                 `;
             } else if (check.altriTurni.length > 0) {
-                const infoList = check.altriTurni.map(a => `${a.isSeduto ? '🪑 Al tavolo' : '📅 Prenotato'} ore <b>${a.orario}</b> (${a.cliente} - distanza ${a.diff} min)`).join('<br>');
+                const infoList = check.altriTurni.map(a => `${a.isSeduto ? '🪑 Al tavolo' : '📅 Prenotato'} ore <b>${window.escapeHtml(a.orario)}</b> (${window.escapeHtml(a.cliente)} - distanza ${a.diff} min)`).join('<br>');
                 box.style.display = 'block';
                 box.style.background = '#fef3c7';
                 box.style.border = '1px solid #f59e0b';
@@ -633,11 +634,11 @@
                     return `
                         <div class="reminder-row">
                             <div style="font-size:0.92em;">
-                                ${urgenzaBadge} <b>${(item.nome || 'Cliente').toUpperCase()}</b> — <b>${item.pax} Persone</b> (${dataFmt} ore ${item.orario || '--:--'})
-                                ${item.telefono ? `<span style="margin-left:6px; color:#78350f;">📞 ${item.telefono}</span>` : `<span style="margin-left:6px; color:#dc2626;">(Senza telefono)</span>`}
+                                ${urgenzaBadge} <b>${window.escapeHtml((item.nome || 'Cliente').toUpperCase())}</b> — <b>${window.escapeHtml(item.pax)} Persone</b> (${dataFmt} ore ${window.escapeHtml(item.orario || '--:--')})
+                                ${item.telefono ? `<span style="margin-left:6px; color:#78350f;">📞 ${window.escapeHtml(item.telefono)}</span>` : `<span style="margin-left:6px; color:#dc2626;">(Senza telefono)</span>`}
                             </div>
                             <div class="reminder-actions">
-                                ${item.telefono ? `<a href="tel:${item.telefono}" class="btn-rem-act" style="background:#3b82f6; color:white;"><i class="fa fa-phone"></i> Chiama</a>` : ''}
+                                ${item.telefono ? `<a href="tel:${window.escapeHtml(String(item.telefono).replace(/[^0-9+]/g, ''))}" class="btn-rem-act" style="background:#3b82f6; color:white;"><i class="fa fa-phone"></i> Chiama</a>` : ''}
                                 ${numClean ? `<a href="whatsapp://send?phone=${numClean.replace('+','')}&text=${msgWa}" class="btn-rem-act" style="background:#16a34a; color:white;"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : ''}
                                 <button onclick="window.confermaChiamataGruppo('${item.id}')" class="btn-rem-act" style="background:#10b981; color:white;">
                                     <i class="fa fa-check"></i> Segna Confermato
@@ -775,7 +776,7 @@
                     sessionStorage.setItem('operatore_corrente', dipendenteTrovato.nome);
                     sessionStorage.setItem('sala_waiter_name', dipendenteTrovato.nome);
                     document.getElementById('pin-overlay').style.display = 'none';
-                    Swal.fire({icon: 'success', title: `Benvenuto ${dipendenteTrovato.nome}!`, timer: 1000, showConfirmButton: false});
+                    Swal.fire({icon: 'success', title: `Benvenuto ${window.escapeHtml(dipendenteTrovato.nome)}!`, timer: 1000, showConfirmButton: false});
                     if (!agendaInizializzata) avviaAgenda();
                 } else {
                     Swal.fire("Errore", "PIN errato o non registrato", "error");
@@ -850,7 +851,7 @@
                          style="${bgStyle}" 
                          onclick="window.toggleTagSelection('${safeNome}')">
                         <span style="width:8px; height:8px; border-radius:50%; background:${ isSel ? '#fff' : t.colore };"></span>
-                        ${t.nome}
+                        ${window.escapeHtml(t.nome)}
                     </div>
                 `;
             }).join('');
@@ -883,7 +884,7 @@
                 return window.AGENDA_TAGS.map((t, idx) => `
                     <div class="tag-manager-row">
                         <span class="card-custom-tag" style="background:${t.colore}; font-size:0.9em; padding:5px 12px;">
-                            ${t.nome}
+                            ${window.escapeHtml(t.nome)}
                         </span>
                         <div style="display:flex; gap:6px;">
                             <button type="button" onclick="window.preparaModificaEtichetta(${idx})" style="background:#e0f2fe; color:#0288d1; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-weight:bold;" title="Modifica">
@@ -968,7 +969,7 @@
             document.getElementById('new-tag-name').value = tag.nome;
             document.getElementById('new-tag-color').value = tag.colore;
             document.getElementById('edit-tag-index').value = idx;
-            document.getElementById('tag-form-title').innerHTML = `✏️ Modifica Etichetta: <b>${tag.nome}</b>`;
+            document.getElementById('tag-form-title').innerHTML = `✏️ Modifica Etichetta: <b>${window.escapeHtml(tag.nome)}</b>`;
             document.getElementById('btn-save-tag-cat').innerText = "Aggiorna";
             document.getElementById('btn-save-tag-cat').style.background = "#3b82f6";
         };
@@ -1183,8 +1184,8 @@
 
         // === FUNZIONE DI DISEGNO SCHEDA (CON ANTEPRIMA ALLEGATO E STATO CONFERMA GRUPPI) ===
         window.renderizzaCard = (p, container, mostraDataBadge = false) => {
-            let telHtml = p.telefono ? `<span><i class="fa fa-phone" style="width:15px;"></i> <a href="tel:${p.telefono}" style="color:inherit; text-decoration:none;">${p.telefono}</a></span>` : '';
-            let noteHtml = p.note_ordine ? `<span style="color: var(--danger-color); font-weight: 500;"><i class="fa fa-circle-exclamation" style="width:15px;"></i> ALTRO: ${p.note_ordine}</span>` : '';
+            let telHtml = p.telefono ? `<span><i class="fa fa-phone" style="width:15px;"></i> <a href="tel:${window.escapeHtml(String(p.telefono).replace(/[^0-9+]/g, ''))}" style="color:inherit; text-decoration:none;">${window.escapeHtml(p.telefono)}</a></span>` : '';
+            let noteHtml = p.note_ordine ? `<span style="color: var(--danger-color); font-weight: 500;"><i class="fa fa-circle-exclamation" style="width:15px;"></i> ALTRO: ${window.escapeHtml(p.note_ordine)}</span>` : '';
             
             let paxArray = [];
             let totPax = 0;
@@ -1230,8 +1231,8 @@
                 }
             }
 
-            let preferenzaBadge = p.preferenza_servizio ? `<span class="badge-servizio"><i class="fa fa-bell-concierge"></i> ${p.preferenza_servizio}</span>` : '';
-            let areaBadge = p.area ? `<span class="badge-servizio" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;"><i class="fa fa-map-pin"></i> ${p.area}</span>` : '';
+            let preferenzaBadge = p.preferenza_servizio ? `<span class="badge-servizio"><i class="fa fa-bell-concierge"></i> ${window.escapeHtml(p.preferenza_servizio)}</span>` : '';
+            let areaBadge = p.area ? `<span class="badge-servizio" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;"><i class="fa fa-map-pin"></i> ${window.escapeHtml(p.area)}</span>` : '';
             let turnoIcon = p.turno === 'Pranzo' ? '<i class="fa-solid fa-sun" style="color:#f59e0b; font-size:0.7em;" title="Pranzo"></i> ' : (p.turno === 'Cena' ? '<i class="fa-solid fa-moon" style="color:#3b82f6; font-size:0.7em;" title="Cena"></i> ' : '');
 
             let customTagsHtml = "";
@@ -1239,16 +1240,16 @@
                 customTagsHtml = p.etichette.map(tagName => {
                     const foundTag = (window.AGENDA_TAGS || []).find(t => t.nome === tagName);
                     const bgCol = foundTag ? foundTag.colore : '#64748b';
-                    return `<span class="card-custom-tag" style="background:${bgCol};">${tagName}</span>`;
+                    return `<span class="card-custom-tag" style="background:${window.escapeHtml(bgCol)};">${window.escapeHtml(tagName)}</span>`;
                 }).join('');
             }
 
             let thumbHtml = "";
             let btnAttachmentHtml = "";
             if (p.allegato_base64) {
-                thumbHtml = `<img src="${p.allegato_base64}" class="card-thumb-preview" title="Tocca per ingrandire l'allegato" onclick="window.apriVisualizzatoreAllegato('${p.id}')">`;
+                thumbHtml = `<img src="${window.immagineSicura(p.allegato_base64)}" class="card-thumb-preview" title="Tocca per ingrandire l'allegato" onclick="window.apriVisualizzatoreAllegato(${window.argJs(p.id)})">`;
                 btnAttachmentHtml = `
-                    <button class="btn-action btn-attachment" title="Visualizza Allegato" onclick="window.apriVisualizzatoreAllegato('${p.id}')">
+                    <button class="btn-action btn-attachment" title="Visualizza Allegato" onclick="window.apriVisualizzatoreAllegato(${window.argJs(p.id)})">
                         <i class="fa fa-paperclip"></i>
                     </button>`;
             }
@@ -1268,7 +1269,7 @@
             }
             
             let btnArrivatoHtml = !isSeduto ? `
-                <button class="btn-action btn-success" title="Cliente Arrivato (Apri Tavolo)" onclick="clienteArrivato('${p.id}', '${(p.nome || 'Cliente').replace(/'/g, "\\'")}')">
+                <button class="btn-action btn-success" title="Cliente Arrivato (Apri Tavolo)" onclick="clienteArrivato(${window.argJs(p.id)}, ${window.argJs(p.nome || 'Cliente')})">
                     <i class="fa fa-check"></i>
                 </button>
             ` : `<span style="color: var(--success-color); font-weight: bold; font-size: 0.9em; padding-right: 10px;"><i class="fa fa-utensils"></i> Al Tavolo</span>`;
@@ -1276,12 +1277,12 @@
             container.innerHTML += `
                 <div class="card">
                     <div class="card-time">
-                        ${turnoIcon}${p.orario || '--:--'}
+                        ${turnoIcon}${window.escapeHtml(p.orario || '--:--')}
                         ${dataBadgeHtml}
                     </div>
                     <div class="card-info">
                         <div class="card-name">
-                            ${(p.nome || 'Cliente').toUpperCase()} 
+                            ${window.escapeHtml((p.nome || 'Cliente').toUpperCase())} 
                             <span class="card-pax ${isBigGroup ? 'big-group' : ''}"><i class="fa fa-users"></i> ${stringaPax}</span>
                             ${seggioloniHtml}
                             ${tavoloBadgeHtml}
@@ -1358,7 +1359,7 @@
                     <div style="display:flex; gap:10px; margin-top: 15px;">
                         <div style="flex:2;">
                             <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Nome Cliente *</div>
-                            <input id="swal-nome" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" placeholder="Es. Mario Rossi" value="${b.nome || ''}">
+                            <input id="swal-nome" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" placeholder="Es. Mario Rossi" value="${window.escapeHtml(b.nome || '')}">
                         </div>
                         <div style="flex:1;">
                             <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Tavolo (Opz.)</div>
@@ -1467,7 +1468,7 @@
                         const esito = window.verificaConflittiTavolo(tavoloPre, ora, null);
                         if (esito.bloccato) {
                             const c = esito.conflitti[0];
-                            Swal.showValidationMessage(`⛔ Tavolo ${tavoloPre} già ${c.isSeduto ? 'occupato' : 'prenotato'} alle ${c.orario} (${c.cliente}). Servono almeno ${MINUTI_MINIMI_STESSO_TAVOLO} min di distanza!`);
+                            Swal.showValidationMessage(`⛔ Tavolo ${tavoloPre} già ${c.isSeduto ? 'occupato' : 'prenotato'} alle ${window.escapeHtml(c.orario)} (${window.escapeHtml(c.cliente)}). Servono almeno ${MINUTI_MINIMI_STESSO_TAVOLO} min di distanza!`);
                             return false;
                         }
                     }
@@ -1540,7 +1541,7 @@
                     <div style="display:flex; gap:10px; margin-top: 15px;">
                         <div style="flex:2;">
                             <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Nome Cliente *</div>
-                            <input id="swal-nome" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${(p.nome || '').replace(/"/g, '&quot;')}">
+                            <input id="swal-nome" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${window.escapeHtml(p.nome || '')}">
                         </div>
                         <div style="flex:1;">
                             <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Tavolo</div>
@@ -1551,11 +1552,11 @@
                     <div style="display:flex; gap:10px; margin-top: 15px;">
                         <div style="flex:1;">
                             <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Orario *</div>
-                            <input id="swal-ora" type="time" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${p.orario || ''}" oninput="window.aggiornaAvvisoTavoloLive('${p.id}')">
+                            <input id="swal-ora" type="time" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${window.escapeHtml(p.orario || '')}" oninput="window.aggiornaAvvisoTavoloLive(${window.argJs(p.id)})">
                         </div>
                         <div style="flex:1;">
                             <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Telefono</div>
-                            <input id="swal-tel" type="tel" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${p.telefono || ''}">
+                            <input id="swal-tel" type="tel" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${window.escapeHtml(p.telefono || '')}">
                         </div>
                     </div>
 
@@ -1617,7 +1618,7 @@
                     ${generaSezioneAllegatoHTML()}
                     
                     <div style="text-align: left; font-size: 0.9em; font-weight: bold; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px;">Altro (Note libere)</div>
-                    <input id="swal-altro" class="swal2-input" style="margin-top:0; width:100%; box-sizing:border-box;" value="${(p.note_ordine || '').replace(/"/g, '&quot;')}">
+                    <input id="swal-altro" class="swal2-input" style="margin-top:0; width:100%; box-sizing:border-box;" value="${window.escapeHtml(p.note_ordine || '')}">
                 `,
                 focusConfirm: false,
                 showCancelButton: true,
@@ -1645,7 +1646,7 @@
                         const esito = window.verificaConflittiTavolo(tavoloPre, ora, p.id);
                         if (esito.bloccato) {
                             const c = esito.conflitti[0];
-                            Swal.showValidationMessage(`⛔ Tavolo ${tavoloPre} già ${c.isSeduto ? 'occupato' : 'prenotato'} alle ${c.orario} (${c.cliente}). Servono almeno ${MINUTI_MINIMI_STESSO_TAVOLO} min di distanza!`);
+                            Swal.showValidationMessage(`⛔ Tavolo ${tavoloPre} già ${c.isSeduto ? 'occupato' : 'prenotato'} alle ${window.escapeHtml(c.orario)} (${window.escapeHtml(c.cliente)}). Servono almeno ${MINUTI_MINIMI_STESSO_TAVOLO} min di distanza!`);
                             return false;
                         }
                     }
@@ -1707,14 +1708,14 @@
                     );
 
                     if (giaOccupato) {
-                        Swal.showValidationMessage(`⛔ Il Tavolo ${t} è già OCCUPATO in questo momento da ${(giaOccupato.nome || 'un altro cliente').toUpperCase()}!`);
+                        Swal.showValidationMessage(`⛔ Il Tavolo ${t} è già OCCUPATO in questo momento da ${window.escapeHtml((giaOccupato.nome || 'un altro cliente').toUpperCase())}!`);
                         return false;
                     }
 
                     const check = window.verificaConflittiTavolo(t, p.orario || '', id);
                     if (check.bloccato) {
                         const c = check.conflitti[0];
-                        Swal.showValidationMessage(`⛔ Tavolo ${t} già prenotato alle ${c.orario} da ${c.cliente} (distanza ${c.diff} min)!`);
+                        Swal.showValidationMessage(`⛔ Tavolo ${t} già prenotato alle ${window.escapeHtml(c.orario)} da ${window.escapeHtml(c.cliente)} (distanza ${c.diff} min)!`);
                         return false;
                     }
 

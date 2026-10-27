@@ -14,6 +14,7 @@
     <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sanitize.js"></script>
     <style>
         :root { --primary: #2962ff; --occupied: #d32f2f; --free: #2e7d32; --reserved: #ffb300; --bg: #050505; --card-bg: #1e1e1e; --text: #ffffff; --gold: #ffea00; --header-bg: #111111; --border: #444; --add-color: #00e676; --rem-color: #ff5252; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -452,8 +453,8 @@
 
         window.apriAllegatoAgendaSala = (base64Img, nomeCli) => {
             Swal.fire({
-                title: `📎 Allegato - ${(nomeCli || 'Cliente').toUpperCase()}`,
-                html: `<img src="${base64Img}" style="max-width:100%; max-height:70vh; border-radius:10px;">`,
+                title: `📎 Allegato - ${window.escapeHtml((nomeCli || 'Cliente').toUpperCase())}`,
+                html: `<img src="${window.immagineSicura(base64Img)}" style="max-width:100%; max-height:70vh; border-radius:10px;">`,
                 background: '#1e1e1e',
                 color: '#fff',
                 confirmButtonColor: '#2962ff',
@@ -466,16 +467,16 @@
             let badges = [];
             let nomeCli = (ord.nome || "").trim();
             if (nomeCli && !nomeCli.toUpperCase().startsWith("TAVOLO")) {
-                badges.push(`<span class="sala-tag-pill" style="background:#334155;">👤 ${nomeCli.toUpperCase()}</span>`);
+                badges.push(`<span class="sala-tag-pill" style="background:#334155;">👤 ${window.escapeHtml(nomeCli.toUpperCase())}</span>`);
             }
             if (ord.orario) {
-                badges.push(`<span class="sala-tag-pill" style="background:#0f766e;"><i class="fa fa-clock"></i> ${ord.orario}</span>`);
+                badges.push(`<span class="sala-tag-pill" style="background:#0f766e;"><i class="fa fa-clock"></i> ${window.escapeHtml(ord.orario)}</span>`);
             }
             if (ord.area) {
-                badges.push(`<span class="sala-tag-pill" style="background:#0288d1;"><i class="fa fa-location-dot"></i> ${ord.area}</span>`);
+                badges.push(`<span class="sala-tag-pill" style="background:#0288d1;"><i class="fa fa-location-dot"></i> ${window.escapeHtml(ord.area)}</span>`);
             }
             if (ord.preferenza_servizio) {
-                badges.push(`<span class="sala-tag-pill" style="background:#6a1b9a;"><i class="fa fa-bell-concierge"></i> ${ord.preferenza_servizio}</span>`);
+                badges.push(`<span class="sala-tag-pill" style="background:#6a1b9a;"><i class="fa fa-bell-concierge"></i> ${window.escapeHtml(ord.preferenza_servizio)}</span>`);
             }
             if (ord.bambini && parseInt(ord.bambini) > 0) {
                 badges.push(`<span class="sala-tag-pill" style="background:#00897b;">🧒 ${ord.bambini} Bamb.</span>`);
@@ -486,16 +487,14 @@
             if (Array.isArray(ord.etichette) && ord.etichette.length > 0) {
                 ord.etichette.forEach(tagName => {
                     const col = window.AGENDA_TAGS_MAP[tagName] || '#8b5cf6';
-                    badges.push(`<span class="sala-tag-pill" style="background:${col};">${tagName}</span>`);
+                    badges.push(`<span class="sala-tag-pill" style="background:${window.escapeHtml(col)};">${window.escapeHtml(tagName)}</span>`);
                 });
             }
             if (ord.allegato_base64) {
-                const safeImg = ord.allegato_base64.replace(/'/g, "\\'");
-                const safeNome = (ord.nome || 'Cliente').replace(/'/g, "\\'");
-                badges.push(`<span class="sala-tag-pill" style="background:#9333ea; cursor:pointer;" onclick="window.apriAllegatoAgendaSala('${safeImg}', '${safeNome}')"><i class="fa fa-paperclip"></i> Foto</span>`);
+                badges.push(`<span class="sala-tag-pill" style="background:#9333ea; cursor:pointer;" onclick="window.apriAllegatoAgendaSala(${window.argJs(ord.allegato_base64)}, ${window.argJs(ord.nome || 'Cliente')})"><i class="fa fa-paperclip"></i> Foto</span>`);
             }
             if (ord.note_ordine && ord.note_ordine.trim() !== "") {
-                badges.push(`<span class="sala-tag-pill" style="background:#d32f2f; width:100%; justify-content:center; margin-top:2px;">📝 NOTE: ${ord.note_ordine}</span>`);
+                badges.push(`<span class="sala-tag-pill" style="background:#d32f2f; width:100%; justify-content:center; margin-top:2px;">📝 NOTE: ${window.escapeHtml(ord.note_ordine)}</span>`);
             }
             return badges.join('');
         };
@@ -966,9 +965,9 @@
                  const paxC = o.coperti || 2;
                  const statoC = o.stato === 'Prenotato' ? '📅 Prenotato' : '🪑 Al Tavolo';
                  htmlScelta += `
-                    <button onclick="window._selezionaSubOrdineTavolo('${o.id}', '${tableId}')" style="background:#222; border:1px solid #444; color:white; padding:12px; border-radius:8px; cursor:pointer; text-align:left; display:flex; justify-content:space-between; align-items:center;">
+                    <button onclick="window._selezionaSubOrdineTavolo(${window.argJs(o.id)}, ${window.argJs(tableId)})" style="background:#222; border:1px solid #444; color:white; padding:12px; border-radius:8px; cursor:pointer; text-align:left; display:flex; justify-content:space-between; align-items:center;">
                         <div>
-                            <b style="color:var(--gold); font-size:1.1em;">${oraC} - ${nomeC.toUpperCase()}</b>
+                            <b style="color:var(--gold); font-size:1.1em;">${window.escapeHtml(oraC)} - ${window.escapeHtml(nomeC.toUpperCase())}</b>
                             <div style="font-size:0.85em; color:#aaa;">${paxC} Persone | ${statoC}</div>
                         </div>
                         <i class="fa fa-chevron-right" style="color:#666;"></i>
@@ -1479,7 +1478,7 @@
                 const turnoColor = colors[groupItem.turno] || colors[1];
                 const displayQta = groupItem.isPeso ? groupItem.qta.toFixed(3) : groupItem.qta;
                 let detDaMostrare = groupItem.dettagli === 'Normale' ? '' : (groupItem.dettagli || '');
-                htmlString += `<div class="cart-item" style="border-left-color:${turnoColor}"><div class="cart-row-top"><div class="cart-prod-name">${groupItem.nome}</div><div class="cart-controls"><div class="qty-box"><button class="btn-qty" onclick="changeGroupQty(${idx}, -1)">-</button><span class="qty-val" style="font-size:11px;">${displayQta}${groupItem.isPeso?'kg':''}</span><button class="btn-qty" onclick="changeGroupQty(${idx}, 1)">+</button></div><b style="color:var(--gold); font-size:13px; margin-right:5px;">€${parseFloat(groupItem.prezzo * groupItem.qta).toFixed(2)}</b><i class="fa fa-pencil btn-edit-cart" onclick="editGroupItem(${idx})"></i><i class="fa fa-trash btn-trash" onclick="removeGroup(${idx})"></i></div></div><div style="font-size:11px; margin-bottom:8px; line-height:1.3; color:#ccc;">${detDaMostrare}</div><div class="turno-row">${[1,2,3,4,5].map(t => `<div class="turno-btn ${groupItem.turno==t?'active':''}" onclick="setGroupTurno(${idx},${t})">${t}</div>`).join('')}</div></div>`;
+                htmlString += `<div class="cart-item" style="border-left-color:${turnoColor}"><div class="cart-row-top"><div class="cart-prod-name">${window.escapeHtml(groupItem.nome)}</div><div class="cart-controls"><div class="qty-box"><button class="btn-qty" onclick="changeGroupQty(${idx}, -1)">-</button><span class="qty-val" style="font-size:11px;">${displayQta}${groupItem.isPeso?'kg':''}</span><button class="btn-qty" onclick="changeGroupQty(${idx}, 1)">+</button></div><b style="color:var(--gold); font-size:13px; margin-right:5px;">€${parseFloat(groupItem.prezzo * groupItem.qta).toFixed(2)}</b><i class="fa fa-pencil btn-edit-cart" onclick="editGroupItem(${idx})"></i><i class="fa fa-trash btn-trash" onclick="removeGroup(${idx})"></i></div></div><div style="font-size:11px; margin-bottom:8px; line-height:1.3; color:#ccc;">${window.sanitizeHtml(detDaMostrare)}</div><div class="turno-row">${[1,2,3,4,5].map(t => `<div class="turno-btn ${groupItem.turno==t?'active':''}" onclick="setGroupTurno(${idx},${t})">${t}</div>`).join('')}</div></div>`;
             });
             list.innerHTML = htmlString;
         };
@@ -1495,7 +1494,7 @@
 
         window.removeGroup = (groupIndex) => {
             const item = window.groupedCartView[groupIndex]; if (!item) return;
-            Swal.fire({ title: 'Eliminare ' + item.nome + '?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sì, elimina', cancelButtonText: 'Annulla' }).then((result) => {
+            Swal.fire({ title: 'Eliminare ' + window.escapeHtml(item.nome) + '?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sì, elimina', cancelButtonText: 'Annulla' }).then((result) => {
                 if (result.isConfirmed) {
                     window.carrello = window.carrello.filter(c => {
                         let cDet = (c.dettagli === 'Normale' || c.dettagli === 'Manuale') ? '' : (c.dettagli || ''); 

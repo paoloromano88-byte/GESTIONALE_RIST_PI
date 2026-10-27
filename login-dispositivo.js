@@ -89,16 +89,41 @@ function mostraAccountNonAbilitato(user, senzaLocale = false) {
     document.body.appendChild(overlay);
 }
 
+// Avviso "senza internet" mentre si riprova a leggere il profilo dell'account
+function avvisoConnessione(mostra) {
+    let box = document.getElementById('login-dispositivo-rete');
+    if (!mostra) { if (box) box.remove(); return; }
+    if (box) return;
+    box = document.createElement('div');
+    box.id = 'login-dispositivo-rete';
+    box.style.cssText = 'position:fixed; inset:0; z-index:2147483000; display:flex; align-items:center; justify-content:center; padding:20px; background:#0f172a; color:#fff; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align:center;';
+    box.innerHTML = `
+        <div style="max-width:360px;">
+            <div style="font-size:2.4em; margin-bottom:8px;">📡</div>
+            <h2 style="margin:0 0 10px 0; font-size:1.2em;">Connessione assente</h2>
+            <p style="color:#cbd5e1; font-size:0.95em; margin:0;">Controlla internet: riprovo da solo appena torna la connessione.</p>
+        </div>`;
+    document.body.appendChild(box);
+}
+
 // Legge il profilo dell'account (utenti/{uid}) e apre il locale giusto.
 // Restituisce il profilo, oppure null se l'account non è abilitato (in quel caso mostra il blocco).
+// Senza internet non è un account non abilitato: si riprova finché la lettura riesce.
 export async function verificaAccountLocale(user) {
     let profilo = null;
-    try {
-        const snap = await getDoc(doc(getFirestore(getApps()[0]), 'utenti', user.uid));
-        profilo = snap.exists() ? snap.data() : null;
-    } catch (e) {
-        console.warn("Lettura profilo account non riuscita:", e);
+    for (let tentativo = 0; ; tentativo++) {
+        try {
+            const snap = await getDoc(doc(getFirestore(getApps()[0]), 'utenti', user.uid));
+            profilo = snap.exists() ? snap.data() : null;
+            break;
+        } catch (e) {
+            console.warn("Lettura profilo account non riuscita:", e);
+            if (e?.code === 'permission-denied') break;
+            avvisoConnessione(true);
+            await new Promise(r => setTimeout(r, Math.min(2000 * (tentativo + 1), 10000)));
+        }
     }
+    avvisoConnessione(false);
     if (!profilo || !['locale', 'superadmin'].includes(profilo.ruolo)) {
         mostraAccountNonAbilitato(user);
         return null;

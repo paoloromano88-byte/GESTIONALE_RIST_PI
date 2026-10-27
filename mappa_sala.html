@@ -11,6 +11,7 @@
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="sanitize.js"></script>
     <style>
         :root {
             --bg-dark: #0b1120;
@@ -735,7 +736,7 @@
                     const d = snap.data();
                     applicaLogoLocale(d.logo_url);
                     if (d.nome) {
-                        document.getElementById('header-locale-name').innerHTML = `<i class="fa-solid fa-map-location-dot"></i> <span>${d.nome.toUpperCase()}</span>`;
+                        document.getElementById('header-locale-name').innerHTML = `<i class="fa-solid fa-map-location-dot"></i> <span>${window.escapeHtml(d.nome.toUpperCase())}</span>`;
                         document.title = `Mappa - ${d.nome}`;
                     }
                     if (d.prezzo_coperto !== undefined) prezzoCopertoLocale = parseFloat(d.prezzo_coperto) || 2.50;
@@ -814,7 +815,7 @@
                 const countTav = (LAYOUT_DATA.tavoli || []).filter(t => t.sala === s.id).length;
                 return `
                     <div class="room-tab ${s.id === currentRoomId ? 'active' : ''}" onclick="window.selezionaSala('${s.id}')">
-                        ${s.nome}
+                        ${window.escapeHtml(s.nome)}
                         <span style="background:rgba(0,0,0,0.3); padding:1px 6px; border-radius:10px; font-size:0.78em;">${countTav}</span>
                     </div>
                 `;
@@ -1021,7 +1022,7 @@
                     <div class="table-surface shape-${t.forma}" style="width:${geom.width}px; height:${geom.height}px;">
                         <div class="t-label-num">${t.numero}</div>
                         ${clientLabel ? `<div class="t-label-client">${clientLabel}</div>` : ''}
-                        <div class="t-label-meta">${metaLabel}</div>
+                        <div class="t-label-meta">${window.escapeHtml(metaLabel)}</div>
                     </div>
                 `;
 
@@ -1338,7 +1339,7 @@
             if (LAYOUT_DATA.sale.length <= 1) return Swal.fire("Attenzione", "Deve rimanere almeno una sala.", "warning");
             const sala = LAYOUT_DATA.sale.find(s => s.id === currentRoomId);
             const res = await Swal.fire({
-                title: `Eliminare "${sala?.nome}"?`, icon: 'warning', showCancelButton: true,
+                title: `Eliminare "${window.escapeHtml(sala?.nome)}"?`, icon: 'warning', showCancelButton: true,
                 confirmButtonColor: '#dc2626', background: '#1e293b', color: '#fff'
             });
             if (res.isConfirmed) {
@@ -1395,17 +1396,17 @@
 
             const ord = ordiniTav[0];
             const isPren = ord.stato === 'Prenotato';
-            const righeProd = (ord.prodotti || []).map(p => `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed #334155;"><span><b>${p.qta}x</b> ${p.nome}</span><span style="color:var(--gold);">€${(p.prezzo * p.qta).toFixed(2)}</span></div>`).join('');
+            const righeProd = (ord.prodotti || []).map(p => `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed #334155;"><span><b>${window.escapeHtml(p.qta)}x</b> ${window.escapeHtml(p.nome)}</span><span style="color:var(--gold);">€${(p.prezzo * p.qta).toFixed(2)}</span></div>`).join('');
 
             Swal.fire({
-                title: `Tavolo ${num} — ${(ord.nome || 'Cliente').toUpperCase()}`,
+                title: `Tavolo ${window.escapeHtml(num)} — ${window.escapeHtml((ord.nome || 'Cliente').toUpperCase())}`,
                 html: `
                     <div style="text-align:left; font-size:0.9em;">
                         <div style="background:#0f172a; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #334155;">
-                            <div>📍 <b>${ord.area || salaNome}</b> | 👥 <b>${ord.coperti || tavoloObj.sedie}p</b> | 🕒 <b>${ord.orario || '--:--'}</b></div>
-                            ${ord.preferenza_servizio ? `<div style="margin-top:4px; color:#38bdf8; font-weight:bold;">🍽️ ${ord.preferenza_servizio}</div>` : ''}
-                            ${Array.isArray(ord.etichette) && ord.etichette.length ? `<div style="margin-top:4px; color:#fbbf24; font-weight:bold;">🏷️ ${ord.etichette.join(' • ')}</div>` : ''}
-                            ${ord.note_ordine ? `<div style="margin-top:4px; color:#f87171; font-weight:bold;">📝 ${ord.note_ordine}</div>` : ''}
+                            <div>📍 <b>${window.escapeHtml(ord.area || salaNome)}</b> | 👥 <b>${window.escapeHtml(ord.coperti || tavoloObj.sedie)}p</b> | 🕒 <b>${window.escapeHtml(ord.orario || '--:--')}</b></div>
+                            ${ord.preferenza_servizio ? `<div style="margin-top:4px; color:#38bdf8; font-weight:bold;">🍽️ ${window.escapeHtml(ord.preferenza_servizio)}</div>` : ''}
+                            ${Array.isArray(ord.etichette) && ord.etichette.length ? `<div style="margin-top:4px; color:#fbbf24; font-weight:bold;">🏷️ ${window.escapeHtml(ord.etichette.join(' • '))}</div>` : ''}
+                            ${ord.note_ordine ? `<div style="margin-top:4px; color:#f87171; font-weight:bold;">📝 ${window.escapeHtml(ord.note_ordine)}</div>` : ''}
                         </div>
                         ${!isPren ? `
                             <div style="max-height:150px; overflow-y:auto; background:#0f172a; padding:8px; border-radius:8px; margin-bottom:8px;">

@@ -124,8 +124,8 @@ window.ordiniPerOrarioMap = {};
 // ============================================================================
 window.apriAllegatoAgendaInCassa = (base64Img, nomeCli) => {
     Swal.fire({
-        title: `📎 Allegato - ${(nomeCli || 'Cliente').toUpperCase()}`,
-        html: `<img src="${base64Img}" style="max-width:100%; max-height:70vh; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.4);">`,
+        title: `📎 Allegato - ${window.escapeHtml((nomeCli || 'Cliente').toUpperCase())}`,
+        html: `<img src="${window.immagineSicura(base64Img)}" style="max-width:100%; max-height:70vh; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.4);">`,
         background: '#1e1e1e',
         color: '#fff',
         confirmButtonColor: '#2962ff',
@@ -149,7 +149,7 @@ window.generaBadgeAgendaPerCassa = (o) => {
     }
 
     if (o.area) {
-        badges.push(`<span style="background:#334155; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:800;">📍 ${o.area}</span>`);
+        badges.push(`<span style="background:#334155; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:800;">📍 ${window.escapeHtml(o.area)}</span>`);
     }
 
     if (Array.isArray(o.etichette) && o.etichette.length > 0) {
@@ -158,16 +158,14 @@ window.generaBadgeAgendaPerCassa = (o) => {
             if (low.includes('senza glutine') || low.includes('glutine') || low.includes('celiac') || low.includes('gf')) {
                 badges.push(`<span style="background:#ffea00; color:#b71c1c; border:1px solid #f44336; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:900;">🌾 SENZA GLUTINE</span>`);
             } else {
-                badges.push(`<span style="background:#475569; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.73em; font-weight:700;">${t}</span>`);
+                badges.push(`<span style="background:#475569; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.73em; font-weight:700;">${window.escapeHtml(t)}</span>`);
             }
         });
     }
 
     if (o.allegato_base64) {
-        const safeImg = o.allegato_base64.replace(/'/g, "\\'");
-        const safeNome = (o.nome || 'Cliente').replace(/'/g, "\\'");
         badges.push(`
-            <button onclick="event.stopPropagation(); window.apriAllegatoAgendaInCassa('${safeImg}', '${safeNome}')" 
+            <button onclick="event.stopPropagation(); window.apriAllegatoAgendaInCassa(${window.argJs(o.allegato_base64)}, ${window.argJs(o.nome || 'Cliente')})" 
                     style="background:#9333ea; color:#fff; border:none; padding:3px 9px; border-radius:6px; font-size:0.75em; font-weight:900; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
                 <i class="fa fa-paperclip"></i> Foto
             </button>
@@ -596,8 +594,20 @@ async function init() {
     if (document.getElementById('qr-menu-img')) document.getElementById('qr-menu-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(linkMenuQR)}`;
     if (document.getElementById('qr-app-img')) document.getElementById('qr-app-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(linkAppQR)}`;
 
-    const docSnap = await getDoc(doc(db, "impostazioni", "stampanti")); if(docSnap.exists()) PRINTER_CONFIG = docSnap.data();
+    // Impostazioni stampanti sempre aggiornate: se da un altro dispositivo si passa da QZ Tray
+    // all'Agente di stampa (o al contrario) questo PC cambia subito, senza stampe doppie o mancanti
+    await new Promise(resolve => {
+        let primo = true;
+        onSnapshot(doc(db, "impostazioni", "stampanti"), (snap) => {
+            const metodoPrima = metodoStampa();
+            if (snap.exists()) PRINTER_CONFIG = snap.data();
+            if (primo) { primo = false; resolve(); return; }
+            if (metodoStampa() !== metodoPrima) avviaMonitorStampa(); else aggiornaSemaforoStampa();
+        }, (err) => { console.error("Impostazioni stampanti:", err); if (primo) { primo = false; resolve(); } });
+    });
     avviaMonitorStampa();
+    // Copia pubblica dei codici sconto per l'App Clienti (anche per quelli creati prima di questa versione)
+    window.caricaSconti().catch(e => console.warn("Codici sconto:", e));
     
     // Ascolto in tempo reale dei dati del ristorante selezionato
     onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
@@ -744,9 +754,25 @@ async function init() {
 }
 
 
+// L'App Clienti non può elencare i codici sconto: controlla solo il codice scritto dal cliente,
+// leggendo codici_sconto/{CODICE}. Qui si tiene questa copia allineata alla raccolta sconti.
+const idCodiceSconto = (s) => String(s.codice || s.nome || '').trim().toUpperCase().replace(/\//g, '_');
+async function sincronizzaCodiciSconto(sconti) {
+    const pubblici = await getDocs(collection(db, "codici_sconto"));
+    const voluti = new Map();
+    sconti.forEach(s => { const id = idCodiceSconto(s); if (id && !/^\.\.?$|^__.*__$/.test(id)) voluti.set(id, { tipo: s.tipo || 'percent', valore: parseFloat(s.valore ?? s.val ?? 0) || 0 }); });
+    const esistenti = new Map(pubblici.docs.map(d => [d.id, d.data()]));
+    for (const [id, dati] of voluti) {
+        const e = esistenti.get(id);
+        if (!e || e.tipo !== dati.tipo || e.valore !== dati.valore) await setDoc(doc(db, "codici_sconto", id), dati);
+    }
+    for (const id of esistenti.keys()) if (!voluti.has(id)) await deleteDoc(doc(db, "codici_sconto", id));
+}
+
 window.caricaSconti = async () => {
     const snap = await getDocs(collection(db, "sconti"));
     window.SCONTI_CACHE = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    sincronizzaCodiciSconto(window.SCONTI_CACHE).catch(e => console.warn("Codici sconto per l'App:", e));
     const l = document.getElementById('lista-sconti');
     if (!l) return;
     l.innerHTML = "";
@@ -1148,6 +1174,7 @@ function caricaOrdiniPerData(dateObj) {
         
         ordini.sort((a,b) => (a.orario || "23:59").localeCompare(b.orario || "23:59")); 
         ordiniCache = ordini;
+        window.ordiniGiornoCassa = ordini;
         ordiniCacheData = dateStr;
         pubblicaOccupazioneForno();
 
@@ -2172,6 +2199,8 @@ window.salvaModificheOrdine = async () => {
         updateData.timestamp_messaggio = serverTimestamp();
         updateData.ultime_aggiunte_real = oggettiAggiunti; 
         updateData.ultimi_storni_real = oggettiRimossi;
+        // Gli spostamenti di turno di un messaggio precedente non vanno ristampati con questo
+        updateData.ultimi_spostamenti_real = [];
     }
 
     await updateDoc(doc(db, "ordini", currentEditOrderId), updateData);
@@ -2206,11 +2235,15 @@ window.inviaSegnaleVia = async (id, turno) => {
 //    (ESP32 o PC, vedi agente-stampa/) la manda alla stampante. Non serve QZ Tray.
 const metodoStampa = () => (PRINTER_CONFIG.metodo === 'agente' ? 'agente' : 'qz');
 
+// opzioni.ordine: l'ordine della stampa (per il blocco "consegna a domicilio"), se c'è
 function inviaStampaTermica(ip, data, opzioni = {}) {
     const { encoding, stampante = '', descrizione = '' } = opzioni;
+    const prepara = (d) => (typeof window.preparaDatiStampaTermica === 'function'
+        ? ('ordine' in opzioni ? window.preparaDatiStampaTermica(d, opzioni.ordine || null) : window.preparaDatiStampaTermica(d))
+        : d);
     let invio;
     if (metodoStampa() === 'agente') {
-        const pronti = typeof window.preparaDatiStampaTermica === 'function' ? window.preparaDatiStampaTermica(data) : data;
+        const pronti = prepara(data);
         const [host, porta] = String(ip || '').trim().replace(/^https?:\/\//, '').split(':');
         invio = addDoc(collection(db, 'coda_stampa'), {
             stampante: String(stampante), descrizione: String(descrizione).slice(0, 80),
@@ -2220,7 +2253,7 @@ function inviaStampaTermica(ip, data, opzioni = {}) {
     } else if (typeof qz === 'undefined') {
         invio = Promise.reject(new Error('QZ Tray non caricato'));
     } else {
-        invio = qz.print(encoding ? qz.configs.create({ host: ip, port: 9100 }, { encoding }) : qz.configs.create({ host: ip, port: 9100 }), data);
+        invio = qz.print(encoding ? qz.configs.create({ host: ip, port: 9100 }, { encoding }) : qz.configs.create({ host: ip, port: 9100 }), prepara(data));
     }
     return invio.then(r => { segnalaEsitoStampa(true); return r; }, err => { segnalaEsitoStampa(false); throw err; });
 }
@@ -2288,6 +2321,8 @@ function aggiornaSemaforoStampa() {
 }
 setInterval(aggiornaSemaforoStampa, 5000);
 
+const inStampaDa = new Map();   // id comanda -> da quando la vediamo "in_stampa"
+
 // In modalità agente ascolta gli agenti e la coda del locale
 function avviaMonitorStampa() {
     ascoltiStampa.forEach(stop => stop());
@@ -2300,6 +2335,11 @@ function avviaMonitorStampa() {
     }, err => console.error('Agenti di stampa:', err)));
     ascoltiStampa.push(onSnapshot(collection(db, 'coda_stampa'), snap => {
         statoStampa.coda = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Da quanto una comanda è "in stampa": se un agente la sta stampando adesso non va rimessa in coda
+        const adesso = Date.now();
+        const inStampa = new Set(statoStampa.coda.filter(c => c.stato === 'in_stampa').map(c => c.id));
+        for (const id of inStampaDa.keys()) if (!inStampa.has(id)) inStampaDa.delete(id);
+        inStampa.forEach(id => { if (!inStampaDa.has(id)) inStampaDa.set(id, adesso); });
         aggiornaSemaforoStampa();
     }, err => console.error('Coda di stampa:', err)));
 }
@@ -2350,11 +2390,13 @@ window.scollegaAgenteStampa = async (id) => {
 window.eliminaAgenteStampa = async (id) => { await deleteDoc(doc(db, 'agenti_stampa', id)); };
 
 window.riprovaCodaStampa = async () => {
-    const ferme = statoStampa.coda.filter(comandaFerma);
-    const batch = writeBatch(db);
-    ferme.forEach(c => batch.update(doc(db, 'coda_stampa', c.id), { stato: 'da_stampare', tentativi: 0, errore: '', creato: serverTimestamp() }));
-    await batch.commit();
-    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `${ferme.length} comande rimesse in stampa`, showConfirmButton: false, timer: 2000 });
+    // Una comanda che un agente sta stampando in questo momento non si rimette in coda (uscirebbe due volte)
+    const adesso = Date.now();
+    const ferme = statoStampa.coda.filter(comandaFerma).filter(c => c.stato !== 'in_stampa' || adesso - (inStampaDa.get(c.id) || adesso) > 60000);
+    // Una per una: se nel frattempo una è stata stampata e tolta dalla coda, le altre ripartono lo stesso
+    const esiti = await Promise.allSettled(ferme.map(c => updateDoc(doc(db, 'coda_stampa', c.id), { stato: 'da_stampare', tentativi: 0, errore: '', creato: serverTimestamp() })));
+    const riuscite = esiti.filter(e => e.status === 'fulfilled').length;
+    Swal.fire({ toast: true, position: 'top-end', icon: riuscite || !ferme.length ? 'success' : 'warning', title: `${riuscite} comande rimesse in stampa`, showConfirmButton: false, timer: 2000 });
 };
 
 window.scartaCodaStampa = async () => {
@@ -2404,12 +2446,13 @@ window.stampaVia = (id, _u1, _u2, reparto) => {
     if(!o || !o.messaggio_cucina) return; 
 
     const repKey = reparto.toLowerCase().trim();
-    let printerIp = '192.168.1.131'; 
-    if (PRINTER_CONFIG[repKey] && PRINTER_CONFIG[repKey].ip) printerIp = PRINTER_CONFIG[repKey].ip;
+    // Reparto senza stampante impostata: niente da stampare (come le comande dal server)
+    const printerIp = String(PRINTER_CONFIG[repKey]?.ip || '').trim();
+    if (!printerIp) return;
 
     const stampaReparto = datiMessaggioCucina(o, repKey, contestoStampa());
     if (!stampaReparto) return;
-    inviaStampaTermica(printerIp, stampaReparto.data, { ...(stampaReparto.encoding ? { encoding: stampaReparto.encoding } : {}), stampante: repKey, descrizione: `${repKey.toUpperCase()} · ${descrizioneStampa(o)}` }).catch(e => console.error("Errore stampa:", e));
+    inviaStampaTermica(printerIp, stampaReparto.data, { ...(stampaReparto.encoding ? { encoding: stampaReparto.encoding } : {}), stampante: repKey, descrizione: `${repKey.toUpperCase()} · ${descrizioneStampa(o)}`, ordine: o }).catch(e => console.error("Errore stampa:", e));
 };
 
 window.chiudiTavolo = async (id) => {
@@ -3162,7 +3205,7 @@ window.stampa = (id, reparto) => {
     }));
     if (isConto) window.divisoreTemp = 1;
     if (!stampaOrdine) return;
-    inviaStampaTermica(printerIp, stampaOrdine.data, { stampante: repKey, descrizione: `${stampaOrdine.titolo} · ${descrizioneStampa(o)}` }).catch(e => console.error(e));
+    inviaStampaTermica(printerIp, stampaOrdine.data, { stampante: repKey, descrizione: `${stampaOrdine.titolo} · ${descrizioneStampa(o)}`, ordine: o }).catch(e => console.error(e));
 };
 // ============================================================================
 // CASSA.JS - PARTE 4 DI 4
@@ -3808,10 +3851,10 @@ window.calcolaStats = async () => {
             foundCats.forEach(cat => {
                 let products = Object.entries(statsPerCat[cat]).sort((a,b) => b[1] - a[1]);
                 let catLabel = CATEGORY_LABELS[cat] || cat.toUpperCase();
-                let html = `<div class="cat-rank-title">${catLabel}</div><table class="ranking-table"><tbody>`;
+                let html = `<div class="cat-rank-title">${window.escapeHtml(catLabel)}</div><table class="ranking-table"><tbody>`;
                 products.forEach((prod, index) => {
                     let qtyDisplay = prod[1] % 1 === 0 ? prod[1] : prod[1].toFixed(3);
-                    html += `<tr><td style="width:30px;">${index+1}</td><td>${prod[0]}</td><td style="width:50px; text-align:right;"><b>${qtyDisplay}</b></td></tr>`;
+                    html += `<tr><td style="width:30px;">${index+1}</td><td>${window.escapeHtml(prod[0])}</td><td style="width:50px; text-align:right;"><b>${qtyDisplay}</b></td></tr>`;
                 });
                 html += `</tbody></table>`;
                 rankingContainer.innerHTML += html;
@@ -3889,7 +3932,7 @@ window.caricaCestino = async () => {
                         <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #eee; padding-top:5px;">
                             <b>Tot: € ${totale}</b>
                             <div>
-                                <button onclick="ripristinaOrdine('${d.id}', '${d.tipo}')" style="background:#2e7d32; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
+                                <button onclick="ripristinaOrdine('${window.safeId(d.id)}', '${window.safeId(d.tipo)}')" style="background:#2e7d32; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
                                     <i class="fa fa-undo"></i> RIPRISTINA
                                 </button>
                             </div>
@@ -4955,8 +4998,8 @@ window.caricaStoricoData = async () => {
             html += `
             <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:10px; border-left:5px solid #607d8b; display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                    <b style="font-size:1.2em; color:var(--gold);"><i class="fa ${icona}"></i> ${identificativo}</b><br>
-                    <small style="color:#aaa;">Orario: ${o.orario || '--:--'} | Totale: €${parseFloat(o.totale || 0).toFixed(2)}</small>
+                    <b style="font-size:1.2em; color:var(--gold);"><i class="fa ${icona}"></i> ${window.escapeHtml(identificativo)}</b><br>
+                    <small style="color:#aaa;">Orario: ${window.escapeHtml(o.orario || '--:--')} | Totale: €${parseFloat(o.totale || 0).toFixed(2)}</small>
                 </div>
                 <div>
                     <button onclick="vediDettagliStorico('${window.safeId(o.id)}')" style="background:#2196f3; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">

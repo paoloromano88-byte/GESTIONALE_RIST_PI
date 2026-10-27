@@ -1558,8 +1558,8 @@
         // 2. FUNZIONI GLOBALI ETICHETTE, ALLEGATI E STAMPA CUCINA CON DOMICILIO
         window.apriAllegatoAgendaInCassa = (base64Img, nomeCli) => {
             Swal.fire({
-                title: `📎 Allegato - ${(nomeCli || 'Cliente').toUpperCase()}`,
-                html: `<img src="${base64Img}" style="max-width:100%; max-height:70vh; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.4);">`,
+                title: `📎 Allegato - ${window.escapeHtml((nomeCli || 'Cliente').toUpperCase())}`,
+                html: `<img src="${window.immagineSicura(base64Img)}" style="max-width:100%; max-height:70vh; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.4);">`,
                 background: '#1e1e1e',
                 color: '#fff',
                 confirmButtonColor: '#2962ff',
@@ -1593,10 +1593,8 @@
             }
 
             if (o.allegato_base64) {
-                const safeImg = o.allegato_base64.replace(/'/g, "\\'");
-                const safeNome = (o.nome || 'Cliente').replace(/'/g, "\\'");
                 badges.push(`
-                    <button onclick="event.stopPropagation(); window.apriAllegatoAgendaInCassa('${safeImg}', '${safeNome}')" 
+                    <button onclick="event.stopPropagation(); window.apriAllegatoAgendaInCassa(${window.argJs(o.allegato_base64)}, ${window.argJs(o.nome || 'Cliente')})" 
                             style="background:#9333ea; color:#fff; border:none; padding:2px 8px; border-radius:5px; font-size:0.75em; font-weight:900; cursor:pointer;">
                         <i class="fa fa-paperclip"></i> Allegato
                     </button>
@@ -1691,6 +1689,15 @@
         window.mappaOrdiniDomicilio = {};
         window.tuttiOrdiniCassaCache = {};
 
+        // Ordini a domicilio conosciuti: da oggi in poi + quelli del giorno mostrato in cassa (window.ordiniGiornoCassa)
+        function ordiniDomicilioNoti() {
+            const tutti = { ...window.mappaOrdiniDomicilio };
+            (window.ordiniGiornoCassa || []).forEach(o => {
+                if (o && o.id && (o.tipo === 'DOMICILIO' || (o.indirizzo && String(o.indirizzo).trim() !== ''))) tutti[o.id] = o;
+            });
+            return Object.values(tutti);
+        }
+
         setTimeout(() => {
             const origCalcolaStats = window.calcolaStats;
 
@@ -1726,7 +1733,7 @@
                             const cat = String(it.categoria || it.cat || '').toLowerCase();
                             const nome = String(it.nome || '').toLowerCase();
                             if (cat.includes('pizz') || cat === 'stirata' || cat === 'gf' || nome.includes('pizza')) {
-                                pizzeDom += parseFloat(it.quantita || it.qty || 1) || 1;
+                                pizzeDom += parseFloat(it.qta ?? it.quantita ?? it.qty ?? 1) || 0;
                             }
                         });
                     });
@@ -1771,7 +1778,7 @@
                 document.getElementById('grid-pronti'),
                 document.getElementById('kds-grid')
             ];
-            const listaDomicilio = Object.values(window.mappaOrdiniDomicilio);
+            const listaDomicilio = ordiniDomicilioNoti();
             if (listaDomicilio.length === 0) return;
 
             grids.forEach(grid => {
@@ -1846,7 +1853,10 @@
         }
 
         // Sincronizzazione in tempo reale con Firebase per tutti gli ordini
-        onSnapshot(collection(db, "ordini"), (snap) => {
+        // Solo gli ordini da oggi in poi (più quelli del giorno mostrato in cassa, vedi ordiniDomicilioNoti):
+        // scaricare tutta la storia rendeva la cassa sempre più lenta, e un vecchio ordine a domicilio
+        // dello stesso cliente poteva finire sulla comanda di un asporto di oggi
+        onSnapshot(query(collection(db, "ordini"), where("data_ritiro", ">=", oggiStr)), (snap) => {
             const nuovaMappa = {};
             const cacheCompleta = {};
             snap.forEach(d => {
@@ -1954,7 +1964,7 @@
     <!-- 6. MOTORE DI STAMPA TERMICA AUTOMATICA PER CONSEGNA A DOMICILIO (QZ TRAY + HTML) -->
     <!-- Il testo ESC/POS (blocco domicilio, QR, solo ASCII) viene da comande-escpos.js, lo stesso del server -->
     <script type="module">
-            import { pulisciTestoESC, bloccoDomicilioESC, urlQrConsegna, codiceBreveOrdine, datiQrConsegnaESC, applicaBloccoDomicilio, pulisciDatiStampa, isTestoSemplice } from "./comande-escpos.js";
+            import { pulisciTestoESC, bloccoDomicilioESC, urlQrConsegna, codiceBreveOrdine, datiQrConsegnaESC, applicaBloccoDomicilio, pulisciDatiStampa, isTestoSemplice, isDomicilio } from "./comande-escpos.js";
 
             window.pulisciTestoESC = pulisciTestoESC;
             window.generaBloccoTermicoDomicilioESC = bloccoDomicilioESC;
@@ -1989,9 +1999,9 @@
             };
 
             function trovaOrdineDomicilioDaTesto(testoStampa) {
-                if (!testoStampa || !window.mappaOrdiniDomicilio) return null;
+                if (!testoStampa) return null;
                 const upperText = String(testoStampa).toUpperCase();
-                const listaDom = Object.values(window.mappaOrdiniDomicilio);
+                const listaDom = ordiniDomicilioNoti();
 
                 return listaDom.find(o => {
                     const nomeCompleto1 = `${o.cognome || ''} ${o.nome || ''}`.trim().toUpperCase();
@@ -2008,16 +2018,26 @@
 
             // Ritocchi a ogni stampa termica: blocco domicilio e testo solo ASCII.
             // Li usano sia QZ Tray (intercettore qui sotto) sia la coda dell'Agente di stampa.
-            window.preparaDatiStampaTermica = function(data) {
+            // Con l'ordine (anche null) il domicilio si prende da lì, come fa il server; senza,
+            // si cerca l'ordine a domicilio dal testo della stampa.
+            window.preparaDatiStampaTermica = function(data, ordine) {
                 try {
                     if (Array.isArray(data)) {
-                        const testoCompleto = data.map(item => (typeof item === 'string' ? item : (isTestoSemplice(item) ? item.data : ''))).join('\n');
-                        data = applicaBloccoDomicilio(data, trovaOrdineDomicilioDaTesto(testoCompleto));
+                        let ordineDom;
+                        if (ordine !== undefined) {
+                            ordineDom = ordine && isDomicilio(ordine) ? ordine : null;
+                        } else {
+                            const testoCompleto = data.map(item => (typeof item === 'string' ? item : (isTestoSemplice(item) ? item.data : ''))).join('\n');
+                            ordineDom = trovaOrdineDomicilioDaTesto(testoCompleto);
+                        }
+                        data = applicaBloccoDomicilio(data, ordineDom);
                     }
                 } catch (err) {
                     console.error("Errore iniezione dati domicilio nella stampa:", err);
                 }
-                return pulisciDatiStampa(data);
+                const pronti = pulisciDatiStampa(data);
+                if (Array.isArray(pronti)) Object.defineProperty(pronti, 'preparati', { value: true });
+                return pronti;
             };
 
             // Intercettore automatico QZ Tray (Stampa Termica IP porta 9100)
@@ -2026,7 +2046,7 @@
                 const origQzPrint = window.qz.print.bind(window.qz);
 
                 window.qz.print = function(config, data) {
-                    return origQzPrint(config, window.preparaDatiStampaTermica(data));
+                    return origQzPrint(config, data && data.preparati ? data : window.preparaDatiStampaTermica(data));
                 };
 
                 window.qz._domicilioHooked = true;

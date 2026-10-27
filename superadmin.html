@@ -349,6 +349,7 @@
                 const snap = await getDocs(collection(db, "saas_clienti"));
                 snap.forEach(d => {
                     const info = d.data();
+                    if (info.eliminato) return;
                     sel.innerHTML += `<option value="${window.escapeHtml(d.id)}">🍕 ${window.escapeHtml(info.nome || d.id)} (${window.escapeHtml(d.id)})</option>`;
                 });
             } catch(e) { console.log(e); }
@@ -390,12 +391,14 @@
             });
 
             if (formValues && formValues.nome) {
-                const slug = formValues.nome.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-                if (!slug || slug === 'default') {
+                const slugBase = formValues.nome.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                if (!slugBase || slugBase === 'default') {
                     return Swal.fire("Attenzione", "Nome non valido.", "warning");
                 }
 
                 Swal.fire({ title: 'Creazione ambiente isolato...', allowOutsideClick: false, didOpen: () => Swal.showLoading(), background: '#161b22', color: '#fff' });
+                // Due ristoranti con lo stesso nome non devono finire sugli stessi dati: "da-mario", "da-mario-2"...
+                const slug = await idLibero(slugBase);
 
                 await setDoc(doc(db, "saas_clienti", slug), {
                     nome: formValues.nome,
@@ -427,6 +430,21 @@
                 Swal.fire({ icon: 'success', title: 'Ristorante Creato!', text: `Ambiente "${formValues.nome}" (ID: ${slug}) pronto e isolato.`, timer: 2000, showConfirmButton: false, background: '#161b22', color: '#fff' });
             }
         };
+
+        // Un ID già usato non si riusa: nemmeno quello di un cliente eliminato, che può aver lasciato
+        // ordini e rubrica clienti (il nuovo ristorante li vedrebbe)
+        async function idLibero(slugBase) {
+            const occupato = async (id) => {
+                if ((await getDoc(doc(db, "saas_clienti", id))).exists()) return true;
+                for (const c of ['impostazioni', 'ordini', 'prodotti', 'clienti', 'dipendenti']) {
+                    if (!(await getDocs(query(collection(db, "ristoranti", id, c), limit(1)))).empty) return true;
+                }
+                return false;
+            };
+            let id = slugBase;
+            for (let n = 2; await occupato(id); n++) id = `${slugBase}-${n}`;
+            return id;
+        }
 
         async function copiaCatalogoBaseSuTenant(targetSlug) {
             const collezioniDaCopiare = ["prodotti", "ingredienti", "rimozioni"];
@@ -467,7 +485,7 @@
             if (currentTenant === 'default') return;
             const res = await Swal.fire({
                 title: `Eliminare il cliente "${currentTenant}"?`,
-                text: "Verrà rimosso dalla lista dei clienti SaaS.",
+                text: "Verrà tolto dalla lista dei clienti e i suoi account non potranno più accedere. I dati restano salvati e il suo ID non verrà riusato.",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#da3633',
@@ -476,7 +494,11 @@
                 color: '#fff'
             });
             if (res.isConfirmed) {
-                await deleteDoc(doc(db, "saas_clienti", currentTenant));
+                // Account del locale scollegati: senza utenti/{uid} le regole non danno più accesso ai suoi dati
+                const account = await getDocs(query(collection(db, "utenti"), where("locale", "==", currentTenant)));
+                for (const a of account.docs) await deleteDoc(a.ref);
+                // Resta segnato come eliminato: il suo ID non si riusa per un altro cliente
+                await setDoc(doc(db, "saas_clienti", currentTenant), { eliminato: true, eliminato_il: serverTimestamp() }, { merge: true });
                 await deleteDoc(doc(db, "ristoranti", currentTenant, "impostazioni", "licenza")).catch(() => {});
                 await deleteDoc(doc(db, "ristoranti", currentTenant, "impostazioni", "negozio")).catch(() => {});
                 // Chiave QZ Tray del locale: un locale nuovo con lo stesso nome non deve ereditarla

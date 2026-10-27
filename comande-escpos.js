@@ -6,7 +6,7 @@
 // identica sia dalla cassa sia dall'Agente di stampa quando la cassa è chiusa.
 // Niente DOM: ciò che dipende dall'ambiente arriva nel contesto "ctx":
 //   adesso, fuso       data e ora stampate in fondo (fuso: es. 'Europe/Rome' sul server)
-//   oggiISO            data di oggi 'AAAA-MM-GG' (per "PER IL:" degli ordini futuri)
+//   oggiISO            data di oggi 'AAAA-MM-GG' (per "PER IL:" degli ordini futuri; se manca, quella di oggi nel fuso)
 //   righeServizio(o)   righe operative (domicilio, servizio, senza glutine)
 //   qrDati(o)          voci del QR della consegna; altrimenti qrcode + urlBase + locale
 //   prezzoCoperto, divisore, nomeScontoAttivo   solo per conto e preconto
@@ -302,7 +302,9 @@ export function raggruppaProdotti(prodotti) {
 // Descrizione breve per la coda di stampa e la cassa (es. "Tavolo 5", "Rossi 20:30")
 export const descrizioneStampa = (o) => o ? (o.tavolo ? `Tavolo ${o.tavolo}` : `${o.cognome || o.nome || ''} ${o.orario || ''}`.trim()) : '';
 
-const oggiISO = (ctx) => ctx.oggiISO || new Date().toISOString().split('T')[0];
+// Data di oggi (AAAA-MM-GG) nel fuso del locale (o del dispositivo): con toISOString sarebbe in UTC,
+// e tra mezzanotte e l'una/le due gli ordini di oggi risulterebbero "PER IL" giorno dopo
+const oggiISO = (ctx) => ctx.oggiISO || new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', ...(ctx.fuso ? { timeZone: ctx.fuso } : {}) }).format(ctx.adesso || new Date());
 const righeServizio = (o, ctx) => (ctx.righeServizio || righeServizioCucina)(o);
 function dataOraStampa(ctx) {
     const d = ctx.adesso || new Date();
@@ -733,13 +735,15 @@ export function datiAggiornamento(o, repKey, ctx = {}) {
 export function datiMessaggioCucina(o, repKey, ctx = {}) {
     const messaggio = o && o.messaggio_cucina;
     if (!messaggio) return null;
-    if (messaggio.includes("VIA") && !messaggio.includes("SPOSTAMENTO") && !messaggio.includes("AGGIUNTA") && !messaggio.includes("STORNO")) {
+    // Sala e cassa scrivono "CAMBIO TURNO: ..." quando un piatto passa a un altro turno
+    const aggiornamento = ["AGGIUNTA", "STORNO", "SPOSTAMENTO", "CAMBIO TURNO"].some(k => messaggio.includes(k));
+    if (messaggio.includes("VIA") && !aggiornamento) {
         if (messaggio.includes("TURNO")) {
             const d = datiChiamataTurno(o, repKey, ctx);
             return d ? { data: d } : null;
         }
     }
-    if (!messaggio.includes("AGGIUNTA") && !messaggio.includes("STORNO") && !messaggio.includes("SPOSTAMENTO")) return null;
+    if (!aggiornamento) return null;
     const d = datiAggiornamento(o, repKey, ctx);
     return d ? { data: d, encoding: 'windows-1252' } : null;
 }

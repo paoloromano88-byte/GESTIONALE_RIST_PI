@@ -17,8 +17,11 @@ export const REPARTI = ['pizzeria', 'cucina', 'bar'];
 // Come la cassa: si stampano solo gli ordini appena arrivati (non quelli ripristinati da un backup)
 const MS_ORDINE_NUOVO = 2 * 60 * 1000;
 
+// Data di oggi in Italia (AAAA-MM-GG): il server lavora in UTC, tra mezzanotte e l'una/le due sarebbe ancora "ieri"
+const giornoItalia = (adesso) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(adesso);
+
 export function contestoServer(locale, adesso = new Date()) {
-    return { adesso, fuso: 'Europe/Rome', oggiISO: adesso.toISOString().split('T')[0], urlBase: URL_SITO, locale, qrcode };
+    return { adesso, fuso: 'Europe/Rome', oggiISO: giornoItalia(adesso), urlBase: URL_SITO, locale, qrcode };
 }
 
 // Voce di coda_stampa: stesso formato che scrive la cassa (byte ESC/POS in base64)

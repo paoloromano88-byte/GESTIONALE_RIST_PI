@@ -553,7 +553,7 @@
             return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
         }
 
-        let MENU = [], INGREDIENTI = [], RIMOZIONI = [], SCONTI = [], carrello = [];
+        let MENU = [], INGREDIENTI = [], RIMOZIONI = [], carrello = [];
         const savedCart = localStorage.getItem(CART_STORAGE_KEY);
         if (savedCart) {
             try {
@@ -1226,11 +1226,6 @@
                 RIMOZIONI.sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
             });
 
-            onSnapshot(collection(db, "sconti"), (snap) => {
-                SCONTI = [];
-                snap.forEach(d => SCONTI.push(d.data()));
-            });
-            
             document.getElementById('data-ritiro').value = getTodayLocalStr();
             window.aggiornaOrari();
 
@@ -1472,10 +1467,16 @@
 
         window.delItem = (i) => { carrello.splice(i,1); updateCartUI(); };
 
-        window.applicaSconto = () => {
+        // Il codice si controlla da solo (codici_sconto/{CODICE}): l'elenco dei codici non è pubblico
+        window.applicaSconto = async () => {
             const input = document.getElementById('sconto'); const code = input.value.trim().toUpperCase(); 
             if(!code) { scontoAttivoObj=null; codiceScontoAttivo=""; document.getElementById('msg-sconto').innerText=""; updateCartUI(); return; }
-            const f = SCONTI.find(s => ((s.codice || s.nome || '').toUpperCase() === code));
+            let f = null;
+            const idCodice = code.replace(/\//g, '_');
+            if (!/^\.\.?$|^__.*__$/.test(idCodice)) {
+                try { const snap = await getDoc(doc(db, "codici_sconto", idCodice)); f = snap.exists() ? snap.data() : null; }
+                catch (e) { console.warn("Controllo codice sconto:", e); }
+            }
             if(f) {
                 scontoAttivoObj = f;
                 codiceScontoAttivo = code;

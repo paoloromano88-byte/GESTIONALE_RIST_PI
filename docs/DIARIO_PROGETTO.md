@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con la PR #38 (logo di ogni locale come icona delle app e delle notifiche al rider).
+**Ultimo aggiornamento:** 27/10/2026, con la PR #41 (controllo generale del codice: sicurezza, stampa, dati; vedi sezione 7).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -160,7 +160,8 @@ File condivisi:
   - la password serve solo al primo accesso: poi resta il token di rinnovo;
   - lucina blu (GPIO 8): fissa = ok, lampeggio veloce = da configurare, lento = problema, tre lampi = stampato;
   - tasto BOOT per 5 s = ripristino;
-  - prende 3 comande per volta (memoria limitata).
+  - legge la coda senza i byte da stampare (10 comande per giro) e scarica i byte di una comanda solo al momento di stamparla (dalla versione 1.0.1; prima 3 per volta con i byte, e quelle di una stampante spenta bloccavano le altre).
+- Agenti (PC ed ESP32, versione 1.0.1): se dopo la stampa la rete non risponde, la comanda **non** si ristampa; resta «in stampa» e si toglie dalla coda al giro dopo. «Riprova tutte» in cassa non rimette in coda le comande che un agente sta stampando in quel momento.
 - Il firmware lo compila **GitHub** (`.github/workflows/firmware-esp32.yml`: arduino-cli, core esp32 3.0.7, ArduinoJson 7.2.1, `CDCOnBoot=cdc`, `FlashMode=dio`):
   - lo fa a ogni anteprima e a ogni pubblicazione, e i file finiscono in `firmware/` sul sito;
   - sono quattro parti (bootloader 0x0, partizioni 0x8000, boot_app0 0xe000, programma 0x10000): un aggiornamento non cancella Wi-Fi e accesso salvati (NVS a 0x9000);
@@ -185,7 +186,8 @@ File condivisi:
 - Super Admin: tutto.
 - Personale: solo il proprio locale. La licenza la cambia solo il Super Admin.
 - Pubblico (clienti):
-  - legge menu, ingredienti, sconti, contatori forno/consegne e alcune impostazioni;
+  - legge menu, ingredienti, contatori forno/consegne e alcune impostazioni;
+  - controlla **un** codice sconto alla volta (`codici_sconto/{CODICE}`, copia tenuta allineata dalla cassa): l'elenco dei codici (`sconti`) lo vede solo il personale;
   - crea ordini validi;
   - segue i propri ordini tramite ID o con il telefono verificato via SMS.
 - Il pubblico **non** può toccare scorte, rubrica o contatori: lo fa solo il server.
@@ -259,6 +261,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #33 | Firebase Storage verificato: non attivo e non usato. Tolto dalla Cassa il codice di Storage rimasto (non si scarica più) |
 | #36 | **Avviso "pronto" al rider anche con l'app chiusa**: notifiche push (Firebase Cloud Messaging), da attivare una volta nell'App Rider; su iPhone dall'app aggiunta alla schermata Home |
 | #38 | **Logo di ogni locale** come icona di tutte le app e nelle notifiche al rider; icona neutra al posto di `logo.png` rotto |
+| #41 | **Controllo generale del codice**: testi dei clienti mai eseguiti come codice, codici sconto riservati, Super Admin (ID nuovi, account scollegati), controllo prezzi più severo; stampa (cambio turno, niente doppie stampe dell'agente, ESP32 1.0.1, date italiane, domicilio); forno, statistiche, accesso senza internet. Dettagli nella sezione 7 |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue
@@ -298,8 +301,8 @@ Da verificare sul posto:
 - **QR sugli scontrini**: al primo ordine a domicilio, controllare che il QR esca nitido dalla stampante vera e che il rider lo scansioni. Non è stato provato con una stampante reale. Se esce male, servono il modello della stampante e una foto dello scontrino. Alternative: comando QR nativo `GS ( k`, oppure moduli più grandi in `rasterQrBase64`.
 
 Idee per dopo (non richieste):
-- Togliere "Prendi a mano" dall'App Rider se si vuole la presa **solo** con il QR.
-- Ritocchi minori su smartphone:
+- ~~Togliere "Prendi a mano" dall'App Rider~~: **deciso di lasciarlo** (27/10/2026), serve se il QR non si legge.
+- Ritocchi minori su smartphone (rimandati il 27/10/2026: la Cassa si userà soprattutto dal PC):
   - nomi dei prodotti stretti nella finestra Modifica;
   - filtri delle categorie del menu che scorrono di lato;
   - alcuni pulsanti piccoli (turni 1–5, matita e cestino).
@@ -333,6 +336,18 @@ Altre note:
   1. provare "Fai una foto al QR", con più luce e da vicino;
   2. controllare che il QR sia del locale giusto (`locale` nel link);
   3. controllare che l'ordine non sia di un altro rider o già consegnato. L'app lo dice con un messaggio.
+
+### Controllo generale del 27/10/2026 (PR #41)
+Controllo automatico di tutto il codice più prove a mano; tutto corretto nella stessa PR.
+- **Sicurezza**
+  - Testi dei clienti eseguiti come codice: nome, note o piatti di un ordine dall'App con dentro HTML venivano inseriti così com'erano in Cassa (Statistiche, Storico), Palmare Sala, Agenda, Mappa sala, Telecomando. Ora tutto passa da `escapeHtml`/`sanitizeHtml` (`sanitize.js`, caricato anche da Sala, Agenda e Mappa sala). Per gli argomenti di `onclick` c'è `argJs`, per le foto allegate `immagineSicura`. Prova: ordini con testi "trappola" in ogni campo aperti in tutte le pagine del personale, nessuno eseguito.
+  - SweetAlert2: `title` e `html` sono HTML, `text` no. Un dato del cliente nel titolo va sempre protetto.
+  - Codici sconto elencabili da chiunque → ora `codici_sconto/{CODICE}` (solo lettura del singolo codice).
+  - Super Admin: due ristoranti con lo stesso nome finivano sullo stesso ID (e sugli stessi dati); un cliente eliminato lasciava attivi i suoi account. Ora l'ID è sempre nuovo («da-mario-2»), il cliente eliminato resta in `saas_clienti` con `eliminato: true` e i suoi `utenti` vengono scollegati. I dati restano.
+  - Controllo prezzi (server): quantità negative/con la virgola/enormi, prodotti non in listino, "a peso" finti e Bi-Gusto sotto prezzo ora sono anomalie. Le pizze Gluten Free (stesso nome della normale) si riconoscono dalla categoria.
+- **Stampa**: cambio turno da solo non stampato; agente che ristampava se la rete cadeva dopo la stampa; ESP32 bloccato da una stampante spenta; «Riprova tutte» che falliva in silenzio; "PER IL" domani tra mezzanotte e l'una (date in UTC); cassa che non vedeva il cambio QZ/Agente fatto da un altro dispositivo; IP di riserva fisso `192.168.1.131` per i messaggi; comanda d'asporto stampata come domicilio con l'indirizzo di un vecchio ordine (la cassa ora passa l'ordine alla stampa).
+- **Dati**: forno contato due volte (ora il server ricalcola il giorno dagli ordini, come la cassa); la cassa scaricava tutti gli ordini della storia a ogni apertura; pizze a domicilio contate male nelle statistiche; senza internet all'apertura i dispositivi dicevano «Account non abilitato» e restavano bloccati.
+- Il test "Trigger Cloud Functions end-to-end" ora fallisce davvero se il trigger non parte.
 
 ## 8. Come riprendere in una nuova sessione
 

@@ -23,7 +23,7 @@ import crypto from 'node:crypto';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
-export const VERSIONE = '1.0.0';
+export const VERSIONE = '1.0.1';
 
 // Configurazione pubblica del progetto Firebase (la stessa delle pagine web)
 const FIREBASE = { apiKey: 'AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU', projectId: 'gestionale-ristoranti-96c5b' };
@@ -106,6 +106,7 @@ export class Agente {
     this.apiKey = this.o.apiKey || FIREBASE.apiKey;
     this.attivo = false;
     this.prossimoTentativo = new Map(); // id comanda -> quando riprovare (dopo un errore)
+    this.daTogliere = new Set();       // comande stampate da togliere ancora dalla coda (rete assente)
     this.stampate = 0;
     this.ultimoErrore = '';
     this.ultimoBattito = 0;
@@ -197,6 +198,7 @@ export class Agente {
   }
 
   async controllaCoda() {
+    for (const nome of [...this.daTogliere]) await this.togliDallaCoda(nome);
     const risposta = await this.fs(`${this.base}:runQuery`, {
       method: 'POST',
       body: JSON.stringify({ structuredQuery: {
@@ -245,11 +247,6 @@ export class Agente {
     try {
       if (!c.ip) throw new Error('Indirizzo IP della stampante mancante');
       await this.stampaSuStampante(c.ip, c.porta || 9100, Buffer.from(c.dati || '', 'base64'), this.o.timeoutStampanteMs);
-      await this.fs(c.nome, { method: 'DELETE' });
-      this.prossimoTentativo.delete(id);
-      this.stampate++;
-      this.ultimoErrore = '';
-      this.log(`🖨️  Stampata: ${c.descrizione || id} -> ${c.ip}`);
     } catch (e) {
       const finale = tentativo >= this.o.tentativiMassimi;
       const errore = `Stampante ${c.stampante || ''} (${c.ip}): ${e.message}`.replace(/\s+/g, ' ');
@@ -257,6 +254,25 @@ export class Agente {
       this.prossimoTentativo.set(id, Date.now() + Math.min(this.o.ripresaMs * 2 ** (tentativo - 1), 30000));
       await this.aggiorna(c, { stato: finale ? 'errore' : 'da_stampare', errore });
       this.log(`${finale ? '❌' : '↻ '} ${errore}${finale ? ' (la cassa avvisa)' : ` - riprovo (${tentativo}/${this.o.tentativiMassimi})`}`);
+      return;
+    }
+    // Stampata: non si ristampa più, anche se toglierla dalla coda non riesce subito
+    this.prossimoTentativo.delete(id);
+    this.stampate++;
+    this.ultimoErrore = '';
+    this.log(`🖨️  Stampata: ${c.descrizione || id} -> ${c.ip}`);
+    await this.togliDallaCoda(c.nome);
+  }
+
+  // Toglie dalla coda una comanda già stampata; se la rete non risponde ci riprova al giro dopo
+  async togliDallaCoda(nome) {
+    try {
+      await this.fs(nome, { method: 'DELETE' });
+      this.daTogliere.delete(nome);
+    } catch (e) {
+      if (e.status === 404) { this.daTogliere.delete(nome); return; }
+      this.daTogliere.add(nome);
+      this.log(`⚠️  Stampata ma non ancora tolta dalla coda (${e.message}): riprovo senza ristamparla`);
     }
   }
 }

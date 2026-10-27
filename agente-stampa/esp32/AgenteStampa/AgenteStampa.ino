@@ -35,7 +35,7 @@
 #include "pagine.h"
 #include "comanda.h"
 
-#define VERSIONE "1.0.0"
+#define VERSIONE "1.0.1"
 
 void avviaPortale();
 void tornaAllaConfigurazioneSenzaRiavvio(const String &motivo);
@@ -52,7 +52,7 @@ static const unsigned long BATTITO_MS = 30000;         // ogni quanto dice alla 
 static const int TIMEOUT_STAMPANTE_MS = 5000;
 static const int TENTATIVI_MASSIMI = 5;
 static const long SCADENZA_S = 15 * 60;                 // comande più vecchie: "scaduta"
-static const int COMANDE_PER_GIRO = 3;                  // memoria limitata: poche alla volta
+static const int COMANDE_PER_GIRO = 10;                 // lette senza i byte da stampare (arrivano una alla volta)
 
 // ---------- Impostazioni salvate (memoria flash) ----------
 Preferences prefs;
@@ -108,6 +108,7 @@ unsigned long scadenzaTokenMs = 0, ultimoBattito = 0, ultimoControllo = 0, ultim
 bool primoBattito = true, accessoRevocato = false, oraSincronizzata = false;
 int stampate = 0;
 std::map<String, unsigned long> prossimoTentativo;  // id comanda -> quando riprovare
+std::vector<String> daTogliere;                     // comande stampate da togliere ancora dalla coda (rete assente)
 
 const String radice() { return String("projects/") + PROGETTO + "/databases/(default)/documents"; }
 
@@ -423,6 +424,39 @@ bool inviaAllaStampante(const String &ip, int porta, const char *base64, String 
   return true;
 }
 
+// I byte da stampare (base64) si leggono solo al momento di stampare: la coda si legge senza,
+// così in memoria c'è una comanda alla volta e se ne possono guardare di più per giro
+bool leggiDati(const Comanda &c, String &dati, String &errore) {
+  String risposta;
+  int codice = firestore("GET", c.nome + "?mask.fieldPaths=dati", "", risposta);
+  if (codice != 200) { errore = "comanda non leggibile (" + String(codice) + ")"; return false; }
+  JsonDocument filtro;
+  filtro["fields"]["dati"]["stringValue"] = true;
+  JsonDocument d;
+  DeserializationError e = deserializeJson(d, risposta, DeserializationOption::Filter(filtro));
+  risposta = String();  // libera memoria
+  if (e) { errore = String("comanda illeggibile: ") + e.c_str(); return false; }
+  dati = d["fields"]["dati"]["stringValue"] | "";
+  if (!dati.length()) { errore = "dati della comanda mancanti"; return false; }
+  return true;
+}
+
+// Toglie dalla coda una comanda già stampata. Se la rete non risponde la ricorda e ci riprova
+// al giro dopo, senza ristamparla (resta "in_stampa", che nessun agente riprende da solo).
+void togliDallaCoda(const String &nome) {
+  String risposta;
+  int codice = firestore("DELETE", nome, "", risposta);
+  auto pos = std::find(daTogliere.begin(), daTogliere.end(), nome);
+  if (codice == 200 || codice == 404) {
+    if (pos != daTogliere.end()) daTogliere.erase(pos);
+    return;
+  }
+  if (pos == daTogliere.end()) {
+    daTogliere.push_back(nome);
+    registro("Stampata ma non ancora tolta dalla coda (" + String(codice) + "): riprovo senza ristamparla");
+  }
+}
+
 // true se la comanda è stata lavorata (stampata, fallita o scaduta); false se in attesa o presa da altri
 bool gestisci(Comanda &c) {
   auto attesa = prossimoTentativo.find(c.id);
@@ -434,17 +468,18 @@ bool gestisci(Comanda &c) {
   }
   int tentativo = c.tentativi + 1;
   if (aggiornaComanda(c, "in_stampa", tentativo, "", true) != 1) return false;  // presa da un altro agente
-  String errore, risposta;
-  const char *dati = c.dati.as<const char *>();
-  bool ok = c.ip.length() && dati && inviaAllaStampante(c.ip, c.porta, dati, errore);
+  String errore, dati;
+  bool ok = false;
   if (!c.ip.length()) errore = "indirizzo IP della stampante mancante";
+  else if (leggiDati(c, dati, errore)) ok = inviaAllaStampante(c.ip, c.porta, dati.c_str(), errore);
+  dati = String();  // libera memoria
   if (ok) {
-    firestore("DELETE", c.nome, "", risposta);
     prossimoTentativo.erase(c.id);
     stampate++;
     ultimoErrore = "";
     lampiFinoA = millis() + 600;
     registro("Stampata: " + c.descrizione + " -> " + c.ip);
+    togliDallaCoda(c.nome);
   } else {
     bool finale = tentativo >= TENTATIVI_MASSIMI;
     String messaggio = "Stampante " + c.stampante + " (" + c.ip + "): " + errore;
@@ -458,9 +493,13 @@ bool gestisci(Comanda &c) {
 
 // Restituisce quante comande ha lavorato: se sono COMANDE_PER_GIRO forse ce ne sono altre
 int controllaCoda() {
+  for (const String &nome : std::vector<String>(daTogliere)) togliDallaCoda(nome);
   JsonDocument q;
   JsonObject sq = q["structuredQuery"].to<JsonObject>();
   sq["from"][0]["collectionId"] = "coda_stampa";
+  // Tutti i campi tranne i byte da stampare
+  JsonArray campiLetti = sq["select"]["fields"].to<JsonArray>();
+  for (const char *campo : {"ip", "porta", "stampante", "descrizione", "tentativi", "creato"}) campiLetti.add<JsonObject>()["fieldPath"] = campo;
   JsonObject filtro = sq["where"]["fieldFilter"].to<JsonObject>();
   filtro["field"]["fieldPath"] = "stato";
   filtro["op"] = "EQUAL";
@@ -496,7 +535,6 @@ int controllaCoda() {
     c.descrizione = f["descrizione"]["stringValue"] | c.id.c_str();
     c.tentativi = String(f["tentativi"]["integerValue"] | "0").toInt();
     c.creato = leggiOra(f["creato"]["timestampValue"] | "");
-    c.dati = f["dati"]["stringValue"];
     comande.push_back(c);
   }
   std::sort(comande.begin(), comande.end(), [](const Comanda &a, const Comanda &b) { return a.creato < b.creato; });

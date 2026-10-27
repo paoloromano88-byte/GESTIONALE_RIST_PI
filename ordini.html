@@ -1052,10 +1052,10 @@
                     <div class="cart-item">
                         <div style="flex:1;">
                             <div style="display:flex; justify-content:space-between; width:100%;">
-                                <b>${p.qta}x ${p.nome}</b>
+                                <b>${window.escapeHtml(p.qta)}x ${window.escapeHtml(p.nome)}</b>
                                 <span style="color:var(--gold); font-weight:bold;">€ ${(p.prezzo * p.qta).toFixed(2)}</span>
                             </div>
-                            <small>${detDisplay}</small>
+                            <small>${window.sanitizeHtml(detDisplay)}</small>
                         </div>
                         <div class="cart-actions">
                             <button class="edit-btn" onclick="editCartItem(${i})"><i class="fa fa-pencil"></i></button>
