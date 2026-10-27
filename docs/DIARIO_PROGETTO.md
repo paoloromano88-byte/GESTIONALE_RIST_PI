@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con la PR #41 (controllo generale del codice: sicurezza, stampa, dati; vedi sezione 7).
+**Ultimo aggiornamento:** 27/10/2026, con il sito vetrina **Gestì** e le decisioni di marketing (sezione 2, «Marketing: Gestì»).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -188,9 +188,19 @@ File condivisi:
 - Pubblico (clienti):
   - legge menu, ingredienti, contatori forno/consegne e alcune impostazioni;
   - controlla **un** codice sconto alla volta (`codici_sconto/{CODICE}`, copia tenuta allineata dalla cassa): l'elenco dei codici (`sconti`) lo vede solo il personale;
+  - lascia una richiesta di demo dal sito vetrina (`richieste_demo`, solo creazione; la legge solo il Super Admin);
   - crea ordini validi;
   - segue i propri ordini tramite ID o con il telefono verificato via SMS.
 - Il pubblico **non** può toccare scorte, rubrica o contatori: lo fa solo il server.
+
+### Marketing: Gestì (decisioni del 27/10/2026)
+- **Nome del prodotto: Gestì** (generico: pizzerie, ristoranti, pasticcerie, forni, bar). Da verificare prima di investire: dominio libero (es. gesti.app, gestiapp.it), marchio su UIBM/TMview, nome su Instagram/Facebook.
+- **Vendita:** tutta Italia, la fa il titolare di persona (videochiamate di 20 minuti + prime visite vicino a casa), budget pubblicitario quasi zero: gruppi Facebook di ristoratori, video brevi, passaparola premiato (1 mese gratis a chi porta un cliente e al nuovo), partner pagati solo a vendita fatta (rivenditori di registratori di cassa, commercialisti, fornitori).
+- **Prezzi:** «Ordini Online» 39 €/mese (App Clienti, menu QR, cassa, comande, App Rider); «Locale Completo» 69 €/mese (+ palmare sala e mappa, schermo cucina, agenda). 30 giorni gratis, nessuna commissione, nessun vincolo; primi 10 locali con attivazione gratuita e prezzo bloccato; annuale con 2 mesi in regalo; attivazione 99 € dopo i primi 10. Prezzi IVA esclusa (da confermare col commercialista). I pacchetti corrispondono ai moduli del Super Admin.
+- **Messaggio principale:** «ordini online senza commissioni» (le piattaforme trattengono circa 15-30% per ordine) + «nato in una pizzeria vera».
+- **Sito vetrina** `gesti/index.html` (online su `/gesti/`): funzioni, calcolatore del risparmio, prezzi, domande, modulo «Richiedi una demo». Immagini in `gesti/img/` fatte con dati finti («Pizzeria Demo»). Il modulo scrive in `richieste_demo` (solo creazione, campi controllati dalle regole); le richieste si vedono nel **Super Admin** in alto («Richieste di demo dal sito»).
+- **Prima di pubblicizzare la pagina:** completare `TITOLARE` nell'informativa privacy di `gesti/index.html` (nome e P.IVA del titolare); poi comprare il dominio e collegarlo (meglio un secondo sito di Firebase Hosting solo per la vetrina).
+- **Da preparare dopo:** locale DEMO con dati finti per le videochiamate, presentazione per le visite, contratto di abbonamento e accordo privacy da «responsabile del trattamento» (da far vedere a un avvocato/commercialista), caso Da Mimmo con numeri veri (con il suo permesso), costo per locale (SMS dell'App Clienti).
 
 ## 3. Pubblicazione (GitHub Actions)
 
