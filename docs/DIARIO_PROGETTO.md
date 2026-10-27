@@ -27,12 +27,14 @@ dall'hosting in `firebase.json`.
 | `agenda.html` | Prenotazioni (PIN personale) | personale |
 | `mappa_sala.html` | Mappa dei tavoli | personale |
 | `delivery.html` | **App Rider**: consegne del giorno (PIN personale con ruolo "Rider"), scanner QR per prendere in carico la busta, avviso "ordine pronto" | rider |
-| `superadmin.html` | **Super Admin**: crea i locali, licenze, account dei locali | titolare del software |
+| `superadmin.html` | **Super Admin**: crea i locali, licenze e moduli, account dei locali, link da mandare al cliente | titolare del software |
+| `agente-windows.html` | Scarica il **programma di stampa per Windows** (Agente di stampa), con le istruzioni | cliente / installatore |
 | `esp32.html` | Programma un **ESP32-C3** come Agente di stampa, dal browser via USB (ESP Web Tools 10.2.1), e istruzioni | titolare / installatore |
 
 File condivisi:
 - `login-dispositivo.js`: accesso del dispositivo con l'account del locale e controllo della scheda `utenti`.
 - `sanitize.js`: protezione da HTML iniettato (`escapeHtml`, `sanitizeHtml`, `safeId`).
+- `licenza-locale.js`: blocca la pagina se l'abbonamento è sospeso o il suo modulo è spento (Telecomando, App Rider, Mappa Sale).
 - `zone-consegna.js`: zone di consegna per CAP. È usato da App Clienti, Cassa e server, così il calcolo è identico ovunque.
 - `comande-escpos.js`: testo ESC/POS di comande, conto/preconto, chiamata turni, aggiornamenti, blocco domicilio e QR. È lo stesso per Cassa e server (`functions/comande.js`): le comande escono identiche.
 - `agente-stampa/`: **Agente di stampa** per PC/Raspberry (`agente.mjs`) e protocollo per l'ESP32 (`README.md`). Non è pubblicato sul sito.
@@ -209,6 +211,24 @@ File condivisi:
 ### Regole di sicurezza (`firestore.rules`)
 - Super Admin: tutto.
 - Personale: solo il proprio locale. La licenza la cambia solo il Super Admin.
+- **Licenza e moduli** (`impostazioni/licenza`, dalla PR #47):
+  - `attiva: false` blocca tutte le pagine;
+  - `moduli.<nome> === false` blocca solo la sua pagina:
+
+    | Modulo | Pagina |
+    |---|---|
+    | `cassa` | Cassa |
+    | `telecomando` | `ordini.html` |
+    | `sala` | Palmare Sala |
+    | `agenda` | Agenda |
+    | `kds` | Monitor Cucina (scrive anche `kds_sbloccato`) |
+    | `app_clienti` | `index.html` |
+    | `rider` | `delivery.html` |
+    | `menu` | Menu QR |
+
+  - Mappa Sale non ha un modulo suo: è usata da Cassa, Sala e Agenda.
+  - Un modulo che manca nella licenza vale acceso: i locali creati prima restano con tutto acceso.
+  - Nel Super Admin link, testo «Copia tutti i link» e caselle dei moduli nascono da un solo elenco (`APP_LOCALE` in `superadmin.html`). Un'app nuova si aggiunge lì, e la sua pagina deve controllare il suo modulo.
 - Pubblico (clienti):
   - legge menu, ingredienti, contatori forno/consegne e alcune impostazioni;
   - controlla **un** codice sconto alla volta (`codici_sconto/{CODICE}`, copia tenuta allineata dalla cassa): l'elenco dei codici (`sconti`) lo vede solo il personale;
@@ -288,7 +308,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #38 | **Logo di ogni locale** come icona di tutte le app e nelle notifiche al rider; icona neutra al posto di `logo.png` rotto |
 | #41 | **Controllo generale del codice**: testi dei clienti mai eseguiti come codice, codici sconto riservati, Super Admin (ID nuovi, account scollegati), controllo prezzi più severo; stampa (cambio turno, niente doppie stampe dell'agente, ESP32 1.0.1, date italiane, domicilio); forno, statistiche, accesso senza internet. Dettagli nella sezione 7 |
 | #45 | **Pulsanti della scheda ordine in Cassa**: PIZZA/CUCINA/BAR e PRECONTO dicono sempre com'è andata la stampa; preconto sulla stampante CASSA se manca la sua; scritte intere |
-| #47 | **Agente di stampa come programma per Windows**: si scarica dal gestionale, si collega dal browser, parte con il PC, cerca e prova le stampanti, si aggiorna da solo. Al posto dell'ESP32 per i clienti lontani |
+| #47 | **Agente di stampa come programma per Windows**: si scarica dal gestionale, si collega dal browser, parte con il PC, cerca e prova le stampanti, si aggiorna da solo. Al posto dell'ESP32 per i clienti lontani. **Super Admin**: link e moduli per tutte le app (App Rider, Mappa Sale, programma di stampa; moduli App Clienti e App Rider); Telecomando e Menu QR ora si spengono davvero (#48) |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue

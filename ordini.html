@@ -346,6 +346,7 @@
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
         import { applicaLogoLocale } from "./logo-locale.js";
+        import { mostraBloccoLicenza } from "./licenza-locale.js";
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -387,6 +388,9 @@
         // Login automatico silenzioso per abilitare i permessi Firestore
         // Accesso del dispositivo con l'account del locale (una sola volta, poi Firebase lo ricorda)
         await assicuraLoginDispositivo({ titolo: "Telecomando Ordini" });
+
+        // Abbonamento sospeso o modulo Telecomando spento dal Super Admin: pagina bloccata
+        onSnapshot(doc(db, "impostazioni", "licenza"), (snap) => mostraBloccoLicenza(snap.exists() ? snap.data() : null, { modulo: 'telecomando', nomeModulo: 'TELECOMANDO' }));
 
         // Nome locale dinamico nell'header
         onSnapshot(doc(db, "impostazioni", "negozio"), (snap) => {
