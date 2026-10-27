@@ -446,7 +446,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, onSnapshot, doc as _doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { applicaLogoLocale } from "./logo-locale.js";
+        import { applicaLogoLocale, logoValido } from "./logo-locale.js";
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -510,12 +510,12 @@
                     document.getElementById('restaurant-subtitle').innerText = dati.slogan;
                 }
 
-                if (dati.logo_url) {
-                    const logoEl = document.getElementById('restaurant-logo');
-                    if (logoEl) {
-                        logoEl.src = dati.logo_url;
-                        logoEl.style.display = 'inline-block';
-                    }
+                const logoEl = document.getElementById('restaurant-logo');
+                if (logoEl && logoValido(dati.logo_url)) {
+                    logoEl.src = dati.logo_url;
+                    logoEl.style.display = 'inline-block';
+                } else if (logoEl) {
+                    logoEl.style.display = 'none';   // nessun logo, o rimosso
                 }
                 applicaLogoLocale(dati.logo_url);
 

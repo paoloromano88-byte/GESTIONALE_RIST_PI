@@ -63,6 +63,7 @@ File condivisi:
     - icona di tutte le app, cioè scheda del browser e schermata Home dell'iPhone (`logo-locale.js`, PR #38);
     - notifiche «Pronto» al rider.
   - Senza logo si usa `logo.png`: un'icona neutra uguale per tutti, cioè forchetta e coltello dorati su fondo scuro (icona «utensils» di Font Awesome Free, licenza CC BY 4.0). Prima era un file rotto.
+  - «🗑️ Rimuovi logo» (accanto alla scelta del file, visibile solo se c'è un logo) chiede conferma e cancella `logo_url`. Scarta anche un logo scelto per sbaglio e non ancora salvato. Le app aperte tornano subito all'icona di base, comprese App Clienti e Menu.
   - L'icona dell'App Rider aggiunta alla schermata Home di **Android** è sempre quella neutra (`delivery.webmanifest`); su iPhone è il logo del locale.
   - **Firebase Storage non è attivo** nel progetto e il programma non lo usa (verificato il 27/10/2026, PR #33). Non ci sono regole di Storage da gestire.
   - Se un giorno servisse (es. file grandi), attivarlo in **modalità produzione** (tutto chiuso), mettere i file in `locali/{locale}/…`, scrivere `storage.rules` sul modello di `firestore.rules` e aggiungere `storage` al deploy.

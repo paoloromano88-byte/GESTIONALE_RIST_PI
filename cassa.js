@@ -1,8 +1,8 @@
-import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, increment, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, increment, writeBatch, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { verificaAccountLocale } from "./login-dispositivo.js";
 import { calcolaConsegna } from "./zone-consegna.js";
-import { applicaLogoLocale } from "./logo-locale.js";
+import { applicaLogoLocale, logoValido, LOGO_BASE } from "./logo-locale.js";
 import { datiOrdine, datiMessaggioCucina, raggruppaProdotti, descrizioneStampa, byteDatiStampa, base64Byte, righeServizioCucina } from "./comande-escpos.js";
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
@@ -623,7 +623,9 @@ async function init() {
             caricaEditorZone(dn);
             if (dn.piva && document.getElementById('setting-piva')) document.getElementById('setting-piva').value = dn.piva;
             if (dn.indirizzo && document.getElementById('setting-indirizzo')) document.getElementById('setting-indirizzo').value = dn.indirizzo;
-            if (dn.logo_url && document.getElementById('setting-logo-preview')) document.getElementById('setting-logo-preview').src = dn.logo_url;
+            // Anteprima del logo salvato (se non se ne sta scegliendo uno nuovo) e «Rimuovi logo» solo se c'è
+            if (document.getElementById('setting-logo-preview') && !tempLogoBase64) document.getElementById('setting-logo-preview').src = logoValido(dn.logo_url) ? dn.logo_url : LOGO_BASE;
+            if (document.getElementById('btn-rimuovi-logo')) document.getElementById('btn-rimuovi-logo').style.display = (logoValido(dn.logo_url) || tempLogoBase64) ? '' : 'none';
         } else {
             if (document.getElementById('nome-locale-ui')) {
                 document.getElementById('nome-locale-ui').innerText = `${window.nomeLocaleCorrenteCassa} - CASSA`;
@@ -3200,6 +3202,27 @@ window.anteprimaLogoLocale = async (input) => {
     tempLogoBase64 = await comprimiImmagineBase64(file, 300);
     const preview = document.getElementById('setting-logo-preview');
     if (preview) preview.src = tempLogoBase64;
+    if (document.getElementById('btn-rimuovi-logo')) document.getElementById('btn-rimuovi-logo').style.display = '';
+};
+
+// Toglie il logo (anche uno scelto per sbaglio e non ancora salvato): app e notifiche tornano all'icona di base
+window.rimuoviLogoLocale = async () => {
+    const r = await Swal.fire({
+        title: 'Rimuovere il logo?',
+        text: "Le app e le notifiche ai rider torneranno a usare l'icona di base.",
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'Sì, rimuovi', cancelButtonText: 'Annulla'
+    });
+    if (!r.isConfirmed) return;
+    try {
+        await setDoc(doc(db, "impostazioni", "negozio"), { logo_url: deleteField() }, { merge: true });
+        tempLogoBase64 = null;
+        if (document.getElementById('setting-logo-file')) document.getElementById('setting-logo-file').value = '';
+        if (document.getElementById('setting-logo-preview')) document.getElementById('setting-logo-preview').src = LOGO_BASE;
+        if (document.getElementById('btn-rimuovi-logo')) document.getElementById('btn-rimuovi-logo').style.display = 'none';
+        Swal.fire({ icon: 'success', title: 'Logo rimosso', timer: 1500, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire("Errore", "Logo non rimosso: " + e.message, "error");
+    }
 };
 
 window.salvaImpostazioniLocale = async () => {
@@ -3216,6 +3239,7 @@ window.salvaImpostazioniLocale = async () => {
     if (tempLogoBase64) payload.logo_url = tempLogoBase64;
 
     await setDoc(doc(db, "impostazioni", "negozio"), payload, { merge: true });
+    tempLogoBase64 = null;   // salvato: da qui l'anteprima segue il logo del database
     if (payload.nome && document.getElementById('nome-locale-ui')) {
         document.getElementById('nome-locale-ui').innerText = `${payload.nome.toUpperCase()} - CASSA`;
     }
