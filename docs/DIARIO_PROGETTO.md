@@ -298,8 +298,8 @@ Da verificare sul posto:
 - **QR sugli scontrini**: al primo ordine a domicilio, controllare che il QR esca nitido dalla stampante vera e che il rider lo scansioni. Non è stato provato con una stampante reale. Se esce male, servono il modello della stampante e una foto dello scontrino. Alternative: comando QR nativo `GS ( k`, oppure moduli più grandi in `rasterQrBase64`.
 
 Idee per dopo (non richieste):
-- Togliere "Prendi a mano" dall'App Rider se si vuole la presa **solo** con il QR.
-- Ritocchi minori su smartphone:
+- ~~Togliere "Prendi a mano" dall'App Rider~~: **deciso di lasciarlo** (27/10/2026), serve se il QR non si legge.
+- Ritocchi minori su smartphone (rimandati il 27/10/2026: la Cassa si userà soprattutto dal PC):
   - nomi dei prodotti stretti nella finestra Modifica;
   - filtri delle categorie del menu che scorrono di lato;
   - alcuni pulsanti piccoli (turni 1–5, matita e cestino).
