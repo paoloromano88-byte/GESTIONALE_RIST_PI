@@ -1,4 +1,4 @@
-# Test riutilizzabili con gli emulatori Firebase: regole Firestore, Agente di stampa, Cloud Functions
+# Test riutilizzabili con gli emulatori Firebase: regole Firestore, Agente di stampa (anche per Windows), Cloud Functions
 name: Test emulatori
 
 on:
@@ -26,6 +26,8 @@ jobs:
         run: npx firebase emulators:exec --only firestore --project demo-gestionale "node test/regole-firestore.test.mjs"
       - name: Agente di stampa (coda, stampanti finte)
         run: npx firebase emulators:exec --only auth,firestore --project demo-gestionale "node test/agente-stampa.test.mjs"
+      - name: Agente di stampa per Windows (pagina, collegamento, Scollega, aggiornamento)
+        run: npx firebase emulators:exec --only auth,firestore --project demo-gestionale "node test/programma-agente.test.mjs"
       - name: Elaborazione ordini (server)
         run: npx firebase emulators:exec --only firestore --project demo-gestionale "node functions/test/ordini.test.mjs"
       - name: Comande dal server per l'Agente di stampa (fino alla stampante finta)

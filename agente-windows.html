@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agente di stampa per Windows</title>
+    <style>
+        :root { --sfondo: #f4f4f4; --scheda: #fff; --testo: #222; --tenue: #555; --verde: #2e7d32; --blu: #1565c0; --bordo: #ddd; }
+        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--sfondo); color: var(--testo); }
+        main { max-width: 760px; margin: 0 auto; padding: 16px; }
+        h1 { font-size: 1.5em; margin: 8px 0 4px; }
+        h2 { font-size: 1.15em; margin: 0 0 10px; }
+        .scheda { background: var(--scheda); border-radius: 14px; padding: 18px; margin: 14px 0; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+        p, li { line-height: 1.5; }
+        ol, ul { padding-left: 22px; margin: 0; }
+        li { margin-bottom: 8px; }
+        .tenue { color: var(--tenue); font-size: .95em; }
+        .avviso { background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px; padding: 10px 12px; margin-top: 12px; }
+        .scarica-box { text-align: center; padding: 6px 0 2px; }
+        .scarica { display: inline-block; background: var(--verde); color: #fff; text-decoration: none; border-radius: 12px; padding: 16px 28px; font-size: 1.15em; font-weight: bold; }
+        .scarica[aria-disabled="true"] { background: #9e9e9e; pointer-events: none; }
+        #info-versione { margin-top: 8px; }
+        a { color: var(--blu); }
+    </style>
+</head>
+<body>
+<main>
+    <h1>💻 Agente di stampa per Windows</h1>
+    <p class="tenue">Un programma per il PC del locale che manda le comande della cassa alle stampanti termiche di rete. Funziona con qualunque stampante con la presa di rete (porta 9100). Le comande escono anche a cassa chiusa, per esempio gli ordini dall'App Clienti. Non servono QZ Tray né l'ESP32.</p>
+
+    <section class="scheda">
+        <h2>1. Scarica e installa (sul PC del locale)</h2>
+        <div class="scarica-box">
+            <a id="scarica" class="scarica" href="programmi/AgenteStampa-Setup.exe" download>⬇️ Scarica l'Agente di stampa</a>
+            <div id="info-versione" class="tenue">Per Windows 10 e 11</div>
+        </div>
+        <ol style="margin-top:14px;">
+            <li>Premi <b>Scarica</b>. Se il browser avvisa che il file «non viene scaricato spesso», scegli <b>Mantieni</b>.</li>
+            <li>Apri il file <b>AgenteStampa-Setup.exe</b>. Se compare «Windows ha protetto il PC», premi <b>Ulteriori informazioni</b> e poi <b>Esegui comunque</b>. L'avviso compare perché il programma è nuovo e non ha ancora una firma digitale.</li>
+            <li>Premi <b>Installa</b> e poi <b>Fine</b>. Non servono i permessi di amministratore.</li>
+        </ol>
+    </section>
+
+    <section class="scheda">
+        <h2>2. Collegalo al locale</h2>
+        <ol>
+            <li>Si apre da sola una pagina nel browser. Scrivi:
+                <ul>
+                    <li>l'<b>email e la password del locale</b>, le stesse della cassa. La password non resta salvata sul PC;</li>
+                    <li>un nome per il PC, per esempio «PC cassa».</li>
+                </ul>
+                Poi premi <b>Collega</b>.</li>
+            <li>In cassa: <b>Gestionale → Stampanti</b>.
+                <ul>
+                    <li>Controlla gli indirizzi delle stampanti.</li>
+                    <li>In «Come arrivano le stampe» scegli <b>Agente di stampa</b> e salva.</li>
+                    <li>Dopo qualche secondo il PC compare in verde 🟢.</li>
+                </ul>
+            </li>
+            <li>Nella pagina dell'agente premi <b>Prova</b> accanto a ogni stampante: deve uscire un foglietto «PROVA DI STAMPA». Se non conosci gli indirizzi delle stampanti, premi <b>Cerca stampanti</b>: trova quelle accese nella rete del locale.</li>
+        </ol>
+    </section>
+
+    <section class="scheda">
+        <h2>Da sapere</h2>
+        <ul>
+            <li>Parte da solo quando accendi il PC e lavora senza finestre. Per vedere come va, apri l'icona <b>Agente di stampa</b> sul desktop.</li>
+            <li>Durante il servizio il PC deve restare <b>acceso</b> e non andare in sospensione. Su Windows: Impostazioni → Sistema → Alimentazione → «Sospensione»: <b>Mai</b>, almeno quando è collegato alla corrente.</li>
+            <li>Il PC e le stampanti devono essere collegati allo stesso router.</li>
+            <li>Quando esce una versione nuova si aggiorna da solo, in un momento in cui non sta stampando.</li>
+            <li>Per toglierlo: Impostazioni → App → <b>Agente di stampa</b> → Disinstalla.</li>
+        </ul>
+        <div class="avviso">Nel locale non c'è un PC acceso durante il servizio? Puoi usare un piccolo apparecchio ESP32: <a href="esp32.html">istruzioni per l'ESP32</a>.</div>
+    </section>
+</main>
+<script>
+    // Versione e dimensione del programma pubblicato (le scrive GitHub a ogni pubblicazione)
+    fetch('programmi/agente-stampa-windows.json', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))
+        .then((info) => {
+            const mb = info.dimensione ? ' · ' + Math.round(info.dimensione / 1048576) + ' MB' : '';
+            document.getElementById('info-versione').textContent = 'Versione ' + String(info.versione || '') + mb + ' · per Windows 10 e 11';
+        })
+        .catch(() => {
+            const a = document.getElementById('scarica');
+            a.setAttribute('aria-disabled', 'true');
+            a.removeAttribute('href');
+            document.getElementById('info-versione').textContent = 'Il programma non è ancora disponibile su questo sito: riprova tra qualche minuto.';
+        });
+</script>
+</body>
+</html>

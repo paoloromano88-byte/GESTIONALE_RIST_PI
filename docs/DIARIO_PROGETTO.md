@@ -166,6 +166,30 @@ File condivisi:
   - lo fa a ogni anteprima e a ogni pubblicazione, e i file finiscono in `firmware/` sul sito;
   - sono quattro parti (bootloader 0x0, partizioni 0x8000, boot_app0 0xe000, programma 0x10000): un aggiornamento non cancella Wi-Fi e accesso salvati (NVS a 0x9000);
   - in questa sessione non si può compilare: i siti degli strumenti ESP32 sono bloccati.
+- **Programma per Windows** (PR #47, deciso il 27/10/2026, issue #46)
+  - **Perché**: per un cliente lontano l'ESP32 è scomodo. Va comprato e programmato via USB (cavo dati, a volte il tasto BOOT), e ogni aggiornamento richiede di ricollegarlo al computer.
+  - **Stampanti «cloud» scartate**: Epson Server Direct Print e Star CloudPRNT esistono solo su certi modelli. Le termiche comuni non le hanno: per esempio la NS-8360L di Da Mimmo (USB + rete, porta 9100).
+  - **Ora si consiglia il programma per Windows**; l'ESP32 resta per chi non ha un PC acceso durante il servizio, e QZ Tray resta (serve anche per l'Olivetti).
+  - **Cos'è**: `agente-stampa/programma.mjs`, cioè l'agente di `agente.mjs` con una pagina di controllo su `http://127.0.0.1:17917`. Il cliente:
+    1. lo scarica dalla pagina `agente-windows.html` (Gestionale → Stampanti → «Scarica il programma per Windows»);
+    2. installa con doppio clic, senza permessi di amministratore;
+    3. scrive email e password del locale nella pagina che si apre.
+  - **Cosa fa**:
+    - parte con il PC, senza finestre;
+    - la pagina mostra le stampanti della cassa con «Prova» e ha «Cerca stampanti» (porta 9100 sulla rete del PC);
+    - mostra un avviso se in cassa è ancora scelto QZ Tray;
+    - **si aggiorna da solo**: ogni 6 ore legge `programmi/agente-stampa-windows.json`, ma non se ha stampato negli ultimi 10 minuti.
+  - **Costruzione**: lo fa GitHub su Windows a ogni anteprima e pubblicazione (`.github/workflows/agente-windows.yml`):
+    - Node.js «single executable» + Inno Setup;
+    - prova vera: installa, controlla la pagina, processo unico e senza finestra, aggiornamento silenzioso, disinstalla;
+    - se il programma non cambia riusa l'installatore già provato (cache);
+    - i file vanno in `programmi/` sul sito.
+  - **Per aggiornare gli agenti dei clienti**: aumentare `VERSIONE` in `agente-stampa/agente.mjs`.
+  - **Da sapere**:
+    - Windows al primo avvio dice «Windows ha protetto il PC» (programma senza firma digitale): «Ulteriori informazioni» → «Esegui comunque». Per toglierlo serve un certificato di firma del codice, a pagamento ogni anno;
+    - il PC non deve andare in sospensione.
+  - **Corretto anche** (agente PC 1.1.0 ed ESP32 1.0.2): un agente scollegato dalla cassa e poi ricollegato si staccava di nuovo dopo 30 secondi. Ora il primo battito dopo il collegamento scrive `disattivato: false`.
+  - **Minuti di GitHub**: la costruzione su Windows conta il doppio nei minuti gratuiti di GitHub Actions. Con la cache gira davvero solo quando cambia l'agente.
 
 ### Scontrino fiscale: il gestionale NON è fiscale (decisione del 26/10/2026)
 - Ogni locale stampa il **preconto** dal gestionale e batte il totale sul **proprio registratore di cassa**, di qualunque marca. Così non serve nessun accordo con l'Agenzia delle Entrate.
@@ -233,6 +257,7 @@ npm install --no-save @firebase/rules-unit-testing@3.0.4 firebase@10.7.1
 cp zone-consegna.js comande-escpos.js functions/ && (cd functions && npm ci)
 npx firebase-tools@13.29.1 emulators:exec --only firestore --project demo-gestionale "node test/regole-firestore.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only auth,firestore --project demo-gestionale "node test/agente-stampa.test.mjs"
+npx firebase-tools@13.29.1 emulators:exec --only auth,firestore --project demo-gestionale "node test/programma-agente.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/comande.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only firestore --project demo-gestionale "node functions/test/ordini.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project demo-gestionale "node functions/test/trigger.test.mjs"
@@ -262,6 +287,8 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #36 | **Avviso "pronto" al rider anche con l'app chiusa**: notifiche push (Firebase Cloud Messaging), da attivare una volta nell'App Rider; su iPhone dall'app aggiunta alla schermata Home |
 | #38 | **Logo di ogni locale** come icona di tutte le app e nelle notifiche al rider; icona neutra al posto di `logo.png` rotto |
 | #41 | **Controllo generale del codice**: testi dei clienti mai eseguiti come codice, codici sconto riservati, Super Admin (ID nuovi, account scollegati), controllo prezzi più severo; stampa (cambio turno, niente doppie stampe dell'agente, ESP32 1.0.1, date italiane, domicilio); forno, statistiche, accesso senza internet. Dettagli nella sezione 7 |
+| #45 | **Pulsanti della scheda ordine in Cassa**: PIZZA/CUCINA/BAR e PRECONTO dicono sempre com'è andata la stampa; preconto sulla stampante CASSA se manca la sua; scritte intere |
+| #47 | **Agente di stampa come programma per Windows**: si scarica dal gestionale, si collega dal browser, parte con il PC, cerca e prova le stampanti, si aggiorna da solo. Al posto dell'ESP32 per i clienti lontani |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue
@@ -288,7 +315,8 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 
 **Da fare, in ordine**: nessuna issue di sicurezza aperta. Sul posto:
 1. ✅ Certificato QZ nuovo installato sul PC della cassa di Da Mimmo (27/10/2026, dopo la PR #34): le stampe funzionano. Il certificato vecchio non vale più.
-2. provare l'**ESP32-C3** con l'apparecchio vero.
+2. provare il **programma per Windows** (#46) su un PC vero con le stampanti del locale: installazione, «Prova», «Cerca stampanti», comande con la cassa chiusa;
+3. (meno urgente) provare l'**ESP32-C3** con l'apparecchio vero.
 
 **Stampa senza QZ Tray con ESP32** (#28, deciso il 26/10/2026), in tappe:
 1. ✅ Coda di stampa, Agente per PC, semaforo e avvisi (PR #29).

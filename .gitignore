@@ -73,3 +73,5 @@ agente-stampa.json
 # Firmware ESP32 compilato (lo prepara GitHub ad ogni pubblicazione)
 /firmware/
 /build/
+# Agente di stampa per Windows compilato (lo prepara GitHub ad ogni pubblicazione)
+/programmi/

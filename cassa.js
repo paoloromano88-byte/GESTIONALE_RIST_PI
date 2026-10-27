@@ -2366,7 +2366,8 @@ function renderPannelloAgente() {
     }
     boxAgenti.innerHTML = statoStampa.agenti.length ? statoStampa.agenti.map(a => {
         const icona = a.disattivato ? '⛔' : (agenteOnline(a) ? '🟢' : '🔴');
-        const info = [a.disattivato ? 'scollegato' : `ultimo contatto ${quantoFa(a.ultimo_contatto)}`, a.versione ? 'v' + a.versione : '', a.ip_locale || ''].filter(Boolean).join(' · ');
+        const tipo = { windows: 'PC Windows', pc: 'PC', esp32: 'ESP32' }[a.tipo] || '';
+        const info = [a.disattivato ? 'scollegato' : `ultimo contatto ${quantoFa(a.ultimo_contatto)}`, tipo, a.versione ? 'v' + a.versione : '', a.ip_locale || ''].filter(Boolean).join(' · ');
         const pulsante = a.disattivato
             ? `<button class="btn-agente" onclick="eliminaAgenteStampa('${window.safeId(a.id)}')">Elimina</button>`
             : `<button class="btn-agente" onclick="scollegaAgenteStampa('${window.safeId(a.id)}')">Scollega</button>`;

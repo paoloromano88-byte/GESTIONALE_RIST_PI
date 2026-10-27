@@ -1,0 +1,140 @@
+# Compila il programma per Windows dell'Agente di stampa (agente-stampa/programma.mjs) e il suo installatore,
+# lo prova su un Windows vero (installa, avvia, controlla la pagina, aggiorna, disinstalla) e prepara i file
+# per il sito: programmi/AgenteStampa-Setup.exe e programmi/agente-stampa-windows.json (versione e impronta,
+# li legge l'aggiornamento automatico degli agenti già installati).
+name: Agente di stampa per Windows
+
+on:
+  workflow_call:
+
+jobs:
+  compila:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Se il programma non è cambiato si riusa l'installatore già compilato e provato
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: programmi
+          key: agente-windows-v1-${{ hashFiles('agente-stampa/agente.mjs', 'agente-stampa/programma.mjs', 'agente-stampa/pagina.mjs', 'agente-stampa/windows/**', '.github/workflows/agente-windows.yml') }}
+
+      - uses: actions/setup-node@v4
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          node-version: 22
+
+      - name: Strumenti (esbuild, postject, rcedit, Inno Setup)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm install --no-save --no-audit --no-fund --prefix "$env:RUNNER_TEMP\strumenti" esbuild@0.24.0 postject@1.0.0-alpha.6 rcedit@4.0.1
+          if (!(Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+          $v = node -p "require('fs').readFileSync('agente-stampa/agente.mjs', 'utf8').match(/VERSIONE = '(\d+\.\d+\.\d+)'/)[1]"
+          "VERSIONE=$v" >> $env:GITHUB_ENV
+          Write-Output "Versione dell'agente: $v"
+
+      # Un solo file: Node.js con dentro l'agente (single executable application), senza finestra
+      - name: AgenteStampa.exe
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $t = "$env:RUNNER_TEMP\strumenti\node_modules"
+          New-Item -ItemType Directory -Force build | Out-Null
+          & "$t\.bin\esbuild.cmd" agente-stampa/windows/avvio.mjs --bundle --platform=node --format=cjs --target=node22 `
+            --log-override:empty-import-meta=silent --outfile=build/avvio.cjs
+          '{"main":"build/avvio.cjs","output":"build/sea-prep.blob","disableExperimentalSEAWarning":true}' | Set-Content build/sea-config.json
+          node --experimental-sea-config build/sea-config.json
+          $nodeExe = (Get-Command node).Source
+          Copy-Item $nodeExe build\AgenteStampa.exe
+          Copy-Item (Join-Path (Split-Path $nodeExe) 'LICENSE') build\LICENSE-Node.js.txt
+          # La firma di node.exe non vale più dopo le modifiche: si toglie
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -Last 1
+          & $signtool.FullName remove /s build\AgenteStampa.exe
+          & "$t\rcedit\bin\rcedit-x64.exe" build\AgenteStampa.exe --set-icon agente-stampa\windows\icona.ico `
+            --set-file-version $env:VERSIONE --set-product-version $env:VERSIONE `
+            --set-version-string FileDescription "Agente di stampa" --set-version-string ProductName "Agente di stampa" `
+            --set-version-string CompanyName "Gestionale Ristoranti" --set-version-string InternalName "AgenteStampa" `
+            --set-version-string OriginalFilename "AgenteStampa.exe"
+          & "$t\.bin\postject.cmd" build\AgenteStampa.exe NODE_SEA_BLOB build\sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+          node agente-stampa/windows/sottosistema-gui.mjs build/AgenteStampa.exe
+
+      - name: Installatore
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DVersione=$env:VERSIONE" agente-stampa\windows\installatore.iss
+          Get-Item build\AgenteStampa-Setup.exe | Format-List Name, Length
+
+      # Prova su questo Windows come farebbe il cliente: installa, la pagina risponde, parte con il PC,
+      # un secondo avvio non apre un secondo agente, l'aggiornamento silenzioso lo riavvia, si disinstalla
+      - name: Prova dell'installazione
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          $env:AGENTE_NO_BROWSER = '1'
+          function Attendi-Agente {
+            for ($i = 0; $i -lt 60; $i++) {
+              try { $r = Invoke-RestMethod -Uri 'http://127.0.0.1:17917/ping' -TimeoutSec 2; if ($r.agente -eq 'agente-stampa') { return $r } } catch { }
+              Start-Sleep -Milliseconds 500
+            }
+            throw "La pagina dell'agente non risponde"
+          }
+          Start-Process build\AgenteStampa-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LOG=build\installazione.log' -Wait
+          $cartella = Join-Path $env:LOCALAPPDATA 'Programs\Agente di stampa'
+          $exe = Join-Path $cartella 'AgenteStampa.exe'
+          if (!(Test-Path $exe)) { Get-Content build\installazione.log -Tail 40; throw "AgenteStampa.exe non installato in $cartella" }
+
+          $r = Attendi-Agente
+          if ($r.versione -ne $env:VERSIONE) { throw "Versione $($r.versione) invece di $env:VERSIONE" }
+          $pagina = (Invoke-WebRequest -Uri 'http://127.0.0.1:17917/' -UseBasicParsing).Content
+          if ($pagina -notmatch 'Collega questo PC al locale') { throw 'La pagina non chiede di collegare il PC' }
+          $agente = @(Get-Process AgenteStampa)
+          if ($agente.Count -ne 1) { throw "Agenti accesi: $($agente.Count)" }
+          if ($agente[0].MainWindowHandle -ne 0) { throw "L'agente apre una finestra" }
+          $sottosistema = node -e "const b = require('fs').readFileSync(process.argv[1]); console.log(b.readUInt16LE(b.readUInt32LE(0x3c) + 24 + 68))" $exe
+          if ($sottosistema -ne '2') { throw "Sottosistema ${sottosistema}: si aprirebbe la finestra del prompt" }
+          $vi = (Get-Item $exe).VersionInfo
+          if ($vi.FileDescription -ne 'Agente di stampa') { throw "Descrizione: $($vi.FileDescription)" }
+          foreach ($l in @("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\Agente di stampa.lnk",
+                           "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Agente di stampa.lnk",
+                           (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Agente di stampa.lnk'))) {
+            if (!(Test-Path $l)) { throw "Manca il collegamento $l" }
+          }
+          if (!(Test-Path (Join-Path $cartella 'Licenze\LICENSE-Node.js.txt'))) { throw 'Manca la licenza di Node.js' }
+          Write-Output "Installato e acceso: versione $($r.versione), un solo processo, nessuna finestra"
+
+          $secondo = Start-Process $exe -PassThru
+          if (!$secondo.WaitForExit(20000)) { throw 'Il secondo avvio non si chiude' }
+          if (@(Get-Process AgenteStampa).Count -ne 1) { throw 'Il secondo avvio ha acceso un secondo agente' }
+          Write-Output 'Secondo avvio: apre solo la pagina del primo'
+
+          $prima = (Get-Process AgenteStampa).Id
+          Start-Process build\AgenteStampa-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          Start-Sleep -Seconds 2
+          $null = Attendi-Agente
+          $dopo = @(Get-Process AgenteStampa)
+          if ($dopo.Count -ne 1 -or $dopo[0].Id -eq $prima) { throw "Dopo l'aggiornamento silenzioso l'agente non è stato riavviato" }
+          Write-Output 'Aggiornamento silenzioso: agente chiuso, sostituito e riacceso'
+
+          Start-Process (Join-Path $cartella 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          for ($i = 0; $i -lt 30 -and (Test-Path $exe); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $exe) { throw 'Non disinstallato' }
+          if (Get-Process AgenteStampa -ErrorAction SilentlyContinue) { throw "Dopo la disinstallazione l'agente è ancora acceso" }
+          if (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\Agente di stampa.lnk") { throw "Resta l'avvio automatico" }
+          Write-Output 'Disinstallato: programma, avvio automatico e agente tolti'
+
+      - name: File per il sito
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          New-Item -ItemType Directory -Force programmi | Out-Null
+          Copy-Item build\AgenteStampa-Setup.exe programmi\
+          $hash = (Get-FileHash programmi\AgenteStampa-Setup.exe -Algorithm SHA256).Hash.ToLower()
+          [ordered]@{ versione = $env:VERSIONE; file = 'AgenteStampa-Setup.exe'; sha256 = $hash; dimensione = (Get-Item programmi\AgenteStampa-Setup.exe).Length } |
+            ConvertTo-Json | Set-Content programmi\agente-stampa-windows.json -Encoding utf8NoBOM
+          Get-Content programmi\agente-stampa-windows.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agente-windows
+          path: programmi/
+          retention-days: 7

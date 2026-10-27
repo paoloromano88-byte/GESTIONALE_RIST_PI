@@ -1196,12 +1196,15 @@
                     <strong>🛰️ COME ARRIVANO LE STAMPE</strong>
                     <select id="stampa-metodo" class="input-std" style="width:100%; box-sizing:border-box; margin-top:8px;" onchange="aggiornaVistaMetodoStampa()">
                         <option value="qz">QZ Tray sul PC della cassa</option>
-                        <option value="agente">Agente di stampa (ESP32 o PC)</option>
+                        <option value="agente">Agente di stampa (programma per Windows o ESP32)</option>
                     </select>
                     <p id="stampa-qz-info" class="nota-stampa">QZ Tray deve essere aperto sul PC con «QUESTO PC È LA CASSA» acceso: è lui che manda le stampe agli indirizzi qui sopra.</p>
                     <div id="stampa-agente-box" style="display:none;">
-                        <p class="nota-stampa">Un piccolo apparecchio sempre acceso nel locale (ESP32, oppure un PC) manda le stampe agli indirizzi qui sopra. Si collega con l'email e la password di questo locale, come una cassa. Le comande automatiche (ordini nuovi, VIA, aggiunte) le prepara il server: escono anche con la cassa chiusa.</p>
-                        <a href="esp32.html" target="_blank" rel="noopener" style="display:inline-block; margin:4px 0 8px; font-weight:bold; color:#1565c0;">📲 Programma e collega un ESP32-C3 (istruzioni)</a>
+                        <p class="nota-stampa">Un programma sul PC del locale (oppure un piccolo apparecchio ESP32) manda le stampe agli indirizzi qui sopra. Si collega con l'email e la password di questo locale, come una cassa. Le comande automatiche (ordini nuovi, VIA, aggiunte) le prepara il server: escono anche con la cassa chiusa.</p>
+                        <div style="display:flex; flex-direction:column; gap:4px; margin:4px 0 8px;">
+                            <a href="agente-windows.html" target="_blank" rel="noopener" style="font-weight:bold; color:#1565c0;">💻 Scarica il programma per Windows (consigliato)</a>
+                            <a href="esp32.html" target="_blank" rel="noopener" style="color:#1565c0;">📲 Senza PC: programma e collega un ESP32-C3</a>
+                        </div>
                         <div id="lista-agenti-stampa"></div>
                         <div id="lista-coda-stampa"></div>
                     </div>
