@@ -10,6 +10,7 @@ on:
 jobs:
   compila:
     runs-on: windows-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       # Se il programma non è cambiato si riusa l'installatore già compilato e provato
@@ -72,6 +73,12 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           $env:AGENTE_NO_BROWSER = '1'
+          # Start-Process -Wait aspetterebbe anche l'agente acceso dall'installatore (non finisce mai):
+          # si aspetta solo il processo lanciato
+          function Esegui([string]$file, [string[]]$argomenti) {
+            $p = Start-Process $file -ArgumentList $argomenti -PassThru
+            if (!$p.WaitForExit(180000)) { throw "$file non è finito entro 3 minuti" }
+          }
           function Attendi-Agente {
             for ($i = 0; $i -lt 60; $i++) {
               try { $r = Invoke-RestMethod -Uri 'http://127.0.0.1:17917/ping' -TimeoutSec 2; if ($r.agente -eq 'agente-stampa') { return $r } } catch { }
@@ -79,7 +86,7 @@ jobs:
             }
             throw "La pagina dell'agente non risponde"
           }
-          Start-Process build\AgenteStampa-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LOG=build\installazione.log' -Wait
+          Esegui build\AgenteStampa-Setup.exe '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LOG=build\installazione.log'
           $cartella = Join-Path $env:LOCALAPPDATA 'Programs\Agente di stampa'
           $exe = Join-Path $cartella 'AgenteStampa.exe'
           if (!(Test-Path $exe)) { Get-Content build\installazione.log -Tail 40; throw "AgenteStampa.exe non installato in $cartella" }
@@ -109,14 +116,14 @@ jobs:
           Write-Output 'Secondo avvio: apre solo la pagina del primo'
 
           $prima = (Get-Process AgenteStampa).Id
-          Start-Process build\AgenteStampa-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          Esegui build\AgenteStampa-Setup.exe '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
           Start-Sleep -Seconds 2
           $null = Attendi-Agente
           $dopo = @(Get-Process AgenteStampa)
           if ($dopo.Count -ne 1 -or $dopo[0].Id -eq $prima) { throw "Dopo l'aggiornamento silenzioso l'agente non è stato riavviato" }
           Write-Output 'Aggiornamento silenzioso: agente chiuso, sostituito e riacceso'
 
-          Start-Process (Join-Path $cartella 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          Esegui (Join-Path $cartella 'unins000.exe') '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
           for ($i = 0; $i -lt 30 -and (Test-Path $exe); $i++) { Start-Sleep -Seconds 1 }
           if (Test-Path $exe) { throw 'Non disinstallato' }
           if (Get-Process AgenteStampa -ErrorAction SilentlyContinue) { throw "Dopo la disinstallazione l'agente è ancora acceso" }
