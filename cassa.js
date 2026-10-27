@@ -1,5 +1,4 @@
 import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, increment, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { verificaAccountLocale } from "./login-dispositivo.js";
 import { calcolaConsegna } from "./zone-consegna.js";
@@ -18,7 +17,6 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const storage = getStorage(app);
 const auth = getAuth(app);
 
 // --- ROUTER MULTI-TENANT AUTOMATICO (Isola ogni ristorante creato da SuperAdmin) ---
@@ -4980,12 +4978,7 @@ window.eliminaFotoProdotto = async () => {
         if (result.isConfirmed) {
             try {
                 Swal.fire({title: 'Eliminazione in corso...', didOpen: () => { Swal.showLoading() }});
-                if (p.immagine_url && p.immagine_url.startsWith('http')) {
-                    try {
-                        const fileRef = ref(storage, p.immagine_url);
-                        await deleteObject(fileRef);
-                    } catch (e) {}
-                }
+                // La foto è dentro la scheda del prodotto (immagine compressa): basta svuotare i campi
                 await updateDoc(doc(db, "prodotti", editingProdId), { immagine_url: null, foto: null });
                 document.getElementById('new-foto').value = "";
                 if (document.getElementById('btn-delete-foto')) document.getElementById('btn-delete-foto').style.display = 'none';

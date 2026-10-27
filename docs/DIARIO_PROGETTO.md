@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con la PR #32 (tolto il PIN 0000 da Sala e Agenda, nuovo ruolo «Responsabile»).
+**Ultimo aggiornamento:** 27/10/2026, con la PR #33 (Firebase Storage: non attivo e non usato, immagini nel database).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -57,6 +57,9 @@ File condivisi:
   - personale di un locale: `ruolo: "locale"`, `locale: "<id-locale>"`. Per Da Mimmo serve `locale: "default"`, minuscolo e senza spazi.
   - ⚠️ Se `locale` manca, le regole rifiutano ogni salvataggio ("Missing or insufficient permissions"). Ora le app mostrano subito "Account senza locale assegnato" con il codice dell'account (PR #22).
   - Gli account creati da Super Admin → "Account del Locale" hanno già la scheda completa.
+- **Immagini** (logo, foto dei prodotti, foto in Agenda): vengono compresse e salvate **dentro il database** (Firestore). Sono quindi protette dalle stesse regole per locale.
+  - **Firebase Storage non è attivo** nel progetto e il programma non lo usa (verificato il 27/10/2026, PR #33). Non ci sono regole di Storage da gestire.
+  - Se un giorno servisse (es. file grandi), attivarlo in **modalità produzione** (tutto chiuso), mettere i file in `locali/{locale}/…`, scrivere `storage.rules` sul modello di `firestore.rules` e aggiungere `storage` al deploy.
 
 ### Cloud Functions (server)
 - `ordineAppPrincipale` e `ordineAppLocali` partono a ogni nuovo ordine dell'**App Clienti**, riconosciuto dal campo `user_agent`.
@@ -213,6 +216,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #29 | **Stampa senza QZ Tray, tappe 1 e 2**: coda di stampa (`coda_stampa`), Agente di stampa per PC (`agente-stampa/`), **firmware ESP32-C3** compilato da GitHub e pagina `esp32.html` per installarlo, scelta in Gestionale → Stampanti, semaforo e avvisi quando la stampa non funziona (anche con QZ Tray) |
 | #31 | **Comande dal server**: con «Agente di stampa» ordini nuovi e messaggi alla cucina vanno in coda dal server, anche a cassa chiusa. Testo delle stampe in `comande-escpos.js`, condiviso da cassa e server |
 | #32 | **Niente più PIN 0000** in Sala e Agenda: si entra solo col PIN di un dipendente. Nuovo ruolo «Responsabile» (accesso d'emergenza scelto dal locale). Senza dipendenti registrati, Sala e Agenda spiegano dove aggiungerli |
+| #33 | Firebase Storage verificato: non attivo e non usato. Tolto dalla Cassa il codice di Storage rimasto (non si scarica più) |
 
 ## 6. Issue
 
@@ -230,11 +234,11 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 - #26 cassa non fiscale (preconto + totale a mano sul registratore);
 - #28 stampa senza QZ Tray, tappe 1 e 2 (coda, Agente di stampa, ESP32);
 - #30 comande preparate dal server (tappa 3);
-- #19 PIN d'emergenza 0000 in Sala e Agenda.
+- #19 PIN d'emergenza 0000 in Sala e Agenda;
+- #17 regole di Firebase Storage (Storage non attivo: immagini nel database).
 
 **Da fare, in ordine**:
 1. **#16**: chiave privata di QZ Tray (stampa) scritta nel codice della cassa → firma lato server.
-2. **#17**: regole di Firebase Storage (logo e immagini) per più locali.
 
 **Stampa senza QZ Tray con ESP32** (#28, deciso il 26/10/2026), in tappe:
 1. ✅ Coda di stampa, Agente per PC, semaforo e avvisi (PR #29).
