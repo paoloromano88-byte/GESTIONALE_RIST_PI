@@ -384,6 +384,8 @@
             document.getElementById('brand-name-sala').innerText = fallbackBrand;
         }
 
+        // Il vecchio accesso d'emergenza (PIN 0000) non esiste più: chi era entrato così rifà l'accesso col suo PIN
+        if (sessionStorage.getItem('sala_waiter_id') === 'admin_temp') { sessionStorage.removeItem('sala_waiter_name'); sessionStorage.removeItem('sala_waiter_id'); }
         // Sblocco immediato interfaccia (nessun blocco su schermata nera)
         const savedName = sessionStorage.getItem('sala_waiter_name');
         if (!savedName) document.getElementById('login-overlay').style.display = 'flex';
@@ -557,7 +559,6 @@
         }
 
         function startHeartbeat(docId) {
-            if (docId === "admin_temp") return; 
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             const beat = async () => {
                 try { await updateDoc(doc(db, "dipendenti", docId), { last_active: serverTimestamp() }); } catch (e) {}
@@ -569,11 +570,11 @@
         window.checkLogin = async () => {
             const input = document.getElementById('pin-input').value.trim();
             if(!input || input.length !== 4) return Swal.fire("Inserisci un PIN valido.");
-            if (input === "0000") { forceLogin("ADMIN (Emergenza)", "admin_temp"); return; }
 
             try {
                 Swal.showLoading();
                 const snap = await getDocs(collection(db, "dipendenti"));
+                if (snap.empty) return Swal.fire({ icon: 'info', title: 'Nessun operatore registrato', text: 'Aggiungi i PIN dalla Cassa: Gestionale → Dipendenti.' });
                 let userFound = null, docId = null, userData = null;
 
                 snap.forEach(docSnap => { 
@@ -582,12 +583,13 @@
                 });
 
                 if (userFound && docId) {
-                    if (userData.last_active) {
+                    // Il Responsabile può entrare da più dispositivi insieme (accesso d'emergenza del locale)
+                    if (userData.last_active && userData.ruolo !== 'responsabile') {
                         const now = new Date();
                         const lastSeen = userData.last_active.toDate ? userData.last_active.toDate() : new Date(userData.last_active);
                         const diffSeconds = (now - lastSeen) / 1000;
                         if (diffSeconds < 40) {
-                            return Swal.fire({ icon: 'error', title: 'Già Connesso', text: `Utente ${userFound} attivo ${Math.round(diffSeconds)}s fa.`, footer: 'Attendi 40 secondi o usa PIN 0000.' });
+                            return Swal.fire({ icon: 'error', title: 'Già Connesso', text: `Utente ${userFound} attivo ${Math.round(diffSeconds)}s fa.`, footer: 'Attendi 40 secondi e riprova, oppure entra con il PIN del Responsabile.' });
                         }
                     }
                     forceLogin(userFound, docId);
@@ -595,7 +597,7 @@
                     Swal.fire({icon: 'error', title: 'PIN non trovato'});
                     document.getElementById('pin-input').value = "";
                 }
-            } catch(e) { Swal.fire("Errore di connessione", "Riprova o usa PIN 0000. " + e.message, "error"); }
+            } catch(e) { Swal.fire("Errore di connessione", "Controlla la connessione e riprova. " + e.message, "error"); }
         };
 
         function forceLogin(name, id) {
@@ -606,13 +608,13 @@
             document.getElementById('login-overlay').style.display = 'none'; 
             document.getElementById('pin-input').value = "";
             Swal.fire({title: `Benvenuto ${name}!`, icon: 'success', timer: 1000, showConfirmButton: false});
-            try { if(id !== "admin_temp") startHeartbeat(id); requestNotificationPermission(); } catch(err) {}
+            try { startHeartbeat(id); requestNotificationPermission(); } catch(err) {}
         }
 
         window.logoutStaff = async () => {
             const docId = sessionStorage.getItem('sala_waiter_id');
             if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
-            if(docId && docId !== "admin_temp") {
+            if(docId) {
                 try { await updateDoc(doc(db, "dipendenti", docId), { last_active: new Date(0) }); } catch(e) {}
             }
             sessionStorage.removeItem('sala_waiter_name');
@@ -630,7 +632,7 @@
                 window.currentWaiterName = savedName;
                 document.getElementById('waiter-display').innerText = window.currentWaiterName;
                 document.getElementById('login-overlay').style.display = 'none';
-                if (savedId !== "admin_temp") startHeartbeat(savedId); 
+                startHeartbeat(savedId);
                 requestNotificationPermission();
             }
             renderTables();

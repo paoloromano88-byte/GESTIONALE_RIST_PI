@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 26/10/2026, con la PR #31 (comande preparate dal server: si stampa anche a cassa chiusa).
+**Ultimo aggiornamento:** 27/10/2026, con la PR #32 (tolto il PIN 0000 da Sala e Agenda, nuovo ruolo «Responsabile»).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -24,7 +24,7 @@ dall'hosting in `firebase.json`.
 | `sala.html` | Palmare dei camerieri (PIN personale) | camerieri |
 | `ordini.html` | Telecomando / riepilogo ordini | personale |
 | `kds.html` | Monitor cucina | cucina |
-| `agenda.html` | Prenotazioni | personale |
+| `agenda.html` | Prenotazioni (PIN personale) | personale |
 | `mappa_sala.html` | Mappa dei tavoli | personale |
 | `delivery.html` | **App Rider**: consegne del giorno (PIN personale con ruolo "Rider"), scanner QR per prendere in carico la busta, avviso "ordine pronto" | rider |
 | `superadmin.html` | **Super Admin**: crea i locali, licenze, account dei locali | titolare del software |
@@ -46,6 +46,7 @@ File condivisi:
 - **Hosting**: la cartella principale del repository.
 - **Accessi**:
   - personale: email + password, un account per locale; il dispositivo resta collegato;
+  - operatori (Sala, Agenda, App Rider): PIN personale di 4 cifre, creato in Cassa → Gestionale → Dipendenti. Ruoli: Cameriere, Rider (App Rider), **Responsabile** (può entrare in Sala da più dispositivi insieme: è l'accesso d'emergenza del locale). Il vecchio PIN fisso `0000` non esiste più (PR #32) e non si può assegnare;
   - clienti: SMS.
 - **Più locali (multi-tenant)**:
   - locale principale (Da Mimmo, id `default`): raccolte alla radice (`ordini`, `prodotti`, …);
@@ -211,6 +212,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #27 | **Cassa non fiscale**: per ogni locale "Scontrino fiscale" in Gestionale → Stampanti (Nessuno / Olivetti con cartella impostabile). Incasso con "INCASSA" e promemoria "batti € X sul registratore". "DOCUMENTO NON FISCALE" su preconto, conto e riepilogo Z |
 | #29 | **Stampa senza QZ Tray, tappe 1 e 2**: coda di stampa (`coda_stampa`), Agente di stampa per PC (`agente-stampa/`), **firmware ESP32-C3** compilato da GitHub e pagina `esp32.html` per installarlo, scelta in Gestionale → Stampanti, semaforo e avvisi quando la stampa non funziona (anche con QZ Tray) |
 | #31 | **Comande dal server**: con «Agente di stampa» ordini nuovi e messaggi alla cucina vanno in coda dal server, anche a cassa chiusa. Testo delle stampe in `comande-escpos.js`, condiviso da cassa e server |
+| #32 | **Niente più PIN 0000** in Sala e Agenda: si entra solo col PIN di un dipendente. Nuovo ruolo «Responsabile» (accesso d'emergenza scelto dal locale). Senza dipendenti registrati, Sala e Agenda spiegano dove aggiungerli |
 
 ## 6. Issue
 
@@ -227,12 +229,12 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 - #18 errore all'apertura dell'App Clienti;
 - #26 cassa non fiscale (preconto + totale a mano sul registratore);
 - #28 stampa senza QZ Tray, tappe 1 e 2 (coda, Agente di stampa, ESP32);
-- #30 comande preparate dal server (tappa 3).
+- #30 comande preparate dal server (tappa 3);
+- #19 PIN d'emergenza 0000 in Sala e Agenda.
 
 **Da fare, in ordine**:
 1. **#16**: chiave privata di QZ Tray (stampa) scritta nel codice della cassa → firma lato server.
 2. **#17**: regole di Firebase Storage (logo e immagini) per più locali.
-3. **#19**: PIN d'emergenza 0000 sempre valido in Sala e Agenda.
 
 **Stampa senza QZ Tray con ESP32** (#28, deciso il 26/10/2026), in tappe:
 1. ✅ Coda di stampa, Agente per PC, semaforo e avvisi (PR #29).
