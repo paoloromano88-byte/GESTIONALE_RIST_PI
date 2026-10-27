@@ -479,6 +479,8 @@
                 await deleteDoc(doc(db, "saas_clienti", currentTenant));
                 await deleteDoc(doc(db, "ristoranti", currentTenant, "impostazioni", "licenza")).catch(() => {});
                 await deleteDoc(doc(db, "ristoranti", currentTenant, "impostazioni", "negozio")).catch(() => {});
+                // Chiave QZ Tray del locale: un locale nuovo con lo stesso nome non deve ereditarla
+                await deleteDoc(doc(db, "ristoranti", currentTenant, "impostazioni", "qz_firma")).catch(() => {});
                 await caricaListaRistoranti();
                 window.cambiaTenant('default');
             }

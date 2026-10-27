@@ -1205,6 +1205,24 @@
                         <div id="lista-coda-stampa"></div>
                     </div>
                 </div>
+                <div class="printer-config-box" id="box-certificato-qz" style="border-color:#b39ddb; background:#faf8ff;">
+                    <strong>🔐 CERTIFICATO QZ TRAY</strong>
+                    <p class="nota-stampa">Serve solo con QZ Tray. Fa stampare la cassa senza che QZ Tray chieda il permesso a ogni stampa. È unico per questo locale e la sua chiave non è nel codice del sito.</p>
+                    <p id="qz-cert-stato" class="nota-stampa"></p>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn-agente" onclick="scaricaCertificatoQz()">⬇️ Scarica certificato (override.crt)</button>
+                        <button class="btn-agente" onclick="rinnovaCertificatoQz()">🔄 Crea un certificato nuovo</button>
+                    </div>
+                    <details style="margin-top:8px; font-size:0.88em; color:#444;">
+                        <summary style="cursor:pointer; font-weight:bold;">Come installarlo sul PC della cassa</summary>
+                        <ol style="margin:6px 0 0 0; padding-left:20px; line-height:1.5;">
+                            <li>Premi «Scarica certificato»: scarica il file <b>override.crt</b>.</li>
+                            <li>Copialo nella cartella di QZ Tray (se c'è già un override.crt, sostituiscilo): su Windows <b>C:\Program Files\QZ Tray</b> (Windows chiede il permesso: conferma). Su Mac o Linux: la cartella dove è installato QZ Tray.</li>
+                            <li>Chiudi QZ Tray (icona vicino all'orologio → tasto destro → <b>Exit</b>) e riaprilo dal menu Start.</li>
+                            <li>Ricarica la cassa. Se alla prima stampa QZ Tray chiede il permesso, spunta «Remember this decision» e premi <b>Allow</b>.</li>
+                        </ol>
+                    </details>
+                </div>
                 <div class="printer-config-box" style="border-color:#ffe082; background:#fffdf5;">
                     <strong>🧾 SCONTRINO FISCALE</strong>
                     <p style="margin:6px 0 10px 0; font-size:0.85em; color:#6d4c41;">Il gestionale non emette scontrini fiscali: stampi il preconto e batti il totale sul registratore di cassa del locale, di qualunque marca. Solo con un registratore Olivetti e il programma ElaExecute sul PC della cassa puoi collegarlo qui (serve QZ Tray).</p>

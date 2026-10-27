@@ -1,4 +1,4 @@
-import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, increment, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, increment, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { verificaAccountLocale } from "./login-dispositivo.js";
 import { calcolaConsegna } from "./zone-consegna.js";
@@ -486,87 +486,83 @@ function showToast(msg) {
     setTimeout(() => { t.style.display = 'none'; }, 3000);
 }
 
+// --- QZ TRAY: CHIAVE E CERTIFICATO DEL LOCALE ---
+// Ogni locale ha la sua chiave per firmare le richieste a QZ Tray: la crea la cassa la prima volta
+// e la salva in impostazioni/qz_firma, che leggono solo il personale del locale e il Super Admin
+// (firestore.rules). Non è scritta nel codice del sito. Il certificato si scarica da
+// Gestionale > Stampanti e va copiato come override.crt nella cartella di QZ Tray sul PC della cassa.
+const pemDaDer = (tipo, der) => `-----BEGIN ${tipo}-----\n${btoa(String.fromCharCode(...new Uint8Array(der))).match(/.{1,64}/g).join('\n')}\n-----END ${tipo}-----\n`;
+const dataCertificato = (d) => d.toISOString().replace(/[-:T]/g, '').slice(2, 14) + 'Z';
+
+async function creaChiaveQz() {
+    const coppia = await crypto.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
+    const chiave = pemDaDer('PRIVATE KEY', await crypto.subtle.exportKey('pkcs8', coppia.privateKey));
+    const pubblica = pemDaDer('PUBLIC KEY', await crypto.subtle.exportKey('spki', coppia.publicKey));
+    const nome = `/C=IT/O=Gestionale Ristoranti/CN=Gestionale Ristoranti - ${String(window.TENANT_ID).replace(/[^a-z0-9-]/gi, '')}`;
+    const adesso = Date.now(), giorno = 86400000;
+    const certificato = new KJUR.asn1.x509.Certificate({
+        version: 3,
+        serial: { hex: '01' + Array.from(crypto.getRandomValues(new Uint8Array(15)), b => b.toString(16).padStart(2, '0')).join('') },
+        issuer: { str: nome },
+        subject: { str: nome },
+        notbefore: dataCertificato(new Date(adesso - giorno)),
+        notafter: dataCertificato(new Date(adesso + 3650 * giorno)),
+        sbjpubkey: pubblica,
+        ext: [
+            { extname: 'basicConstraints', critical: true, cA: true },
+            { extname: 'keyUsage', critical: true, names: ['digitalSignature', 'keyCertSign'] },
+            { extname: 'subjectKeyIdentifier', kid: pubblica },
+        ],
+        sigalg: 'SHA256withRSA',
+        cakey: chiave,
+    }).getPEM();
+    return { certificato, chiave };
+}
+
+async function caricaFirmaQz(rinnova) {
+    const ref = doc(db, "impostazioni", "qz_firma");
+    let dati = rinnova ? null : (await getDoc(ref)).data();
+    if (!dati?.certificato || !dati?.chiave) {
+        const nuova = await creaChiaveQz();
+        // Se intanto l'ha creata un altro dispositivo si usa quella: un solo certificato per locale
+        dati = await runTransaction(db, async (t) => {
+            const s = await t.get(ref);
+            if (!rinnova && s.exists() && s.data().certificato && s.data().chiave) return s.data();
+            t.set(ref, { ...nuova, creato: serverTimestamp() });
+            return { ...nuova, creato: new Date() };
+        });
+    }
+    return { certificato: dati.certificato, chiave: KEYUTIL.getKey(dati.chiave), creato: dati.creato };
+}
+
+let firmaQzPromessa = null;
+window.firmaQzLocale = (rinnova = false) => {
+    if (rinnova || !firmaQzPromessa) firmaQzPromessa = caricaFirmaQz(rinnova).catch((e) => { firmaQzPromessa = null; throw e; });
+    return firmaQzPromessa;
+};
+
 async function init() {
     if (initAvviato) return;
     initAvviato = true;
 
-    // --- INIZIALIZZAZIONE QZ TRAY CON TUA FIRMA DIGITALE ---
+    // --- QZ TRAY: CERTIFICATO E FIRMA DEL LOCALE (vedi firmaQzLocale) ---
     if (typeof qz !== 'undefined') {
         qz.security.setCertificatePromise(function(resolve, reject) {
-            resolve(`-----BEGIN CERTIFICATE-----
-MIIEATCCAumgAwIBAgIUUOByLMo9aFRLSoWmvvr0daXnPkkwDQYJKoZIhvcNAQEL
-BQAwgY8xCzAJBgNVBAYTAml0MREwDwYDVQQIDAhDYWxhYnJpYTEYMBYGA1UEBwwP
-cmVnZ2lvIGNhbGFicmlhMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBM
-dGQxMDAuBgNVBAMMJ3BpenplcmlhZGFtaW1tby1hc3BvcnRvLmZpcmViYXNlYXBw
-LmNvbTAeFw0yNjAyMjMxNjI5MjVaFw0zNjAyMjExNjI5MjVaMIGPMQswCQYDVQQG
-EwJpdDERMA8GA1UECAwIQ2FsYWJyaWExGDAWBgNVBAcMD3JlZ2dpbyBjYWxhYnJp
-YTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMTAwLgYDVQQDDCdw
-aXp6ZXJpYWRhbWltbW8tYXNwb3J0by5maXJlYmFzZWFwcC5jb20wggEiMA0GCSqG
-SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCoyxhStRgBKClrbkEAU7GokYCFgXqIUZhe
-ak21WA6aiP+80uFVu5bWzIYehsybqjdJ2SU5XWrI1iI9ZRHCrFBOJ3kdWiK+5g7/
-rYK3+ftO8+PsviH2A0DjEcPmV/b/snF9ulMO8ixLnLPeF+noMysPdwCEGvZz3lSE
-nWJlpVuRTe7IzzPHLQcqq4+KL3hwImlPdZIrEDMP66QMWh4J0bnpQKXjt7oIIPdq
-ktYi1AntHm0mkArGYfTaa3SuRBtbxG6iWWhsuPVxWSiyOHaqLBayI/hrH2hSf2Sm
-xcQmGGVGIbAv/LMQqTmNNNjhj/PXQsRNTQrYoY4kqsB5a3ob7yUFAgMBAAGjUzBR
-MB0GA1UdDgQWBBT5QwZ9oVixcGbQHgGsZG4cd3kjYDAfBgNVHSMEGDAWgBT5QwZ9
-oVixcGbQHgGsZG4cd3kjYDAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUA
-A4IBAQCQpy4AI78IPSFvzQ5ail+68ZAwMRvtxy3oD240RbKrJx8Q8OpD9pM9enxH
-K2y8gWMEaYfOi0aPjWQIUlNlHiEv7HeJUIKmJETd9WdqQCR25zlTNXEJIrJZ+fW5
-GnCNtJiEMXm4F0kWSmBlvfKz3bCjb18BIiIXDPxFGukOhBdaeilKoorEtISKhhNP
-H6NA1NeQAhTb0ekRHify29+849xUpEDrpycQeoXtHeA/oklUILg728fA1XapBZi1
-tXK3v8mkk/+Kz/KfD+pjJ1MvRtl9q8f1zAHOz0KYUBaCL+BCwG1ilPmEd4UYbr0J
-wAF6dIvBSl2nsNTnt2DVKdDtp93R
------END CERTIFICATE-----`); 
+            window.firmaQzLocale().then(f => resolve(f.certificato)).catch(reject);
         });
 
         qz.security.setSignatureAlgorithm("SHA512");
         qz.security.setSignaturePromise(function(toSign) {
             return function(resolve, reject) {
-                try {
-                    var privateKey = `-----BEGIN PRIVATE KEY-----
-MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCoyxhStRgBKClr
-bkEAU7GokYCFgXqIUZheak21WA6aiP+80uFVu5bWzIYehsybqjdJ2SU5XWrI1iI9
-ZRHCrFBOJ3kdWiK+5g7/rYK3+ftO8+PsviH2A0DjEcPmV/b/snF9ulMO8ixLnLPe
-F+noMysPdwCEGvZz3lSEnWJlpVuRTe7IzzPHLQcqq4+KL3hwImlPdZIrEDMP66QM
-Wh4J0bnpQKXjt7oIIPdqktYi1AntHm0mkArGYfTaa3SuRBtbxG6iWWhsuPVxWSiy
-OHaqLBayI/hrH2hSf2SmxcQmGGVGIbAv/LMQqTmNNNjhj/PXQsRNTQrYoY4kqsB5
-a3ob7yUFAgMBAAECggEADkv9iGvcV6S+NWJGUS/FmYCRgT1hUpCOtliMsnJ98iru
-dmDqQye7dAAo0Acc54Z4XmHtHDnEZLR2e/rGkVWlC6meQZUz4jV8Sb25l7mtxpcz
-1Aaau8q0wUbs7+K9ghTsNfkFNfvfMpxYQ9SEtG05FXs/6PCbtV68i+sEvZVO9zSe
-Y48w2uSLIFuZzFDxBwMWkJzm4K7Pn9xbGUD/YcbvXkGh7U8cU66ZQn8rNvYu6SXW
-YJEqs3yrhe2ymi1DA1Cwpu/1C19qr99xpNbsHGNIN7Y+SnO9IkJE/HrOC2mHWbw0
-WI/ymvN/QGotPIcB546chn9eFSoq0z6j9Js57XUI9QKBgQDbo6AFtEqT6l9D2Ok1
-SHR2Syw59upqoatVQaJ8i+GlcbApkDdIcYPAuxmM6ebjCI8jg70+vDn5ykTiJIwS
-wMzM+JFGIx1KmYZSowZUKU0TJL2XMzMnFed7eWm0VmCeJ5zaPfGpGOE/92W6mA9j
-KSud+K4laXM4NAeibmtHm0SrqwKBgQDEvJvEsNHYzqFUaZ6P5a34AuGmKXZtxzaf
-+isIzmYWt851pExkuySSdJuQm1LNLasGvx1bb5knQzFiuDY/0++/Mh/CNXq8ifh9
-l6Hhardqt9ppfNJPQbGiHwbP1gJ0GFBB9tNpwl87Zj3ozdleP0qo1sUlsq+aupDM
-ojZ0DPVCDwKBgHra0X2fVT/bjyHySLAHMS2h6sEZfhHbEG0F449q5vKV3wXAp0uc
-Qygg/6+0ffNsLDSfUdGvk3ZHT7R24Or0cRoNx6TFq3K44UuD6NxWpcgZevsCJpCs
-TejhBuFal3yfh7sDfxMo2YXgKkTvHVxIAR/BpBdFHq/HWqXewZ8yGH01AoGBAJ+7
-atVFovteuQnqPz0iBB+rZz4bx/XVmvpEiZA61BR54/0MCqJ2d3kZh/zev1mrTILL
-xLAqabTBD2XRnuovzyXzMmniNebCNqjx5hM5K/ZPk9u15qNG+Uxh2IwCfDd6Th9g
-ocHqeJunpXhROb0Vsi5nQeYbsAv2kf4zbfbHVpHtAoGBAL9ByOu+6PROTsr2wEYG
-NLg/qXlDavq+hN/q9BoFp6VP9e5sC0dBnMmT0WQLk7QppCI64qe3bUEYHGirnDsL
-/4rbrKQVAE+GDUfYJWD3vo+TzjlAwT8H74m8r2H/fzGHLyCG3KDeUAUxXNmDwbC4
-86ol13+Gs8pgSrAtWjLYlcB0
------END PRIVATE KEY-----`;
-
-                    var pk = KEYUTIL.getKey(privateKey);
-                    var sig = new KJUR.crypto.Signature({"alg": "SHA512withRSA"});
-                    sig.init(pk);
+                window.firmaQzLocale().then(f => {
+                    const sig = new KJUR.crypto.Signature({ alg: "SHA512withRSA" });
+                    sig.init(f.chiave);
                     sig.updateString(toSign);
-                    var hex = sig.sign();
-                    
-                    var str = '';
-                    for (var i = 0; i < hex.length; i += 2) {
-                        str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
-                    }
-                    resolve(btoa(str)); 
-                } catch (err) {
+                    resolve(hextob64(sig.sign()));
+                }).catch(err => {
                     console.error("Errore firma QZ:", err);
                     reject(err);
-                }
+                });
             };
         });
 
@@ -4100,6 +4096,63 @@ window.renderizzaConfigStampanti = () => {
         window.aggiornaVistaMetodoStampa();
     }
     renderPannelloAgente();
+    window.aggiornaBoxCertificatoQz();
+};
+
+// Gestionale > Stampanti: certificato QZ Tray del locale (da installare sul PC della cassa)
+window.aggiornaBoxCertificatoQz = async () => {
+    const stato = document.getElementById('qz-cert-stato');
+    if (!stato) return;
+    try {
+        const snap = await getDoc(doc(db, "impostazioni", "qz_firma"));
+        const creato = snap.exists() && snap.data().certificato ? snap.data().creato : null;
+        stato.innerText = creato
+            ? `Certificato di questo locale creato il ${(creato.toDate ? creato.toDate() : new Date(creato)).toLocaleDateString('it-IT')}.`
+            : "Non ancora creato: si crea da solo quando premi «Scarica certificato».";
+    } catch (e) {
+        stato.innerText = "Impossibile leggere il certificato: " + e.message;
+    }
+};
+
+const scaricaFileCertificato = (pem) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([pem], { type: 'application/x-x509-ca-cert' }));
+    a.download = 'override.crt';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+};
+
+window.scaricaCertificatoQz = async () => {
+    try {
+        Swal.fire({ title: 'Preparo il certificato...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const f = await window.firmaQzLocale();
+        scaricaFileCertificato(f.certificato);
+        Swal.close();
+        window.aggiornaBoxCertificatoQz();
+    } catch (e) {
+        Swal.fire("Errore", "Certificato non disponibile: " + e.message, "error");
+    }
+};
+
+window.rinnovaCertificatoQz = async () => {
+    const r = await Swal.fire({
+        title: 'Creare un certificato nuovo?',
+        html: "Il certificato attuale smette di valere: dovrai installare quello nuovo sul PC della cassa (file <b>override.crt</b> nella cartella di QZ Tray) e riavviare QZ Tray.",
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'Sì, crea e scarica', cancelButtonText: 'Annulla'
+    });
+    if (!r.isConfirmed) return;
+    try {
+        Swal.fire({ title: 'Creo il certificato...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const f = await window.firmaQzLocale(true);
+        scaricaFileCertificato(f.certificato);
+        // QZ Tray si ricollega da solo e userà il certificato nuovo
+        if (typeof qz !== 'undefined' && qz.websocket.isActive()) qz.websocket.disconnect().catch(() => {});
+        window.aggiornaBoxCertificatoQz();
+        Swal.fire({ icon: 'success', title: 'Certificato nuovo scaricato', text: 'Installalo sul PC della cassa come override.crt e riavvia QZ Tray.' });
+    } catch (e) {
+        Swal.fire("Errore", "Certificato non creato: " + e.message, "error");
+    }
 };
 
 window.aggiornaVistaMetodoStampa = () => {

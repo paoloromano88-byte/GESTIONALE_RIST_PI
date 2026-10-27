@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con la PR #33 (Firebase Storage: non attivo e non usato, immagini nel database).
+**Ultimo aggiornamento:** 27/10/2026, con la PR #34 (QZ Tray: chiave e certificato di ogni locale, non più nel codice).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -95,6 +95,14 @@ File condivisi:
   - comande, VIA/aggiunte, chiamata turni, conto, preconto, riepilogo Z;
   - i ritocchi (blocco domicilio, testo solo ASCII) sono in `preparaDatiStampaTermica()` in `cassa.html`.
 - **QZ Tray**: identico a prima. Provato confrontando byte per byte 8 tipi di stampa prima e dopo.
+- **Certificato e chiave di QZ Tray** (PR #34):
+  - ogni locale ha la sua chiave RSA 2048 e il suo certificato autofirmato (10 anni, CN «Gestionale Ristoranti - <locale>»). Li crea la cassa la prima volta che si collega a QZ Tray o quando si preme «Scarica certificato»;
+  - stanno in `impostazioni/qz_firma` del locale. Li leggono solo il personale del locale e il Super Admin: niente regole nuove, perché `qz_firma` non è tra le impostazioni pubbliche;
+  - la cassa firma ogni richiesta (SHA512withRSA) sul PC, quindi la stampa resta veloce. La chiave non è più scritta in `cassa.js`;
+  - la vecchia chiave è ancora nella storia di git: è da considerare pubblica. Per questo sul PC della cassa va installato il certificato **nuovo**, e quello vecchio smette di valere;
+  - installazione: Gestionale → Stampanti → «Certificato QZ Tray» → «Scarica certificato». Il file `override.crt` va nella cartella di QZ Tray (Windows: `C:\Program Files\QZ Tray`), poi si riavvia QZ Tray;
+  - «Crea un certificato nuovo» cambia chiave e certificato (es. se un dispositivo del locale è stato rubato). Va poi reinstallato sul PC;
+  - strada più severa per il futuro: firma su una Cloud Function, così la chiave non arriva mai sui dispositivi. Serve dare all'account del deploy il ruolo «Amministratore Cloud Run» per le funzioni chiamabili dal browser.
 - **Agente**:
   - la cassa scrive i byte ESC/POS in base64 in `coda_stampa` del locale;
   - un apparecchio nel locale (ESP32, oppure PC con `agente-stampa/agente.mjs`) li manda a IP:9100 e cancella la comanda;
@@ -217,6 +225,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #31 | **Comande dal server**: con «Agente di stampa» ordini nuovi e messaggi alla cucina vanno in coda dal server, anche a cassa chiusa. Testo delle stampe in `comande-escpos.js`, condiviso da cassa e server |
 | #32 | **Niente più PIN 0000** in Sala e Agenda: si entra solo col PIN di un dipendente. Nuovo ruolo «Responsabile» (accesso d'emergenza scelto dal locale). Senza dipendenti registrati, Sala e Agenda spiegano dove aggiungerli |
 | #33 | Firebase Storage verificato: non attivo e non usato. Tolto dalla Cassa il codice di Storage rimasto (non si scarica più) |
+| #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue
 
@@ -235,10 +244,12 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 - #28 stampa senza QZ Tray, tappe 1 e 2 (coda, Agente di stampa, ESP32);
 - #30 comande preparate dal server (tappa 3);
 - #19 PIN d'emergenza 0000 in Sala e Agenda;
-- #17 regole di Firebase Storage (Storage non attivo: immagini nel database).
+- #17 regole di Firebase Storage (Storage non attivo: immagini nel database);
+- #16 chiave privata di QZ Tray nel codice (ora una per locale, nel database).
 
-**Da fare, in ordine**:
-1. **#16**: chiave privata di QZ Tray (stampa) scritta nel codice della cassa → firma lato server.
+**Da fare, in ordine**: nessuna issue di sicurezza aperta. Sul posto:
+1. dopo la PR #34, installare il **certificato QZ nuovo** sul PC della cassa di Da Mimmo (Gestionale → Stampanti → «Certificato QZ Tray»). Finché non è installato, QZ Tray chiede il permesso a ogni stampa;
+2. provare l'**ESP32-C3** con l'apparecchio vero.
 
 **Stampa senza QZ Tray con ESP32** (#28, deciso il 26/10/2026), in tappe:
 1. ✅ Coda di stampa, Agente per PC, semaforo e avvisi (PR #29).
