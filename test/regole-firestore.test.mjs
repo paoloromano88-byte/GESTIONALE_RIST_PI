@@ -21,6 +21,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(db, base + 'impostazioni/negozio'), { nome: 'Test', supplemento_consegna: 2 });
     await setDoc(doc(db, base + 'impostazioni/stampanti'), { ip: '192.168.1.50' });
     await setDoc(doc(db, base + 'impostazioni/licenza'), { attiva: false, moduli: { kds: false } });
+    await setDoc(doc(db, base + 'impostazioni/qz_firma'), { certificato: 'CERT', chiave: 'CHIAVE-PRIVATA' });
     await setDoc(doc(db, base + 'dipendenti/d1'), { nome: 'Giulia', pin: '2222' });
     await setDoc(doc(db, base + 'ordini/o1'), { nome: 'Mario', telefono: '3331112222', data_ritiro: '2026-10-26', stato: 'In attesa', totale: 10, cliente: { telefono: '3331112222' } });
     await setDoc(doc(db, base + 'ordini/o2'), { nome: 'Anna', telefono: '3339998888', data_ritiro: '2026-10-26', stato: 'In attesa', totale: 12, cliente: { telefono: '3339998888' } });
@@ -67,11 +68,16 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('staff legge la licenza', true, () => getDoc(d(staff, 'impostazioni/licenza')));
   await t('staff NON si riattiva la licenza', false, () => updateDoc(d(staff, 'impostazioni/licenza'), { attiva: true }));
   await t('staff NON cancella la licenza', false, () => deleteDoc(d(staff, 'impostazioni/licenza')));
+  await t('staff legge la chiave QZ del locale', true, () => getDoc(d(staff, 'impostazioni/qz_firma')));
+  await t('staff crea/rinnova la chiave QZ del locale', true, () => setDoc(d(staff, 'impostazioni/qz_firma'), { certificato: 'CERT2', chiave: 'CHIAVE2', creato: serverTimestamp() }));
 
   // Isolamento tra locali e account non collegati
   await t('personale di un ALTRO locale NON legge gli ordini', false, () => getDocs(c(altroStaff, 'ordini')));
   await t('personale di un ALTRO locale NON legge dipendenti', false, () => getDocs(c(altroStaff, 'dipendenti')));
   await t('personale di un ALTRO locale NON modifica ordini', false, () => updateDoc(d(altroStaff, 'ordini/o1'), { stato: 'Annullato' }));
+  await t('personale di un ALTRO locale NON legge la chiave QZ', false, () => getDoc(d(altroStaff, 'impostazioni/qz_firma')));
+  await t('personale di un ALTRO locale NON cambia la chiave QZ', false, () => setDoc(d(altroStaff, 'impostazioni/qz_firma'), { certificato: 'X', chiave: 'X' }));
+  await t('account email non collegato NON legge la chiave QZ', false, () => getDoc(d(abusivo, 'impostazioni/qz_firma')));
   await t('account email non collegato NON legge ordini', false, () => getDocs(c(abusivo, 'ordini')));
   await t('account email non collegato NON legge dipendenti', false, () => getDocs(c(abusivo, 'dipendenti')));
 
@@ -83,6 +89,9 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('anonimo legge menu prodotti', true, () => getDocs(c(anon, 'prodotti')));
   await t('anonimo legge impostazioni negozio', true, () => getDoc(d(anon, 'impostazioni/negozio')));
   await t('anonimo NON legge impostazioni stampanti', false, () => getDoc(d(anon, 'impostazioni/stampanti')));
+  await t('anonimo NON legge la chiave QZ', false, () => getDoc(d(anon, 'impostazioni/qz_firma')));
+  await t('anonimo NON elenca le impostazioni', false, () => getDocs(c(anon, 'impostazioni')));
+  await t('cliente SMS NON legge la chiave QZ', false, () => getDoc(d(mario, 'impostazioni/qz_firma')));
   await t('anonimo NON legge dipendenti/PIN', false, () => getDocs(c(anon, 'dipendenti')));
   await t('anonimo NON elenca ordini del giorno', false, () => getDocs(query(c(anon, 'ordini'), where('data_ritiro', '==', '2026-10-26'))));
   await t('anonimo NON elenca ordini di un telefono', false, () => getDocs(query(c(anon, 'ordini'), where('telefono', '==', '3339998888'))));
