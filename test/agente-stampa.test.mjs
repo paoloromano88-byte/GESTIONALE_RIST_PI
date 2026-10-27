@@ -136,6 +136,29 @@ await prova('due agenti nello stesso locale: ogni comanda esce una volta sola', 
   p.chiudi();
 });
 
+await prova('stampata ma la rete cade prima di toglierla dalla coda: NON si ristampa, si toglie al giro dopo', async () => {
+  await svuota();
+  const cassa = await creaAccount('cassa6@locale-principale.it', 'default');
+  const p = await stampanteFinta();
+  const id = await mettiInCoda(cassa, '', { ip: '127.0.0.1', porta: p.porta, dati: Buffer.from('UNA').toString('base64') });
+  const a = await nuovoAgente(cassa, 'pc6', { attesaMs: 100 });
+  // La prima cancellazione dalla coda non arriva (rete che cade)
+  const fsVero = a.fs.bind(a);
+  let cancellazioniFallite = 0;
+  a.fs = async (url, opz = {}) => {
+    if (opz.method === 'DELETE' && cancellazioniFallite === 0) { cancellazioniFallite++; throw new Error('fetch failed'); }
+    return fsVero(url, opz);
+  };
+  a.avvia();
+  assert.ok(await attendi(async () => !(await leggiAdmin(`coda_stampa/${id}`))), 'tolta dalla coda al giro dopo');
+  await new Promise(r => setTimeout(r, 500));
+  await a.ferma();
+  assert.strictEqual(cancellazioniFallite, 1);
+  assert.deepStrictEqual(p.ricevuti.map(b => b.toString()), ['UNA'], 'stampata una volta sola');
+  assert.ok(a.log_.some(m => /non ancora tolta dalla coda/.test(m)));
+  p.chiudi();
+});
+
 await prova('"Scollega" dalla cassa: l\'agente si ferma e dimentica il token', async () => {
   await svuota();
   const cassa = await creaAccount('cassa4@locale-principale.it', 'default');

@@ -8,6 +8,5 @@
 struct Comanda {
   String nome, id, aggiornato, ip, stampante, descrizione;
   int porta = 9100, tentativi = 0;
-  time_t creato = 0;
-  JsonVariantConst dati;  // base64 dei byte ESC/POS (resta nel documento JSON letto)
+  time_t creato = 0;      // i byte da stampare si leggono a parte (leggiDati), al momento di stampare
 };
