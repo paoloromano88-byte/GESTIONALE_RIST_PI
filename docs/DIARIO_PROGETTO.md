@@ -88,6 +88,7 @@ File condivisi:
    - **Android** (Chrome): funziona dal browser.
    - **iPhone** (iOS 16.4 o più recente): solo se l'App Rider è aggiunta alla schermata Home (Condividi → «Aggiungi alla schermata Home») e aperta da lì. L'app lo spiega da sola. `delivery.webmanifest` serve a questo.
    - Nell'emulatore non c'è FCM: le notifiche finiscono in `_push_emulatore` per i test.
+   - ✅ Provato a Da Mimmo il 27/10/2026 con un telefono Android e l'app chiusa: la notifica arriva.
 4. **Presa in carico (App Rider)**: il rider scansiona il QR della busta che ha in mano.
    - Pulsante "📷 SCANSIONA QR" in basso, oppure "Scansiona e prendi" sulla scheda. Se il QR è di un'altra busta, l'app avvisa ("Busta diversa!").
    - Lettore: quello nativo del telefono (`BarcodeDetector`) o la libreria `jsQR`. Se la fotocamera non va, c'è "Fai una foto al QR".
