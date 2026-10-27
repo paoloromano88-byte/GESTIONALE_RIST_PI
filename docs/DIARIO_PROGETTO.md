@@ -101,6 +101,7 @@ File condivisi:
   - la cassa firma ogni richiesta (SHA512withRSA) sul PC, quindi la stampa resta veloce. La chiave non è più scritta in `cassa.js`;
   - la vecchia chiave è ancora nella storia di git: è da considerare pubblica. Per questo sul PC della cassa va installato il certificato **nuovo**, e quello vecchio smette di valere;
   - installazione: Gestionale → Stampanti → «Certificato QZ Tray» → «Scarica certificato». Il file `override.crt` va nella cartella di QZ Tray (Windows: `C:\Program Files\QZ Tray`), poi si riavvia QZ Tray;
+  - finché non è installato, QZ Tray mostra «Invalid Certificate / Untrusted website» e chiede il permesso a ogni stampa. Se resta così anche dopo il riavvio, controllare se `qz-tray.properties` ha una riga `authcert.override` che punta a un altro file;
   - «Crea un certificato nuovo» cambia chiave e certificato (es. se un dispositivo del locale è stato rubato). Va poi reinstallato sul PC;
   - strada più severa per il futuro: firma su una Cloud Function, così la chiave non arriva mai sui dispositivi. Serve dare all'account del deploy il ruolo «Amministratore Cloud Run» per le funzioni chiamabili dal browser.
 - **Agente**:
@@ -248,7 +249,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 - #16 chiave privata di QZ Tray nel codice (ora una per locale, nel database).
 
 **Da fare, in ordine**: nessuna issue di sicurezza aperta. Sul posto:
-1. dopo la PR #34, installare il **certificato QZ nuovo** sul PC della cassa di Da Mimmo (Gestionale → Stampanti → «Certificato QZ Tray»). Finché non è installato, QZ Tray chiede il permesso a ogni stampa;
+1. ✅ Certificato QZ nuovo installato sul PC della cassa di Da Mimmo (27/10/2026, dopo la PR #34): le stampe funzionano. Il certificato vecchio non vale più.
 2. provare l'**ESP32-C3** con l'apparecchio vero.
 
 **Stampa senza QZ Tray con ESP32** (#28, deciso il 26/10/2026), in tappe:
