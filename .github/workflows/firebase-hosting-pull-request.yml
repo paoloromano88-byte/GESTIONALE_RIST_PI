@@ -15,10 +15,13 @@ jobs:
   firmware:
     uses: ./.github/workflows/firmware-esp32.yml
 
+  agente-windows:
+    uses: ./.github/workflows/agente-windows.yml
+
   preview:
     # Le PR da fork non hanno accesso ai secrets
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-    needs: firmware
+    needs: [firmware, agente-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +30,11 @@ jobs:
         with:
           name: firmware-esp32
           path: firmware
+      # Programma per Windows dell'Agente di stampa (pagina agente-windows.html e aggiornamenti automatici)
+      - uses: actions/download-artifact@v4
+        with:
+          name: agente-windows
+          path: programmi
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

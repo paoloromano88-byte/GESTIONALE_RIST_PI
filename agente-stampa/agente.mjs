@@ -8,6 +8,7 @@
 // Funziona con qualunque marca: la cassa prepara già i byte da stampare.
 //
 // È anche il modello del programma per ESP32: stesso protocollo, vedi README.md.
+// Il programma per Windows (programma.mjs) è questo stesso agente con una pagina nel browser.
 //
 // Uso (serve Node.js 18 o più recente, nessun pacchetto da installare):
 //   node agente.mjs            la prima volta chiede email e password del locale
@@ -23,7 +24,7 @@ import crypto from 'node:crypto';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
-export const VERSIONE = '1.0.1';
+export const VERSIONE = '1.1.0';
 
 // Configurazione pubblica del progetto Firebase (la stessa delle pagine web)
 const FIREBASE = { apiKey: 'AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU', projectId: 'gestionale-ristoranti-96c5b' };
@@ -95,10 +96,13 @@ export async function accedi(email, password, { apiKey = FIREBASE.apiKey } = {})
 }
 
 export class Agente {
-  constructor({ credenziali, nome, idAgente, opzioni = {}, registro = console.log, stampaSuStampante = inviaAllaStampante }) {
+  // riattiva: appena collegato con email e password, toglie lo "Scollega" messo prima dalla cassa
+  constructor({ credenziali, nome, idAgente, tipo = 'pc', riattiva = false, opzioni = {}, registro = console.log, stampaSuStampante = inviaAllaStampante }) {
     this.cred = { ...credenziali };
     this.nome = nome || os.hostname();
     this.idAgente = idAgente;
+    this.tipo = tipo;
+    this.riattiva = riattiva;
     this.o = { ...PREDEFINITI, ...opzioni };
     this.log = registro;
     this.stampaSuStampante = stampaSuStampante;
@@ -178,15 +182,16 @@ export class Agente {
       try {
         const d = await this.fs(nomeDoc);
         if (leggiCampi(d.fields).disattivato) {
-          this.log('⛔ Questo agente è stato scollegato dalla cassa (Gestionale > Stampanti). Per usarlo di nuovo: node agente.mjs --collega');
+          this.log('⛔ Questo agente è stato scollegato dalla cassa (Gestionale > Stampanti).');
           this.attivo = false;
           if (this.onScollegato) this.onScollegato();
           return;
         }
       } catch (e) { if (e.status !== 404) throw e; }
     }
-    const campi = { nome: this.nome, tipo: 'pc', versione: VERSIONE, ip_locale: ipLocale(), stampate: this.stampate, ultimo_errore: this.ultimoErrore };
+    const campi = { nome: this.nome, tipo: this.tipo, versione: VERSIONE, ip_locale: ipLocale(), stampate: this.stampate, ultimo_errore: this.ultimoErrore };
     if (primo) campi.avviato = this.avviato;
+    if (primo && this.riattiva) campi.disattivato = false;
     await this.fs(`${this.url.radice}:commit`, {
       method: 'POST',
       body: JSON.stringify({ writes: [{
@@ -195,6 +200,7 @@ export class Agente {
         updateTransforms: [{ fieldPath: 'ultimo_contatto', setToServerValue: 'REQUEST_TIME' }],
       }] }),
     });
+    if (primo) this.riattiva = false;
   }
 
   async controllaCoda() {
@@ -259,6 +265,7 @@ export class Agente {
     // Stampata: non si ristampa più, anche se toglierla dalla coda non riesce subito
     this.prossimoTentativo.delete(id);
     this.stampate++;
+    this.ultimaStampa = Date.now();
     this.ultimoErrore = '';
     this.log(`🖨️  Stampata: ${c.descrizione || id} -> ${c.ip}`);
     await this.togliDallaCoda(c.nome);
@@ -289,7 +296,7 @@ export function inviaAllaStampante(ip, porta, byte, timeoutMs = 5000) {
 
 const attendi = (ms) => new Promise(r => setTimeout(r, ms));
 
-function ipLocale() {
+export function ipLocale() {
   for (const reti of Object.values(os.networkInterfaces())) {
     for (const r of reti || []) if (r.family === 'IPv4' && !r.internal) return r.address;
   }
@@ -302,7 +309,8 @@ async function principale() {
   let config = fs.existsSync(fileConfig) ? JSON.parse(fs.readFileSync(fileConfig, 'utf8')) : null;
   const salva = () => fs.writeFileSync(fileConfig, JSON.stringify(config, null, 2), { mode: 0o600 });
 
-  if (!config || !config.refreshToken || process.argv.includes('--collega')) {
+  const daCollegare = !config || !config.refreshToken || process.argv.includes('--collega');
+  if (daCollegare) {
     // Le righe si leggono una alla volta (funziona anche se le risposte arrivano tutte insieme)
     const rl = readline.createInterface({ input: process.stdin });
     const righe = rl[Symbol.asyncIterator]();
@@ -319,13 +327,14 @@ async function principale() {
 
   // Con gli emulatori (prove) si usa il loro progetto
   const opzioni = process.env.FIRESTORE_EMULATOR_HOST && process.env.GCLOUD_PROJECT ? { projectId: process.env.GCLOUD_PROJECT } : {};
-  const agente = new Agente({ credenziali: { email: config.email, uid: config.uid, refreshToken: config.refreshToken }, nome: config.nome, idAgente: config.idAgente, opzioni });
+  const agente = new Agente({ credenziali: { email: config.email, uid: config.uid, refreshToken: config.refreshToken }, nome: config.nome, idAgente: config.idAgente, riattiva: daCollegare, opzioni });
   agente.onCredenziali = (c) => { config.refreshToken = c.refreshToken; salva(); };
-  agente.onScollegato = () => { delete config.refreshToken; salva(); };
+  agente.onScollegato = () => { delete config.refreshToken; salva(); console.log('Per usarlo di nuovo: node agente.mjs --collega'); };
   process.on('SIGINT', async () => { console.log('\nChiusura...'); await agente.ferma(); process.exit(0); });
   await agente.avvia();
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+// (import.meta.url manca quando il file è dentro AgenteStampa.exe: lì si parte da windows/avvio.mjs)
+if (import.meta.url && process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   principale().catch((e) => { console.error('❌', e.message); process.exit(1); });
 }

@@ -89,26 +89,8 @@
         <div class="section-box">
             <h3 style="color:#58a6ff; margin:0 0 6px 0; font-size:1.05em;"><i class="fa-solid fa-puzzle-piece"></i> Moduli Acquistati dal Ristorante (Attivazione Istantanea)</h3>
             <p style="margin:0 0 12px 0; font-size:0.8em; color:#8b949e;">Spunta o deseleziona un modulo: la pagina corrispondente si sbloccherà o sospenderà in tempo reale per questo ristorante.</p>
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                <label class="mod-check-card">
-                    <input type="checkbox" id="mod-cassa" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 🖥️ Cassa Principale
-                </label>
-                <label class="mod-check-card">
-                    <input type="checkbox" id="mod-sala" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 📱 Palmare Sala
-                </label>
-                <label class="mod-check-card">
-                    <input type="checkbox" id="mod-agenda" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 📅 Agenda Prenotazioni
-                </label>
-                <label class="mod-check-card">
-                    <input type="checkbox" id="mod-kds" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 📺 Monitor Cucina (KDS)
-                </label>
-                <label class="mod-check-card">
-                    <input type="checkbox" id="mod-menu" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 📖 Menu QR Tavoli
-                </label>
-                <label class="mod-check-card">
-                    <input type="checkbox" id="mod-telecomando" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> 📟 Telecomando Ordini
-                </label>
-            </div>
+            <!-- Caselle create da APP_LOCALE (script qui sotto) -->
+            <div id="moduli-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;"></div>
         </div>
 
         <label class="label">Messaggio di Blocco (Mostrato quando sospeso o scaduto)</label>
@@ -198,6 +180,32 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+
+        // Le app di ogni locale: da qui nascono i link da mandare al cliente, il testo per WhatsApp e
+        // le caselle dei moduli. Un'app nuova va aggiunta solo qui (e la sua pagina deve rispettare il modulo).
+        // modulo: chiave in impostazioni/licenza.moduli (false = spento; se manca vale acceso).
+        const APP_LOCALE = [
+            { file: 'cassa.html', nome: 'Cassa Principale', icona: '🖥️', modulo: 'cassa' },
+            { file: 'ordini.html', nome: 'Telecomando Ordini', icona: '📟', modulo: 'telecomando' },
+            { file: 'sala.html', nome: 'Palmare Sala', icona: '📱', modulo: 'sala' },
+            { file: 'mappa_sala.html', nome: 'Mappa Sale', icona: '🗺️' },  // fa parte di Cassa, Sala e Agenda: nessun modulo a sé
+            { file: 'agenda.html', nome: 'Agenda Prenotazioni', icona: '📅', modulo: 'agenda' },
+            { file: 'kds.html', nome: 'Monitor Cucina (KDS)', icona: '📺', modulo: 'kds' },
+            { file: 'index.html', nome: 'App Clienti (ordini online)', icona: '🛵', modulo: 'app_clienti' },
+            { file: 'delivery.html', nome: 'App Rider (consegne)', icona: '🏍️', modulo: 'rider' },
+            { file: 'menu.html', nome: 'Menu QR Tavoli', icona: '📖', modulo: 'menu' },
+        ];
+        const MODULI = APP_LOCALE.filter(a => a.modulo);
+        // Da installare sul PC del locale (uguale per tutti i locali: si collega con email e password del locale)
+        const LINK_INSTALLAZIONE = [
+            { file: 'agente-windows.html', nome: 'Programma di stampa per Windows', icona: '🖨️' },
+        ];
+        const tuttiAccesi = () => Object.fromEntries(MODULI.map(m => [m.modulo, true]));
+
+        document.getElementById('moduli-grid').innerHTML = MODULI.map(m => `
+                <label class="mod-check-card">
+                    <input type="checkbox" id="mod-${m.modulo}" checked onchange="salvaLicenza(true)" style="width:18px; height:18px;"> ${m.icona} ${m.nome}
+                </label>`).join('');
 
         // Accesso con il proprio account; poi si verifica che sia Super Admin (utenti/{uid}.ruolo)
         const utenteCorrente = await assicuraLoginDispositivo({ titolo: "Super Admin", verificaLocale: false });
@@ -416,7 +424,7 @@
                 await setDoc(doc(db, "ristoranti", slug, "impostazioni", "licenza"), {
                     attiva: true,
                     kds_sbloccato: true,
-                    moduli: { cassa: true, sala: true, kds: true, agenda: true, menu: true, telecomando: true },
+                    moduli: tuttiAccesi(),
                     updated_at: new Date().toISOString()
                 });
 
@@ -538,12 +546,7 @@
                     document.getElementById('lic-prezzo').value = data.prezzo || '';
                     
                     const moduli = data.moduli || {};
-                    document.getElementById('mod-cassa').checked = moduli.cassa !== false;
-                    document.getElementById('mod-sala').checked = moduli.sala !== false;
-                    document.getElementById('mod-kds').checked = moduli.kds !== false;
-                    document.getElementById('mod-agenda').checked = moduli.agenda !== false;
-                    document.getElementById('mod-menu').checked = moduli.menu !== false;
-                    document.getElementById('mod-telecomando').checked = moduli.telecomando !== false;
+                    MODULI.forEach(m => { document.getElementById(`mod-${m.modulo}`).checked = moduli[m.modulo] !== false; });
 
                     document.getElementById('lic-msg-blocco').value = data.messaggio_blocco || '';
                     document.getElementById('lic-contatto').value = data.contatto_assistenza || '';
@@ -553,7 +556,7 @@
                     statoAttuale = true;
                     document.getElementById('lic-scadenza').value = '';
                     document.getElementById('lic-prezzo').value = '';
-                    ['mod-cassa', 'mod-sala', 'mod-kds', 'mod-agenda', 'mod-menu', 'mod-telecomando'].forEach(id => document.getElementById(id).checked = true);
+                    MODULI.forEach(m => { document.getElementById(`mod-${m.modulo}`).checked = true; });
                     document.getElementById('lic-avviso-attivo').checked = false;
                 }
                 aggiornaGraficaStato();
@@ -572,32 +575,25 @@
                 }
             });
 
-            const base = window.location.origin;
-            const param = `?locale=${tenantId}`;
-            document.getElementById('client-links').innerHTML = `
-                <a href="${base}/cassa.html${param}" target="_blank">🖥️ Cassa Principale: ${base}/cassa.html${param}</a>
-                <a href="${base}/ordini.html${param}" target="_blank">📟 Telecomando Asporto/Sala: ${base}/ordini.html${param}</a>
-                <a href="${base}/sala.html${param}" target="_blank">📱 Palmare Sala: ${base}/sala.html${param}</a>
-                <a href="${base}/agenda.html${param}" target="_blank">📅 Agenda Prenotazioni: ${base}/agenda.html${param}</a>
-                <a href="${base}/kds.html${param}" target="_blank">📺 KDS Monitor Cucina: ${base}/kds.html${param}</a>
-                <a href="${base}/index.html${param}" target="_blank">🍕 App Asporto Clienti: ${base}/index.html${param}</a>
-                <a href="${base}/menu.html${param}" target="_blank">📖 Menu QR Tavoli: ${base}/menu.html${param}</a>
-            `;
+            document.getElementById('client-links').innerHTML = linkDelLocale(tenantId)
+                .map(l => `<a href="${window.escapeHtml(l.url)}" target="_blank" rel="noopener">${l.icona} ${window.escapeHtml(l.nome)}: ${window.escapeHtml(l.url)}</a>`).join('');
         };
 
-        window.copiaLinkWhatsApp = () => {
+        // Tutti i link per un locale: le sue app (con ?locale=) e i programmi da installare
+        function linkDelLocale(tenantId) {
             const base = window.location.origin;
-            const param = `?locale=${currentTenant}`;
+            const param = `?locale=${encodeURIComponent(tenantId)}`;
+            return [
+                ...APP_LOCALE.map(a => ({ ...a, url: `${base}/${a.file}${param}` })),
+                ...LINK_INSTALLAZIONE.map(a => ({ ...a, url: `${base}/${a.file}` })),
+            ];
+        }
+
+        window.copiaLinkWhatsApp = () => {
             const nomeLoc = document.getElementById('wl-nome').value.trim() || currentTenant.toUpperCase();
             const testo = [
                 `🍕 *LINK GESTIONALE - ${nomeLoc}*`,
-                `🖥️ *Cassa:* ${base}/cassa.html${param}`,
-                `📟 *Telecomando:* ${base}/ordini.html${param}`,
-                `📱 *Palmare Sala:* ${base}/sala.html${param}`,
-                `📅 *Agenda Prenotazioni:* ${base}/agenda.html${param}`,
-                `📺 *Monitor Cucina KDS:* ${base}/kds.html${param}`,
-                `🛵 *App Clienti Asporto:* ${base}/index.html${param}`,
-                `📖 *Menu Digitale QR:* ${base}/menu.html${param}`
+                ...linkDelLocale(currentTenant).map(l => `${l.icona} *${l.nome}:* ${l.url}`)
             ].join('\n');
 
             navigator.clipboard.writeText(testo).then(() => {
@@ -633,14 +629,7 @@
 
         // --- SALVATAGGIO ISOLATO PER SINGOLO RISTORANTE (SENZA SOVRASCRIVERE IL DEFAULT) ---
         window.salvaLicenza = async (silenzioso = false) => {
-            const moduliAbilitati = {
-                cassa: document.getElementById('mod-cassa').checked,
-                sala: document.getElementById('mod-sala').checked,
-                kds: document.getElementById('mod-kds').checked,
-                agenda: document.getElementById('mod-agenda').checked,
-                menu: document.getElementById('mod-menu').checked,
-                telecomando: document.getElementById('mod-telecomando').checked
-            };
+            const moduliAbilitati = Object.fromEntries(MODULI.map(m => [m.modulo, document.getElementById(`mod-${m.modulo}`).checked]));
 
             const payloadLicenza = {
                 attiva: statoAttuale,

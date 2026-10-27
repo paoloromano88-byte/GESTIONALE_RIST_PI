@@ -535,7 +535,9 @@
         // --- 2. KILL-SWITCH LICENZA ---
         onSnapshot(doc(db, "impostazioni", "licenza"), (docSnap) => {
             let overlayCli = document.getElementById('servizio-chiuso-overlay');
-            if (docSnap.exists() && docSnap.data().attiva === false) {
+            // Abbonamento sospeso o modulo Menu QR spento dal Super Admin
+            const licMenu = docSnap.exists() ? docSnap.data() : {};
+            if (licMenu.attiva === false || (licMenu.moduli && licMenu.moduli.menu === false)) {
                 if (!overlayCli) {
                     overlayCli = document.createElement('div');
                     overlayCli.id = 'servizio-chiuso-overlay';

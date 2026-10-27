@@ -1176,7 +1176,9 @@
             // 2. Kill-Switch Licenza SaaS
             onSnapshot(doc(db, "impostazioni", "licenza"), (docLic) => {
                 let overlayBlock = document.getElementById('app-sospesa-overlay');
-                if (docLic.exists() && docLic.data().attiva === false) {
+                // Abbonamento sospeso o modulo App Clienti spento dal Super Admin
+                const licApp = docLic.exists() ? docLic.data() : {};
+                if (licApp.attiva === false || (licApp.moduli && licApp.moduli.app_clienti === false)) {
                     if (!overlayBlock) {
                         overlayBlock = document.createElement('div');
                         overlayBlock.id = 'app-sospesa-overlay';

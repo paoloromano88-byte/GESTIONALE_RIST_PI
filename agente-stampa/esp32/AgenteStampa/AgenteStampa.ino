@@ -35,7 +35,7 @@
 #include "pagine.h"
 #include "comanda.h"
 
-#define VERSIONE "1.0.1"
+#define VERSIONE "1.0.2"
 
 void avviaPortale();
 void tornaAllaConfigurazioneSenzaRiavvio(const String &motivo);
@@ -106,6 +106,7 @@ unsigned long lampiFinoA = 0;
 String idAgente, idToken, locale, base, ultimoErrore;
 unsigned long scadenzaTokenMs = 0, ultimoBattito = 0, ultimoControllo = 0, ultimoTentativoWiFi = 0, ultimoTentativoOra = 0;
 bool primoBattito = true, accessoRevocato = false, oraSincronizzata = false;
+bool riattiva = false;  // appena collegato con la password: toglie lo "Scollega" messo prima dalla cassa
 int stampate = 0;
 std::map<String, unsigned long> prossimoTentativo;  // id comanda -> quando riprovare
 std::vector<String> daTogliere;                     // comande stampate da togliere ancora dalla coda (rete assente)
@@ -357,6 +358,7 @@ void battito() {
   JsonObject trasforma = scrittura["updateTransforms"].add<JsonObject>();
   trasforma["fieldPath"] = "ultimo_contatto";
   trasforma["setToServerValue"] = "REQUEST_TIME";
+  if (primoBattito && riattiva) { campi["disattivato"]["booleanValue"] = false; maschera.add("disattivato"); }
   if (primoBattito) {
     JsonObject avvio = scrittura["updateTransforms"].add<JsonObject>();
     avvio["fieldPath"] = "avviato";
@@ -365,7 +367,7 @@ void battito() {
   String corpo;
   serializeJson(w, corpo);
   int codice = firestore("POST", radice() + ":commit", corpo, risposta);
-  if (codice == 200) primoBattito = false;
+  if (codice == 200) primoBattito = riattiva = false;
   else registro("Battito non riuscito (" + String(codice) + "): " + risposta.substring(0, 150));
 }
 
@@ -643,6 +645,7 @@ void setup() {
     imp.passTemp = "";  // la password non resta salvata
     imp.erroreSetup = "";
     salvaImpostazioni();
+    riattiva = true;
   }
 }
 
