@@ -1733,7 +1733,7 @@
                             const cat = String(it.categoria || it.cat || '').toLowerCase();
                             const nome = String(it.nome || '').toLowerCase();
                             if (cat.includes('pizz') || cat === 'stirata' || cat === 'gf' || nome.includes('pizza')) {
-                                pizzeDom += parseFloat(it.quantita || it.qty || 1) || 1;
+                                pizzeDom += parseFloat(it.qta ?? it.quantita ?? it.qty ?? 1) || 0;
                             }
                         });
                     });
