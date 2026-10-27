@@ -118,6 +118,17 @@ await t('stesso messaggio senza novità: niente; stesso testo ma nuovo invio: si
     assert.ok(/\*\*\* AGGIORNAMENTO \*\*\*/.test(testo(c[0])) && /NUOVE AGGIUNTE/.test(testo(c[0])) && /1 x Diavola \[T1\]/.test(testo(c[0])));
 });
 
+await t('solo CAMBIO TURNO dal palmare: si stampa in pizzeria con "DA T1 A T2"', async () => {
+    await svuota(principale);
+    const sposta = tavolo({ messaggio_cucina: 'CAMBIO TURNO: 2x Margherita (T1->T2)', timestamp_messaggio: Timestamp.now(),
+        ultime_aggiunte_real: [], ultimi_storni_real: [], ultimi_spostamenti_real: [{ nome: 'Margherita', qta: 2, cat: 'pizza', prezzo: 6, oldTurn: 1, newTurn: 2 }] });
+    const n = await comandeMessaggio(db, principale, 'default', 'tav5', tavolo(), sposta);
+    const c = await coda(principale);
+    assert.strictEqual(n, 1);
+    assert.strictEqual(c[0].stampante, 'pizzeria');
+    assert.ok(/CAMBIO TURNO/.test(testo(c[0])) && /2 x Margherita \(DA T1 A T2\)/.test(testo(c[0])), testo(c[0]));
+});
+
 await t('RICHIESTA CONTO, PRONTO dalla cucina, messaggio cancellato: niente in coda', async () => {
     await svuota(principale);
     const prima = tavolo({ messaggio_cucina: 'VIA TURNO 1', timestamp_messaggio: Timestamp.fromMillis(1) });
