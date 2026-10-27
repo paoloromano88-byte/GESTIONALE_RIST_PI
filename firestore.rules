@@ -47,7 +47,7 @@ service cloud.firestore {
 
     // Raccolte alla radice che non appartengono al locale principale
     function riservataPiattaforma(coll) {
-      return coll in ['utenti', 'saas_clienti', 'ristoranti'];
+      return coll in ['utenti', 'saas_clienti', 'ristoranti', 'richieste_demo'];
     }
 
     // Il numero verificato via SMS corrisponde al telefono indicato (salvato senza +39)
@@ -134,6 +134,26 @@ service cloud.firestore {
       return (coll == 'clienti' && crmProfilo(id, request.resource.data.diff(resource.data).affectedKeys()))
         || (coll == 'clienti_registrati' && request.auth != null && request.auth.uid == id
             && profiloValido(request.resource.data));
+    }
+
+    // ---------- Richieste di demo dal sito vetrina (gesti/) ----------
+    // Chiunque può lasciare una richiesta valida; la legge (e la cancella) solo il Super Admin.
+    function richiestaDemoValida(d) {
+      return d.keys().hasOnly(['nome', 'locale', 'tipo', 'citta', 'telefono', 'email', 'messaggio', 'consenso', 'pagina', 'creato'])
+        && d.keys().hasAll(['nome', 'locale', 'tipo', 'citta', 'telefono', 'consenso', 'pagina', 'creato'])
+        && testo(d.nome, 80) && d.nome.size() > 0
+        && testo(d.locale, 80) && d.locale.size() > 0
+        && d.tipo in ['Pizzeria', 'Ristorante', 'Pasticceria', 'Forno / panificio', 'Bar', 'Gastronomia / rosticceria', 'Altro']
+        && testo(d.citta, 60) && d.citta.size() > 0
+        && d.telefono is string && d.telefono.matches('^[0-9+ ]{6,20}$')
+        && (!('email' in d) || testo(d.email, 100))
+        && (!('messaggio' in d) || testo(d.messaggio, 500))
+        && d.consenso == true && d.pagina == 'gesti'
+        && d.creato == request.time;
+    }
+
+    match /richieste_demo/{id} {
+      allow create: if richiestaDemoValida(request.resource.data);
     }
 
     // ---------- Super Admin: accesso completo a tutto ----------

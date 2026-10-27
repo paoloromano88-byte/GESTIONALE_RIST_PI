@@ -55,6 +55,23 @@ async function t(nome, atteso, fn) {
   catch (e) { ko++; console.log('  ✘', nome, '->', e.message.split('\n')[0]); }
 }
 
+// ---------- Richieste di demo dal sito vetrina (gesti/) ----------
+console.log('\n== richieste di demo');
+const richiesta = (extra = {}) => ({ nome: 'Anna Bianchi', locale: 'Forno Bianchi', tipo: 'Forno / panificio', citta: 'Torino', telefono: '333 123 4567',
+  email: '', messaggio: 'Facciamo consegne', consenso: true, pagina: 'gesti', creato: serverTimestamp(), ...extra });
+await t('chiunque lascia una richiesta di demo valida', true, () => addDoc(collection(anon, 'richieste_demo'), richiesta()));
+await t('richiesta senza email e messaggio', true, () => { const { email, messaggio, ...r } = richiesta(); return addDoc(collection(anon, 'richieste_demo'), r); });
+await t('richiesta NON valida: senza consenso privacy', false, () => addDoc(collection(anon, 'richieste_demo'), richiesta({ consenso: false })));
+await t('richiesta NON valida: campi in più', false, () => addDoc(collection(anon, 'richieste_demo'), richiesta({ contattato: true })));
+await t('richiesta NON valida: telefono con lettere', false, () => addDoc(collection(anon, 'richieste_demo'), richiesta({ telefono: 'chiamami' })));
+await t('richiesta NON valida: tipo di locale inventato', false, () => addDoc(collection(anon, 'richieste_demo'), richiesta({ tipo: '<b>x</b>' })));
+await t('richiesta NON valida: messaggio troppo lungo', false, () => addDoc(collection(anon, 'richieste_demo'), richiesta({ messaggio: 'x'.repeat(501) })));
+await t('richiesta NON valida: data scelta dal mittente', false, () => addDoc(collection(anon, 'richieste_demo'), richiesta({ creato: new Date(2020, 0, 1) })));
+await t('chiunque NON legge le richieste', false, () => getDocs(collection(anon, 'richieste_demo')));
+await t('personale del locale principale NON legge le richieste', false, () => getDocs(collection(staffDefault, 'richieste_demo')));
+await t('personale di un altro locale NON legge le richieste', false, () => getDocs(collection(staffTest, 'richieste_demo')));
+await t('Super Admin legge le richieste', true, () => getDocs(collection(superAdmin, 'richieste_demo')));
+
 for (const base of ['', 'ristoranti/pizzeria-test/']) {
   console.log(`\n== ${base || '(locale principale)'}`);
   const c = (db, p) => collection(db, base + p);
