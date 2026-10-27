@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con il sito vetrina **Gestì** e le decisioni di marketing (sezione 2, «Marketing: Gestì»).
+**Ultimo aggiornamento:** 27/10/2026, con la PR #43 (sito vetrina **Gestì** e decisioni di marketing: sezione 2, «Marketing: Gestì»).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -272,6 +272,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #36 | **Avviso "pronto" al rider anche con l'app chiusa**: notifiche push (Firebase Cloud Messaging), da attivare una volta nell'App Rider; su iPhone dall'app aggiunta alla schermata Home |
 | #38 | **Logo di ogni locale** come icona di tutte le app e nelle notifiche al rider; icona neutra al posto di `logo.png` rotto |
 | #41 | **Controllo generale del codice**: testi dei clienti mai eseguiti come codice, codici sconto riservati, Super Admin (ID nuovi, account scollegati), controllo prezzi più severo; stampa (cambio turno, niente doppie stampe dell'agente, ESP32 1.0.1, date italiane, domicilio); forno, statistiche, accesso senza internet. Dettagli nella sezione 7 |
+| #43 | **Sito vetrina Gestì** (`gesti/`): funzioni, calcolatore del risparmio, prezzi 39/69 €, modulo «Richiedi una demo» che arriva nel Super Admin (`richieste_demo`) |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue
