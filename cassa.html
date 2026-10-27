@@ -1558,8 +1558,8 @@
         // 2. FUNZIONI GLOBALI ETICHETTE, ALLEGATI E STAMPA CUCINA CON DOMICILIO
         window.apriAllegatoAgendaInCassa = (base64Img, nomeCli) => {
             Swal.fire({
-                title: `📎 Allegato - ${(nomeCli || 'Cliente').toUpperCase()}`,
-                html: `<img src="${base64Img}" style="max-width:100%; max-height:70vh; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.4);">`,
+                title: `📎 Allegato - ${window.escapeHtml((nomeCli || 'Cliente').toUpperCase())}`,
+                html: `<img src="${window.immagineSicura(base64Img)}" style="max-width:100%; max-height:70vh; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.4);">`,
                 background: '#1e1e1e',
                 color: '#fff',
                 confirmButtonColor: '#2962ff',
@@ -1593,10 +1593,8 @@
             }
 
             if (o.allegato_base64) {
-                const safeImg = o.allegato_base64.replace(/'/g, "\\'");
-                const safeNome = (o.nome || 'Cliente').replace(/'/g, "\\'");
                 badges.push(`
-                    <button onclick="event.stopPropagation(); window.apriAllegatoAgendaInCassa('${safeImg}', '${safeNome}')" 
+                    <button onclick="event.stopPropagation(); window.apriAllegatoAgendaInCassa(${window.argJs(o.allegato_base64)}, ${window.argJs(o.nome || 'Cliente')})" 
                             style="background:#9333ea; color:#fff; border:none; padding:2px 8px; border-radius:5px; font-size:0.75em; font-weight:900; cursor:pointer;">
                         <i class="fa fa-paperclip"></i> Allegato
                     </button>

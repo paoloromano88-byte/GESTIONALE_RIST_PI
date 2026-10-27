@@ -124,8 +124,8 @@ window.ordiniPerOrarioMap = {};
 // ============================================================================
 window.apriAllegatoAgendaInCassa = (base64Img, nomeCli) => {
     Swal.fire({
-        title: `📎 Allegato - ${(nomeCli || 'Cliente').toUpperCase()}`,
-        html: `<img src="${base64Img}" style="max-width:100%; max-height:70vh; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.4);">`,
+        title: `📎 Allegato - ${window.escapeHtml((nomeCli || 'Cliente').toUpperCase())}`,
+        html: `<img src="${window.immagineSicura(base64Img)}" style="max-width:100%; max-height:70vh; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.4);">`,
         background: '#1e1e1e',
         color: '#fff',
         confirmButtonColor: '#2962ff',
@@ -149,7 +149,7 @@ window.generaBadgeAgendaPerCassa = (o) => {
     }
 
     if (o.area) {
-        badges.push(`<span style="background:#334155; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:800;">📍 ${o.area}</span>`);
+        badges.push(`<span style="background:#334155; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:800;">📍 ${window.escapeHtml(o.area)}</span>`);
     }
 
     if (Array.isArray(o.etichette) && o.etichette.length > 0) {
@@ -158,16 +158,14 @@ window.generaBadgeAgendaPerCassa = (o) => {
             if (low.includes('senza glutine') || low.includes('glutine') || low.includes('celiac') || low.includes('gf')) {
                 badges.push(`<span style="background:#ffea00; color:#b71c1c; border:1px solid #f44336; padding:3px 8px; border-radius:6px; font-size:0.75em; font-weight:900;">🌾 SENZA GLUTINE</span>`);
             } else {
-                badges.push(`<span style="background:#475569; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.73em; font-weight:700;">${t}</span>`);
+                badges.push(`<span style="background:#475569; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.73em; font-weight:700;">${window.escapeHtml(t)}</span>`);
             }
         });
     }
 
     if (o.allegato_base64) {
-        const safeImg = o.allegato_base64.replace(/'/g, "\\'");
-        const safeNome = (o.nome || 'Cliente').replace(/'/g, "\\'");
         badges.push(`
-            <button onclick="event.stopPropagation(); window.apriAllegatoAgendaInCassa('${safeImg}', '${safeNome}')" 
+            <button onclick="event.stopPropagation(); window.apriAllegatoAgendaInCassa(${window.argJs(o.allegato_base64)}, ${window.argJs(o.nome || 'Cliente')})" 
                     style="background:#9333ea; color:#fff; border:none; padding:3px 9px; border-radius:6px; font-size:0.75em; font-weight:900; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
                 <i class="fa fa-paperclip"></i> Foto
             </button>
@@ -3808,10 +3806,10 @@ window.calcolaStats = async () => {
             foundCats.forEach(cat => {
                 let products = Object.entries(statsPerCat[cat]).sort((a,b) => b[1] - a[1]);
                 let catLabel = CATEGORY_LABELS[cat] || cat.toUpperCase();
-                let html = `<div class="cat-rank-title">${catLabel}</div><table class="ranking-table"><tbody>`;
+                let html = `<div class="cat-rank-title">${window.escapeHtml(catLabel)}</div><table class="ranking-table"><tbody>`;
                 products.forEach((prod, index) => {
                     let qtyDisplay = prod[1] % 1 === 0 ? prod[1] : prod[1].toFixed(3);
-                    html += `<tr><td style="width:30px;">${index+1}</td><td>${prod[0]}</td><td style="width:50px; text-align:right;"><b>${qtyDisplay}</b></td></tr>`;
+                    html += `<tr><td style="width:30px;">${index+1}</td><td>${window.escapeHtml(prod[0])}</td><td style="width:50px; text-align:right;"><b>${qtyDisplay}</b></td></tr>`;
                 });
                 html += `</tbody></table>`;
                 rankingContainer.innerHTML += html;
@@ -3889,7 +3887,7 @@ window.caricaCestino = async () => {
                         <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #eee; padding-top:5px;">
                             <b>Tot: € ${totale}</b>
                             <div>
-                                <button onclick="ripristinaOrdine('${d.id}', '${d.tipo}')" style="background:#2e7d32; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
+                                <button onclick="ripristinaOrdine('${window.safeId(d.id)}', '${window.safeId(d.tipo)}')" style="background:#2e7d32; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
                                     <i class="fa fa-undo"></i> RIPRISTINA
                                 </button>
                             </div>
@@ -4955,8 +4953,8 @@ window.caricaStoricoData = async () => {
             html += `
             <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:10px; border-left:5px solid #607d8b; display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                    <b style="font-size:1.2em; color:var(--gold);"><i class="fa ${icona}"></i> ${identificativo}</b><br>
-                    <small style="color:#aaa;">Orario: ${o.orario || '--:--'} | Totale: €${parseFloat(o.totale || 0).toFixed(2)}</small>
+                    <b style="font-size:1.2em; color:var(--gold);"><i class="fa ${icona}"></i> ${window.escapeHtml(identificativo)}</b><br>
+                    <small style="color:#aaa;">Orario: ${window.escapeHtml(o.orario || '--:--')} | Totale: €${parseFloat(o.totale || 0).toFixed(2)}</small>
                 </div>
                 <div>
                     <button onclick="vediDettagliStorico('${window.safeId(o.id)}')" style="background:#2196f3; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">

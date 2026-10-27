@@ -48,3 +48,9 @@ window.escapeHtml = (value) => {
 
 // ID documento da inserire negli attributi onclick="fn('...')": solo caratteri sicuri
 window.safeId = (value) => String(value ?? '').replace(/[^A-Za-z0-9_-]/g, '');
+
+// Testo qualsiasi come argomento di onclick="fn(...)": stringa JavaScript, poi protetta per l'attributo
+window.argJs = (value) => window.escapeHtml(JSON.stringify(String(value ?? '')));
+
+// Immagine da mostrare in <img src="...">: solo foto incorporate (data:image/...)
+window.immagineSicura = (value) => (/^data:image\/[a-z+.-]+;base64,[A-Za-z0-9+/=\s]*$/i.test(String(value ?? '')) ? String(value) : '');
