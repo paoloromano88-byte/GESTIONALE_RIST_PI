@@ -4427,6 +4427,8 @@ window.caricaDipendenti = async () => {
         const dip = d.data();
         const badgeRuolo = dip.ruolo === 'rider'
             ? `<span style="background:#f59e0b; color:#000; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold; margin-left:6px;">🛵 RIDER</span>`
+            : dip.ruolo === 'responsabile'
+            ? `<span style="background:#1e3a8a; color:#fff; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold; margin-left:6px;">⭐ RESPONSABILE</span>`
             : `<span style="background:#e0e0e0; color:#333; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold; margin-left:6px;">CAMERIERE</span>`;
         l.innerHTML += `<div class="db-item"><span><b>${window.escapeHtml(dip.nome)}</b> (PIN: ${window.escapeHtml(dip.pin)}) ${badgeRuolo}</span><button onclick="eliminaDB('dipendenti','${window.safeId(d.id)}')" style="background:#ef5350; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;"><i class="fa fa-trash"></i></button></div>`;
     });
@@ -4435,7 +4437,8 @@ window.caricaDipendenti = async () => {
 window.salvaDipendente = async () => {
     const nome = document.getElementById('dip-nome').value.trim();
     const pin = document.getElementById('dip-pin').value.trim();
-    const ruolo = document.getElementById('dip-ruolo')?.value === 'rider' ? 'rider' : 'cameriere';
+    const ruoloScelto = document.getElementById('dip-ruolo')?.value;
+    const ruolo = ['rider', 'responsabile'].includes(ruoloScelto) ? ruoloScelto : 'cameriere';
     if(nome && /^\d{4}$/.test(pin)) {
         const snap = await getDocs(query(collection(db, "dipendenti")));
         let foundDuplicate = false;
