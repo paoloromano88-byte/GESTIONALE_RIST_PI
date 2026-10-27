@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con la PR #34 (QZ Tray: chiave e certificato di ogni locale, non più nel codice).
+**Ultimo aggiornamento:** 27/10/2026, con la PR #38 (logo di ogni locale come icona delle app e delle notifiche al rider).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -58,6 +58,12 @@ File condivisi:
   - ⚠️ Se `locale` manca, le regole rifiutano ogni salvataggio ("Missing or insufficient permissions"). Ora le app mostrano subito "Account senza locale assegnato" con il codice dell'account (PR #22).
   - Gli account creati da Super Admin → "Account del Locale" hanno già la scheda completa.
 - **Immagini** (logo, foto dei prodotti, foto in Agenda): vengono compresse e salvate **dentro il database** (Firestore). Sono quindi protette dalle stesse regole per locale.
+  - **Logo del locale**: ogni ristorante carica il suo in Cassa → Gestionale → Impostazioni (`impostazioni/negozio.logo_url`). Compare in:
+    - App Clienti e Menu;
+    - icona di tutte le app, cioè scheda del browser e schermata Home dell'iPhone (`logo-locale.js`, PR #38);
+    - notifiche «Pronto» al rider.
+  - Senza logo si usa `logo.png`: un'icona neutra uguale per tutti, cioè forchetta e coltello dorati su fondo scuro (icona «utensils» di Font Awesome Free, licenza CC BY 4.0). Prima era un file rotto.
+  - L'icona dell'App Rider aggiunta alla schermata Home di **Android** è sempre quella neutra (`delivery.webmanifest`); su iPhone è il logo del locale.
   - **Firebase Storage non è attivo** nel progetto e il programma non lo usa (verificato il 27/10/2026, PR #33). Non ci sono regole di Storage da gestire.
   - Se un giorno servisse (es. file grandi), attivarlo in **modalità produzione** (tutto chiuso), mettere i file in `locali/{locale}/…`, scrivere `storage.rules` sul modello di `firestore.rules` e aggiungere `storage` al deploy.
 
@@ -85,6 +91,10 @@ File condivisi:
    - Il rider la attiva una volta con «🔔 … ATTIVA» in alto. Il telefono si iscrive in `notifiche_rider/{token}` col suo nome; a «Fine turno» l'iscrizione si cancella, e al rider successivo si rifà da sola.
    - La manda il server (`functions/avvisi-rider.js`, trigger `avvisoRiderPrincipale` / `avvisoRiderLocali`). Destinatari: il rider che ha preso l'ordine; se nessuno l'ha preso, tutti i rider iscritti del locale. Solo ordini a domicilio di oggi (ora italiana), non consegnati.
    - Usa Firebase Cloud Messaging con la chiave web predefinita di Firebase. Il service worker è `firebase-messaging-sw.js`, alla radice del sito. I telefoni che non ricevono più si tolgono da soli dall'elenco.
+   - Dalla PR #38 il server manda **solo dati** (titolo, testo, tag, link, locale). La notifica la compone il service worker, perché il messaggio FCM non può contenere l'immagine (massimo 4 KB):
+     - legge il logo del locale da Firestore (`impostazioni/negozio`, lettura pubblica, solo il campo `logo_url`). Se non c'è, o se la lettura impiega più di 3 secondi, usa `logo.png`;
+     - toccando la notifica torna all'App Rider se è aperta, altrimenti la apre;
+     - con l'app aperta sullo schermo la libreria non mostra la notifica, perché l'avviso lo dà l'app.
    - **Android** (Chrome): funziona dal browser.
    - **iPhone** (iOS 16.4 o più recente): solo se l'App Rider è aggiunta alla schermata Home (Condividi → «Aggiungi alla schermata Home») e aperta da lì. L'app lo spiega da sola. `delivery.webmanifest` serve a questo.
    - Nell'emulatore non c'è FCM: le notifiche finiscono in `_push_emulatore` per i test.
@@ -235,6 +245,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #32 | **Niente più PIN 0000** in Sala e Agenda: si entra solo col PIN di un dipendente. Nuovo ruolo «Responsabile» (accesso d'emergenza scelto dal locale). Senza dipendenti registrati, Sala e Agenda spiegano dove aggiungerli |
 | #33 | Firebase Storage verificato: non attivo e non usato. Tolto dalla Cassa il codice di Storage rimasto (non si scarica più) |
 | #36 | **Avviso "pronto" al rider anche con l'app chiusa**: notifiche push (Firebase Cloud Messaging), da attivare una volta nell'App Rider; su iPhone dall'app aggiunta alla schermata Home |
+| #38 | **Logo di ogni locale** come icona di tutte le app e nelle notifiche al rider; icona neutra al posto di `logo.png` rotto |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue
@@ -255,7 +266,9 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 - #30 comande preparate dal server (tappa 3);
 - #19 PIN d'emergenza 0000 in Sala e Agenda;
 - #17 regole di Firebase Storage (Storage non attivo: immagini nel database);
-- #16 chiave privata di QZ Tray nel codice (ora una per locale, nel database).
+- #16 chiave privata di QZ Tray nel codice (ora una per locale, nel database);
+- #35 avviso "pronto" al rider anche con l'app chiusa;
+- #37 logo di ogni locale come icona delle app e delle notifiche.
 
 **Da fare, in ordine**: nessuna issue di sicurezza aperta. Sul posto:
 1. ✅ Certificato QZ nuovo installato sul PC della cassa di Da Mimmo (27/10/2026, dopo la PR #34): le stampe funzionano. Il certificato vecchio non vale più.
@@ -273,7 +286,6 @@ Da verificare sul posto:
 
 Idee per dopo (non richieste):
 - Togliere "Prendi a mano" dall'App Rider se si vuole la presa **solo** con il QR.
-- `logo.png` alla radice non è un'immagine vera (contiene testo): l'icona dell'App Rider sulla schermata Home e quella delle notifiche usano quindi le icone predefinite. Basta caricare un PNG quadrato del locale.
 - Ritocchi minori su smartphone:
   - nomi dei prodotti stretti nella finestra Modifica;
   - filtri delle categorie del menu che scorrono di lato;

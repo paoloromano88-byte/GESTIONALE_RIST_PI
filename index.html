@@ -484,6 +484,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc as _doc, getDoc, query, where, orderBy, limit, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { calcolaConsegna } from "./zone-consegna.js";
+        import { applicaLogoLocale } from "./logo-locale.js";
         import { getAuth, signInWithPhoneNumber, RecaptchaVerifier, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // --- CONFIGURAZIONE PROGETTO FIREBASE ---
@@ -1149,6 +1150,7 @@
                         document.getElementById('home-logo-img').src = dn.logo_url;
                         document.getElementById('menu-logo-img').src = dn.logo_url;
                     }
+                    applicaLogoLocale(dn.logo_url);
                     window.configConsegnaApp = dn;
                     if (dn.supplemento_consegna !== undefined && !isNaN(parseFloat(dn.supplemento_consegna))) {
                         window.supplementoConsegnaApp = parseFloat(dn.supplemento_consegna);

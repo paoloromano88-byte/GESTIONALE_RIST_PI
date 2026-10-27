@@ -2,6 +2,7 @@ import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { verificaAccountLocale } from "./login-dispositivo.js";
 import { calcolaConsegna } from "./zone-consegna.js";
+import { applicaLogoLocale } from "./logo-locale.js";
 import { datiOrdine, datiMessaggioCucina, raggruppaProdotti, descrizioneStampa, byteDatiStampa, base64Byte, righeServizioCucina } from "./comande-escpos.js";
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
@@ -602,6 +603,7 @@ async function init() {
     onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
         if(docNegozio.exists()) {
             const dn = docNegozio.data();
+            applicaLogoLocale(dn.logo_url);
             if (document.getElementById('day-closed')) document.getElementById('day-closed').value = dn.giorno_riposo || '';
             if (dn.nome) {
                 window.nomeLocaleCorrenteCassa = dn.nome.toUpperCase();

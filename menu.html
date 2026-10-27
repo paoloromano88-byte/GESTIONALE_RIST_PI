@@ -446,6 +446,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, onSnapshot, doc as _doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { applicaLogoLocale } from "./logo-locale.js";
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -516,6 +517,7 @@
                         logoEl.style.display = 'inline-block';
                     }
                 }
+                applicaLogoLocale(dati.logo_url);
 
                 const copertoVal = dati.prezzo_coperto !== undefined ? parseFloat(dati.prezzo_coperto).toFixed(2) : "2.50";
                 document.getElementById('restaurant-coperto').innerText = `Coperto: € ${copertoVal}`;

@@ -287,6 +287,7 @@
         import { getFirestore, collection as _collection, query, onSnapshot, getDocs, getDoc, setDoc, addDoc, updateDoc, doc as _doc, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { verificaAccountLocale } from "./login-dispositivo.js";
+        import { applicaLogoLocale } from "./logo-locale.js";
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -662,6 +663,7 @@
             onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
                 if (docNegozio.exists()) {
                     const d = docNegozio.data();
+                    applicaLogoLocale(d.logo_url);
                     if (d.nome) {
                         window.nomeLocaleWhiteLabel = d.nome;
                         document.getElementById('nav-title').innerHTML = `<i class="fa-solid fa-book-bookmark"></i> Agenda - ${window.nomeLocaleWhiteLabel}`;

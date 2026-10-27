@@ -136,6 +136,7 @@
         import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, where, arrayUnion, arrayRemove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { verificaAccountLocale } from "./login-dispositivo.js";
+        import { applicaLogoLocale } from "./logo-locale.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
@@ -312,6 +313,7 @@
                     document.getElementById('nome-locale-kds').innerText = nomeLoc + " - KDS";
                     document.title = "KDS - " + nomeLoc;
                 }
+                if (docSnap.exists()) applicaLogoLocale(docSnap.data().logo_url);
             });
 
             // 2. Controllo Licenza e Sblocco Modulo KDS in Tempo Reale

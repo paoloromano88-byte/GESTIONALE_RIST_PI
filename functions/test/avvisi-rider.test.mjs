@@ -56,10 +56,14 @@ await t('ordine libero diventa Pronto: notifica a tutti i rider iscritti, titolo
     assert.strictEqual(inviati.length, 1);
     const m = inviati[0];
     assert.deepStrictEqual([...m.tokens].sort(), ['scaduto-vecchio', 'tok-luca', 'tok-marco']);
-    assert.strictEqual(m.webpush.notification.title, '🍕 Pronto da ritirare');
-    assert.strictEqual(m.webpush.notification.body, 'Rossi Mario · ore 20:30');
-    assert.strictEqual(m.webpush.notification.tag, 'pronto-o1');
-    assert.strictEqual(m.webpush.fcmOptions.link, 'https://gestionale-ristoranti-96c5b.web.app/delivery.html');
+    // Solo dati (stringhe, come vuole FCM): la notifica la compone il service worker col logo del locale
+    assert.strictEqual(m.webpush.notification, undefined);
+    assert.deepStrictEqual(m.webpush.data, {
+        titolo: '🍕 Pronto da ritirare', testo: 'Rossi Mario · ore 20:30', tag: 'pronto-o1',
+        link: 'https://gestionale-ristoranti-96c5b.web.app/delivery.html', locale: 'default',
+    });
+    assert.ok(Object.values(m.webpush.data).every(v => typeof v === 'string'));
+    assert.ok(Buffer.byteLength(JSON.stringify(m.webpush.data)) < 4096, 'sotto il limite di 4 KB di FCM');
     assert.strictEqual(m.webpush.headers.Urgency, 'high');
 });
 await t('il telefono che non riceve più viene tolto dall\'elenco', async () => {
@@ -103,13 +107,14 @@ await t('altro locale: usa i suoi iscritti e il link col locale', async () => {
     const { inviati, invia } = invioFinto();
     await avvisaRiderPronto(locale, 'pizzeria-test', 'o5', PRIMA, ordine(), { invia });
     assert.deepStrictEqual(inviati[0].tokens, ['tok-anna']);
-    assert.strictEqual(inviati[0].webpush.fcmOptions.link, 'https://gestionale-ristoranti-96c5b.web.app/delivery.html?locale=pizzeria-test');
+    assert.strictEqual(inviati[0].webpush.data.link, 'https://gestionale-ristoranti-96c5b.web.app/delivery.html?locale=pizzeria-test');
+    assert.strictEqual(inviati[0].webpush.data.locale, 'pizzeria-test');
 });
 
 // ---------- Parte 2: trigger veri (emulatore Functions) ----------
 if (process.env.FUNCTIONS_EMULATOR_HOST || process.env.FIREBASE_EMULATOR_HUB) {
     const attendi = (ms) => new Promise(r => setTimeout(r, ms));
-    const pushPer = async (tag) => (await db.collection('_push_emulatore').get()).docs.map(d => d.data()).filter(m => m.webpush?.notification?.tag === tag);
+    const pushPer = async (tag) => (await db.collection('_push_emulatore').get()).docs.map(d => d.data()).filter(m => m.webpush?.data?.tag === tag);
     const aspettaPush = async (tag, n = 1) => { for (let i = 0; i < 40; i++) { const p = await pushPer(tag); if (p.length >= n) return p; await attendi(500); } return pushPer(tag); };
     console.log('Avviso push al rider (trigger veri):');
     for (const [base, nomeLocale] of [[principale, 'default'], [locale, 'pizzeria-test']]) {

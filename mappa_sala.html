@@ -558,6 +558,7 @@
         import { getFirestore, collection as _collection, doc as _doc, onSnapshot, setDoc, addDoc, updateDoc, query, where, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
+        import { applicaLogoLocale } from "./logo-locale.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
@@ -732,6 +733,7 @@
             onSnapshot(doc(db, "impostazioni", "negozio"), (snap) => {
                 if (snap.exists()) {
                     const d = snap.data();
+                    applicaLogoLocale(d.logo_url);
                     if (d.nome) {
                         document.getElementById('header-locale-name').innerHTML = `<i class="fa-solid fa-map-location-dot"></i> <span>${d.nome.toUpperCase()}</span>`;
                         document.title = `Mappa - ${d.nome}`;
