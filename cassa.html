@@ -281,22 +281,6 @@
 </head>
 <body>
 
-    <!-- LIVELLO 1 - ACCESSO TITOLARE RISTORANTE (SaaS Multi-Tenant) -->
-    <div id="company-login-overlay" style="position:fixed; inset:0; background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); z-index:10000; display:none; justify-content:center; align-items:center; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-        <div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 40px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); text-align: center; max-width: 400px; width: 90%;">
-            <i class="fa fa-building" style="font-size: 50px; color: #4caf50; margin-bottom: 20px;"></i>
-            <h2 style="color: #ffffff; margin-top: 0; margin-bottom: 10px; font-weight: 700;">ACCESSO LOCALE</h2>
-            <p style="color: #aaa; font-size: 14px; margin-bottom: 30px;">Inserisci le credenziali del tuo abbonamento</p>
-            <div style="margin-bottom: 20px;">
-                <input type="email" id="company-email" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: white; font-size: 16px; outline: none; box-sizing: border-box;" placeholder="Email Proprietario">
-            </div>
-            <div style="margin-bottom: 30px;">
-                <input type="password" id="company-password" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: white; font-size: 16px; outline: none; box-sizing: border-box;" placeholder="Password">
-            </div>
-            <button onclick="window.loginAzienda()" style="width: 100%; padding: 15px; background: #4caf50; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase;">Collega Database</button>
-        </div>
-    </div>
-
     <!-- LIVELLO 2 - SBLOCCO CASSA (Operatore/Cameriere) -->
     <div id="login-overlay" style="position:fixed; inset:0; background: linear-gradient(135deg, #121212 0%, #2a2a2a 100%); z-index:9999; display:none; justify-content:center; align-items:center; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
         <div style="background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 40px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.05); text-align: center; max-width: 400px; width: 90%;">

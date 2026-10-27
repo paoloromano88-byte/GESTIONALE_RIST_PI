@@ -412,6 +412,12 @@ Controllo automatico di tutto il codice più prove a mano; tutto corretto nella 
   - li crea in `ingredienti`.
 - Aggiunte e rimozioni usano lo stesso elenco, `ingredientiNuoviDalMenu()`. I doppioni si riconoscono senza maiuscole e senza spazi ai lati: prima «Mozzarella» e «mozzarella» diventavano due voci.
 
+### Menu del Gestionale: eliminare un prodotto (27/10/2026)
+- Eliminando un prodotto compariva «Errore: window.caricaProdotti is not a function». Il prodotto veniva eliminato, ma `eliminaDB` chiamava una funzione che non è su `window`.
+- `caricaProdotti()` apriva un nuovo ascolto dei prodotti a ogni apertura della scheda Menu: liste ridisegnate più volte e letture in più. Ora l'ascolto è uno solo e le volte dopo si ridisegna soltanto (`disegnaProdottiGestionale()`).
+- Tolto da `cassa.html` il vecchio riquadro «ACCESSO LOCALE / Collega Database»: non si apriva mai e chiamava `window.loginAzienda()`, che non esiste.
+- Controllo automatico su tutte le pagine: nessun'altra chiamata `window.X()` verso funzioni inesistenti.
+
 ## 8. Come riprendere in una nuova sessione
 
 1. Leggere questo file e le issue aperte su GitHub.
