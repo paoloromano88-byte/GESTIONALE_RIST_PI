@@ -338,7 +338,8 @@ body {
 .active-pronto { background: var(--success); color: white; }
 
 .card-actions { display: flex; gap: 5px; margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px; flex-wrap: wrap; }
-.action-btn { flex: 1; min-width: 50px; padding: 8px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.75em; background: white; color: #333; }
+/* 3 + 2 pulsanti per riga: le scritte (MODIFICA, PRECONTO, CUCINA...) restano intere anche nelle schede strette */
+.action-btn { flex: 1 1 30%; min-width: 0; padding: 9px 4px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.75em; background: white; color: #333; white-space: nowrap; }
 
 /* =========================================
    7. WAITER SCREEN (PRESA COMANDA)

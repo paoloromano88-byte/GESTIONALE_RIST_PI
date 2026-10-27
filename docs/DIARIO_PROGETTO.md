@@ -300,6 +300,8 @@ Altre strade valutate: stampa dal browser (una sola stampante, finestra «Stampa
 Da verificare sul posto:
 - **QR sugli scontrini**: al primo ordine a domicilio, controllare che il QR esca nitido dalla stampante vera e che il rider lo scansioni. Non è stato provato con una stampante reale. Se esce male, servono il modello della stampante e una foto dello scontrino. Alternative: comando QR nativo `GS ( k`, oppure moduli più grandi in `rasterQrBase64`.
 
+**Sito vetrina Gestì e marketing: in pausa** (deciso il 27/10/2026). Il lavoro (pagina `gesti/`, modulo «Richiedi una demo» con `richieste_demo` e sezione nel Super Admin, decisioni su nome, prezzi 39/69 € e canali di vendita) è nella PR #43, chiusa senza unire, issue #42 aperta. Per riprenderlo: partire dall'ultima `main`, poi `git fetch origin pull/43/head && git cherry-pick 0fb3666^..1be15a0`. Logo scelto: la «G» arancione con la stellina gialla.
+
 Idee per dopo (non richieste):
 - ~~Togliere "Prendi a mano" dall'App Rider~~: **deciso di lasciarlo** (27/10/2026), serve se il QR non si legge.
 - Ritocchi minori su smartphone (rimandati il 27/10/2026: la Cassa si userà soprattutto dal PC):
@@ -348,6 +350,11 @@ Controllo automatico di tutto il codice più prove a mano; tutto corretto nella 
 - **Stampa**: cambio turno da solo non stampato; agente che ristampava se la rete cadeva dopo la stampa; ESP32 bloccato da una stampante spenta; «Riprova tutte» che falliva in silenzio; "PER IL" domani tra mezzanotte e l'una (date in UTC); cassa che non vedeva il cambio QZ/Agente fatto da un altro dispositivo; IP di riserva fisso `192.168.1.131` per i messaggi; comanda d'asporto stampata come domicilio con l'indirizzo di un vecchio ordine (la cassa ora passa l'ordine alla stampa).
 - **Dati**: forno contato due volte (ora il server ricalcola il giorno dagli ordini, come la cassa); la cassa scaricava tutti gli ordini della storia a ogni apertura; pizze a domicilio contate male nelle statistiche; senza internet all'apertura i dispositivi dicevano «Account non abilitato» e restavano bloccati.
 - Il test "Trigger Cloud Functions end-to-end" ora fallisce davvero se il trigger non parte.
+
+### Pulsanti della scheda ordine in Cassa (27/10/2026)
+- PIZZA / CUCINA / BAR, PRECONTO e la ristampa dallo Storico passano da `stampaOrdine(id, reparto, manuale, ordine)` in `cassa.js`. Se premuti dal cassiere dicono sempre com'è andata: inviata / in coda per l'Agente, niente da stampare per quel reparto, stampante non impostata, stampa non uscita (QZ Tray spento). Le comande automatiche degli ordini nuovi restano silenziose: i problemi li mostra il semaforo.
+- Il preconto, senza una stampante apposta, esce sulla stampante CASSA.
+- Pulsanti della scheda su due righe (3 + 2): prima su PC le scritte erano tagliate («MODIFIC», «PRECON»).
 
 ## 8. Come riprendere in una nuova sessione
 

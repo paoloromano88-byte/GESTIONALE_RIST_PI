@@ -2421,7 +2421,7 @@ function processPrintQueue() {
     if(job.type === 'VIA') {
         stampaVia(job.id, null, null, job.reparto); 
     } else {
-        stampa(job.id, job.reparto);
+        stampaOrdine(job.id, job.reparto, false);
     }
 
     setTimeout(() => {
@@ -3183,30 +3183,48 @@ window.chiediDivisioneEStampa = async (id) => {
     stampa(id, 'PRECONTO');
 };
 
-window.stampa = (id, reparto) => {
+const NOMI_STAMPANTI = { pizzeria: 'PIZZERIA', cucina: 'CUCINA', bar: 'BAR', conto: 'CASSA', preconto: 'PRECONTO' };
+const avvisoStampa = (icona, titolo, tempo = 2500) => Swal.fire({ toast: true, position: 'top-end', icon: icona, title: titolo, showConfirmButton: false, timer: tempo });
+
+// Stampa un ordine per un reparto (comanda) o come conto/preconto.
+// manuale = premuto dal cassiere (pulsanti della scheda, preconto, storico): dice sempre com'è andata.
+// Le stampe automatiche degli ordini nuovi restano in silenzio: i problemi li mostra il semaforo.
+// ordineFornito: l'ordine, se non è tra quelli caricati (es. dallo Storico).
+function stampaOrdine(id, reparto, manuale, ordineFornito) {
+    const avvisa = manuale ? avvisoStampa : () => {};
     if (!printerOn) {
-        Swal.fire({toast: true, position: 'top-end', icon: 'warning', title: 'Stampanti spente!', showConfirmButton: false, timer: 1500});
+        avvisa('warning', 'Stampanti spente! Riaccendile con l\'interruttore STAMPANTI.');
         return;
     }
 
-    const o = ordiniCache.find(x => x.id === id) || window.ordiniFuturiCache.find(x => x.id === id);
-    if(!o) return;
-    
-    const repKey = reparto.toLowerCase().trim(); 
-    const isConto = (repKey === 'conto' || repKey === 'preconto');
+    const o = ordineFornito || ordiniCache.find(x => x.id === id) || window.ordiniFuturiCache.find(x => x.id === id);
+    if (!o) { avvisa('error', 'Ordine non trovato: ricarica la pagina.'); return; }
 
-    let printerIp = PRINTER_CONFIG[repKey]?.ip;
-    if (!printerIp || printerIp.trim() === '') return;
+    const repKey = reparto.toLowerCase().trim();
+    const isConto = (repKey === 'conto' || repKey === 'preconto');
+    const nome = NOMI_STAMPANTI[repKey] || reparto.toUpperCase();
+
+    // Il preconto, se non ha una stampante sua, esce sulla stampante della CASSA
+    const printerIp = String(PRINTER_CONFIG[repKey]?.ip || (repKey === 'preconto' ? PRINTER_CONFIG.conto?.ip : '') || '').trim();
+    if (!printerIp) { avvisa('warning', `Stampante ${nome} non impostata: Gestionale → Stampanti.`, 4000); return; }
 
     // Il testo (comanda del reparto oppure conto/preconto) lo prepara comande-escpos.js
-    const stampaOrdine = datiOrdine(o, reparto, PRINTER_CONFIG, contestoStampa({
+    const testo = datiOrdine(o, reparto, PRINTER_CONFIG, contestoStampa({
         divisore: window.divisoreTemp,
         nomeScontoAttivo: (window.currentPayOrderId === o.id && window.activeDiscount) ? (window.activeDiscount.nome || window.activeDiscount.codice) : null
     }));
     if (isConto) window.divisoreTemp = 1;
-    if (!stampaOrdine) return;
-    inviaStampaTermica(printerIp, stampaOrdine.data, { stampante: repKey, descrizione: `${stampaOrdine.titolo} · ${descrizioneStampa(o)}`, ordine: o }).catch(e => console.error(e));
-};
+    if (!testo) { avvisa('info', `Niente da stampare per ${nome} in questo ordine.`); return; }
+    inviaStampaTermica(printerIp, testo.data, { stampante: repKey, descrizione: `${testo.titolo} · ${descrizioneStampa(o)}`, ordine: o })
+        .then(() => avvisa('success', metodoStampa() === 'agente' ? `${nome}: in coda per l'Agente di stampa` : `${nome}: inviata alla stampante`, 1800))
+        .catch(e => {
+            console.error(e);
+            avvisa('error', metodoStampa() === 'agente'
+                ? `${nome}: NON messa in coda. Controlla la connessione e riprova.`
+                : `${nome}: stampa NON uscita. Controlla che QZ Tray sia acceso su questo PC.`, 6000);
+        });
+}
+window.stampa = (id, reparto, ordineFornito) => stampaOrdine(id, reparto, true, ordineFornito);
 // ============================================================================
 // CASSA.JS - PARTE 4 DI 4
 // Back-Office, Prodotti, Backup JSON, Statistiche/Z, CRM, Mappa Sala e Storico
@@ -5048,10 +5066,8 @@ window.vediDettagliStorico = async (id) => {
             denyButtonText: '<i class="fa fa-unlock"></i> Riapri in Cassa'
         }).then(async (result) => {
             if (result.isConfirmed) {
-                if (typeof window.stampa === 'function') {
-                    window.stampa(id, 'PRECONTO');
-                    Swal.fire({icon: 'success', title: 'Stampa inviata!', timer: 1000, showConfirmButton: false});
-                }
+                // L'ordine dello storico può non essere tra quelli caricati: si passa quello letto qui
+                if (typeof window.stampa === 'function') window.stampa(id, 'PRECONTO', { ...o, id });
             } else if (result.isDenied) {
                 window.riapriOrdine(id);
             }
