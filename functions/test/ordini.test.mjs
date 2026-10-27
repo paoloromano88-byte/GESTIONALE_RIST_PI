@@ -133,6 +133,81 @@ for (const nomeBase of ['', 'ristoranti/pizzeria-test']) {
     });
 }
 
+const LISTINO = { prodotti: [
+    { id: 'marg', nome: 'Margherita', prezzo: 6, cat: 'pizza', scorta: 10 },
+    { id: 'margGF', nome: 'Margherita', prezzo: 8, cat: 'gf', scorta: 5 },
+    { id: 'diav', nome: 'Diavola', prezzo: 7, cat: 'stirata' },
+    { id: 'pane', nome: 'Pane al kg', prezzo: 12, cat: 'speciale', isPeso: true },
+    { id: 'coca', nome: 'Coca Cola Lattina', prezzo: 2.5, cat: 'bibita_lattina', scorta: 20 }] };
+const asporto = (prodotti, totale) => ordineApp({ tipo: 'ASPORTO', supplemento_consegna: 0, prodotti, totale });
+
+await t('pizza normale e senza glutine con lo stesso nome: prezzo e scorta giusti', async () => {
+    const r = analizzaOrdine(asporto([{ nome: 'Margherita', prezzo: 6, qta: 1, cat: 'pizza', dettagli: 'Normale' },
+        { nome: 'Margherita', prezzo: 8, qta: 2, cat: 'gf', dettagli: 'GLUTEN FREE' }], 22), LISTINO, ZONE);
+    assert.deepEqual(r.anomalie, []); assert.equal(r.scorte.get('marg'), 1); assert.equal(r.scorte.get('margGF'), 2);
+    const gfBasso = analizzaOrdine(asporto([{ nome: 'Margherita', prezzo: 6, qta: 1, cat: 'gf', dettagli: 'Normale' }], 6), LISTINO, ZONE);
+    assert.ok(gfBasso.anomalie.some(m => m.includes('€ 6.00 invece di € 8.00')), JSON.stringify(gfBasso.anomalie));
+});
+
+await t('quantità negativa per abbassare il totale: anomalia, scorte non toccate', async () => {
+    const r = analizzaOrdine(asporto([{ nome: 'Margherita', prezzo: 6, qta: 3, cat: 'pizza', dettagli: 'Normale' },
+        { nome: 'Coca Cola Lattina', prezzo: 2.5, qta: -6, cat: 'bibita_lattina', dettagli: 'Normale' }], 3), LISTINO, ZONE);
+    assert.ok(r.anomalie.some(m => m.includes('quantità non valida (-6)')), JSON.stringify(r.anomalie));
+    assert.ok(r.anomalie.some(m => m.startsWith('Totale')), JSON.stringify(r.anomalie));
+    assert.equal(r.scorte.get('coca'), undefined);
+});
+
+await t('quantità con la virgola su un prodotto normale: anomalia', async () => {
+    const r = analizzaOrdine(asporto([{ nome: 'Margherita', prezzo: 6, qta: 0.1, cat: 'pizza', dettagli: 'Normale' }], 0.6), LISTINO, ZONE);
+    assert.ok(r.anomalie.some(m => m.includes('quantità non valida')), JSON.stringify(r.anomalie));
+});
+
+await t('prodotto inventato o "a peso" finto: anomalia', async () => {
+    const r = analizzaOrdine(asporto([{ nome: 'Pizza Gigante', prezzo: 0.5, qta: 1, cat: 'pizza', dettagli: 'Normale' },
+        { nome: 'Margherita', prezzo: 0, qta: 1, cat: 'pizza', isPeso: true, dettagli: 'Normale' }], 0.5), LISTINO, ZONE);
+    assert.ok(r.anomalie.some(m => m.includes('Pizza Gigante: prodotto non presente nel listino')), JSON.stringify(r.anomalie));
+    assert.ok(r.anomalie.some(m => m.includes('Margherita: prodotto a peso non previsto')), JSON.stringify(r.anomalie));
+    assert.ok(r.anomalie.some(m => m.includes('Margherita: € 0.00 invece di € 6.00')), JSON.stringify(r.anomalie));
+});
+
+await t('prodotto a peso vero: prezzo deciso in cassa, nessuna anomalia', async () => {
+    const r = analizzaOrdine(asporto([{ nome: 'Pane al kg', prezzo: 12, qta: 0.45, cat: 'speciale', isPeso: true, dettagli: 'Normale' }], 0), LISTINO, ZONE);
+    assert.deepEqual(r.anomalie, []);
+});
+
+await t('Bi-Gusto: almeno il prezzo del gusto più caro, gusti inventati segnalati', async () => {
+    const bg = (prezzo, componenti) => ({ nome: 'STIRATA BI-GUSTO', prezzo, qta: 1, cat: 'stirata', componenti, dettagli: '<b>1/2</b>' });
+    assert.deepEqual(analizzaOrdine(asporto([bg(7, ['marg', 'diav'])], 7), LISTINO, ZONE).anomalie, []);
+    const basso = analizzaOrdine(asporto([bg(1, ['marg', 'diav'])], 1), LISTINO, ZONE);
+    assert.ok(basso.anomalie.some(m => m.includes('€ 1.00 invece di € 7.00')), JSON.stringify(basso.anomalie));
+    const finto = analizzaOrdine(asporto([bg(0.01, ['x'])], 0.01), LISTINO, ZONE);
+    assert.ok(finto.anomalie.some(m => m.includes('gusto non presente')), JSON.stringify(finto.anomalie));
+});
+
+await t('riga non valida (null) segnalata senza errori', async () => {
+    const r = analizzaOrdine(asporto([null, { nome: 'Margherita', prezzo: 6, qta: 1, cat: 'pizza', dettagli: 'Normale' }], 6), LISTINO, ZONE);
+    assert.ok(r.anomalie.some(m => m.includes('Riga')), JSON.stringify(r.anomalie));
+});
+
+await t('forno: contatore ricalcolato dagli ordini del giorno (niente doppio conteggio con la cassa)', async () => {
+    const base = db.doc('ristoranti/forno-test');
+    const col = (n) => base.collection(n);
+    await prepara(base);
+    // La cassa ha già scritto il valore giusto (4 pizze alle 20:30) prima che arrivasse il server
+    const ref = await col('ordini').add(ordineApp({ data_ritiro: '2026-11-02' }));
+    await col('occupazione_forno').doc('2026-11-02').set({ slot: { '20:30': 4 }, consegne: { '20:30': 1 } });
+    await elaboraOrdineApp(db, base, ref);
+    let occ = (await col('occupazione_forno').doc('2026-11-02').get()).data();
+    assert.equal(occ.slot['20:30'], 4); assert.equal(occ.consegne['20:30'], 1);
+    // Ordini annullati e tavoli non contano; un secondo ordine si somma
+    await col('ordini').add({ ...ordineApp({ data_ritiro: '2026-11-02' }), stato: 'Annullato' });
+    await col('ordini').add({ ...ordineApp({ data_ritiro: '2026-11-02', tipo: 'ASPORTO' }), tavolo: '5' });
+    const ref2 = await col('ordini').add(ordineApp({ data_ritiro: '2026-11-02', tipo: 'ASPORTO', orario: '21:00' }));
+    await elaboraOrdineApp(db, base, ref2);
+    occ = (await col('occupazione_forno').doc('2026-11-02').get()).data();
+    assert.deepEqual(occ.slot, { '20:30': 4, '21:00': 4 }); assert.deepEqual(occ.consegne, { '20:30': 1 });
+});
+
 await t('analisi pura: consegna gratis sopra soglia non è anomalia', async () => {
     const o = ordineApp({ prodotti: [{ nome: 'Margherita', prezzo: 6, qta: 5, cat: 'pizza', dettagli: 'Normale' }], totale: 30, supplemento_consegna: 0 });
     const r = analizzaOrdine(o, { prodotti: [{ id: 'marg', nome: 'Margherita', prezzo: 6, scorta: 3 }] }, ZONE);

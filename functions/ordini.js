@@ -3,7 +3,7 @@
 // Al posto del telefono del cliente (che non può più scrivere su questi dati):
 //   - scala le scorte dei prodotti
 //   - aggiorna la scheda del cliente nella rubrica (clienti/{telefono})
-//   - aggiorna i contatori per fascia oraria (occupazione_forno/{data}): pizze e consegne a domicilio
+//   - ricalcola i contatori per fascia oraria (occupazione_forno/{data}): pizze e consegne a domicilio
 //   - ricalcola i prezzi dal listino e segnala in anomalia_prezzo se non tornano
 // ============================================================================
 import { FieldValue } from 'firebase-admin/firestore';
@@ -48,8 +48,13 @@ function variazioni(dettagli) {
  */
 export function analizzaOrdine(ordine, listino, configNegozio) {
     const prodotti = listino.prodotti || [];
-    const perNome = new Map(prodotti.map(p => [p.nome, p]));
     const perId = new Map(prodotti.map(p => [p.id, p]));
+    // Le copie Gluten Free hanno lo stesso nome della pizza normale: si cerca per nome e categoria,
+    // e solo per nome quando il nome è di un prodotto soltanto
+    const perNomeCat = new Map(prodotti.map(p => [`${chiave(p.nome)}|${chiave(p.cat)}`, p]));
+    const perNome = new Map();
+    prodotti.forEach(p => perNome.set(chiave(p.nome), perNome.has(chiave(p.nome)) ? null : p));
+    const trova = (item) => perNomeCat.get(`${chiave(item.nome)}|${chiave(item.cat)}`) || perNome.get(chiave(item.nome)) || undefined;
     const ingredienti = new Map((listino.ingredienti || []).map(i => [chiave(i.nome), num(i.prezzo)]));
     const rimozioni = new Map((listino.rimozioni || []).map(r => [chiave(r.nome), Math.abs(num(r.prezzo))]));
 
@@ -66,31 +71,51 @@ export function analizzaOrdine(ordine, listino, configNegozio) {
     };
 
     for (const item of ordine.prodotti || []) {
-        const qta = num(item.qta) || 1;
-        if (CATEGORIE_FORNO.includes(item.cat)) pizze += num(item.qta);
+        if (!item || typeof item !== 'object') { anomalie.push('Riga dell\'ordine non valida'); continue; }
+        const nome = String(item.nome ?? '');
+        const base = trova(item);
+        const componenti = Array.isArray(item.componenti) && item.componenti.length > 0 ? item.componenti : null;
+        // Il prezzo al kg lo decide la cassa: vale solo per i prodotti a peso del listino
+        const aPeso = item.isPeso === true && base?.isPeso === true;
+        if (item.isPeso === true && !aPeso) anomalie.push(`${nome}: prodotto a peso non previsto dal listino`);
 
-        if (Array.isArray(item.componenti) && item.componenti.length > 0) {
+        // Quantità: numero positivo, intero tranne che per i prodotti a peso
+        const qta = Number(item.qta);
+        if (!Number.isFinite(qta) || qta <= 0 || qta > 100 || (!aPeso && !Number.isInteger(qta))) {
+            anomalie.push(`${nome}: quantità non valida (${String(item.qta)})`);
+            continue;
+        }
+        if (CATEGORIE_FORNO.includes(item.cat)) pizze += qta;
+
+        if (componenti) {
             // Stirata Bi-Gusto: mezza porzione per ogni gusto
-            item.componenti.forEach(id => scala(perId.get(id), qta * 0.5));
+            componenti.forEach(id => scala(perId.get(id), qta * 0.5));
         } else {
-            scala(perNome.get(item.nome), qta);
+            scala(base, qta);
         }
 
-        if (item.isPeso) continue;   // prezzo al kg deciso in cassa
+        if (aPeso) continue;
         const prezzo = num(item.prezzo);
-        totaleRighe += prezzo * num(item.qta);
+        totaleRighe += prezzo * qta;
 
-        // Prezzo atteso dal listino (la Bi-Gusto ha dettagli in HTML: verificata solo nel totale)
-        const base = perNome.get(item.nome);
-        if (!base || (Array.isArray(item.componenti) && item.componenti.length > 0)) continue;
-        // Prezzo promozionale fisso del suggerimento bibite dell'App Clienti
-        if (item.nome === 'Coca Cola Lattina' && Math.abs(prezzo - 2) < TOLLERANZA) continue;
-        const { aggiunte, rimozioni: tolte } = variazioni(item.dettagli);
-        const atteso = num(base.prezzo)
-            + aggiunte.reduce((t, n) => t + (ingredienti.get(chiave(n)) ?? 0), 0)
-            - tolte.reduce((t, n) => t + (rimozioni.get(chiave(n)) ?? Math.abs(ingredienti.get(chiave(n)) ?? 0)), 0);
+        // Prezzo atteso dal listino
+        let atteso;
+        if (componenti) {
+            // Bi-Gusto: costa almeno quanto il gusto più caro (le aggiunte sono nei dettagli in HTML)
+            const gusti = componenti.map(id => perId.get(id));
+            if (gusti.some(g => !g)) { anomalie.push(`${nome}: gusto non presente nel listino`); continue; }
+            atteso = Math.max(...gusti.map(g => num(g.prezzo)));
+        } else {
+            // Prezzo promozionale fisso del suggerimento bibite dell'App Clienti
+            if (nome === 'Coca Cola Lattina' && Math.abs(prezzo - 2) < TOLLERANZA) continue;
+            if (!base) { anomalie.push(`${nome}: prodotto non presente nel listino`); continue; }
+            const { aggiunte, rimozioni: tolte } = variazioni(item.dettagli);
+            atteso = num(base.prezzo)
+                + aggiunte.reduce((t, n) => t + (ingredienti.get(chiave(n)) ?? 0), 0)
+                - tolte.reduce((t, n) => t + (rimozioni.get(chiave(n)) ?? Math.abs(ingredienti.get(chiave(n)) ?? 0)), 0);
+        }
         if (prezzo + TOLLERANZA < tondo(atteso)) {
-            anomalie.push(`${item.nome}: € ${prezzo.toFixed(2)} invece di € ${tondo(atteso).toFixed(2)}`);
+            anomalie.push(`${nome}: € ${prezzo.toFixed(2)} invece di € ${tondo(atteso).toFixed(2)}`);
         }
     }
 
@@ -116,6 +141,22 @@ export function analizzaOrdine(ordine, listino, configNegozio) {
     }
 
     return { scorte, pizze, anomalie, totaleAtteso };
+}
+
+/**
+ * Pizze e consegne per fascia oraria di un giorno, dagli ordini di quel giorno.
+ * Stesso calcolo della cassa (cassa.js, pubblicaOccupazioneForno): così chi scrive per ultimo
+ * scrive comunque il valore giusto, senza contare due volte lo stesso ordine.
+ */
+export function occupazioneGiorno(ordini) {
+    const slot = {}, consegne = {};
+    for (const o of ordini) {
+        if (!o.orario || o.stato === 'Annullato' || o.tavolo) continue;
+        const pz = (o.prodotti || []).reduce((t, p) => t + (CATEGORIE_FORNO.includes(p.cat) ? (parseFloat(p.qta) || 0) : 0), 0);
+        if (pz > 0) slot[o.orario] = (slot[o.orario] || 0) + pz;
+        if (o.tipo === 'DOMICILIO') consegne[o.orario] = (consegne[o.orario] || 0) + 1;
+    }
+    return { slot, consegne };
 }
 
 async function leggiTutti(ref) {
@@ -149,6 +190,10 @@ export async function elaboraOrdineApp(db, base, ordineRef) {
         // Letture delle scorte attuali dentro la transazione (prima di qualsiasi scrittura)
         const refsScorte = [...analisi.scorte.keys()].map(id => col('prodotti').doc(id));
         const snapsScorte = await Promise.all(refsScorte.map(r => tx.get(r)));
+        // Ordini dello stesso giorno, per ricalcolare il contatore del forno
+        const ordiniGiorno = ordine.data_ritiro && ordine.orario
+            ? await tx.get(col('ordini').where('data_ritiro', '==', ordine.data_ritiro))
+            : { docs: [] };
 
         snapsScorte.forEach((snap, i) => {
             if (!snap.exists) return;
@@ -178,11 +223,9 @@ export async function elaboraOrdineApp(db, base, ordineRef) {
             tx.set(col('clienti').doc(tel), scheda, { merge: true });
         }
 
-        const occupazione = {};
-        if (analisi.pizze > 0) occupazione.slot = { [ordine.orario]: FieldValue.increment(analisi.pizze) };
-        if (ordine.tipo === 'DOMICILIO') occupazione.consegne = { [ordine.orario]: FieldValue.increment(1) };
-        if (ordine.data_ritiro && ordine.orario && Object.keys(occupazione).length) {
-            tx.set(col('occupazione_forno').doc(ordine.data_ritiro), occupazione, { merge: true });
+        if (ordine.data_ritiro && ordine.orario) {
+            tx.set(col('occupazione_forno').doc(ordine.data_ritiro),
+                { ...occupazioneGiorno(ordiniGiorno.docs.map(d => d.data())), aggiornato: FieldValue.serverTimestamp() });
         }
 
         tx.update(ordineRef, {

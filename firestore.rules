@@ -58,8 +58,10 @@ service cloud.firestore {
     }
 
     // ---------- Dati pubblici ----------
+    // I codici sconto (sconti) li vede solo il personale: l'App Clienti controlla il codice
+    // scritto dal cliente leggendo codici_sconto/{CODICE}, che non si può elencare.
     function letturaPubblica(coll, id) {
-      return coll in ['prodotti', 'ingredienti', 'rimozioni', 'sconti', 'occupazione_forno']
+      return coll in ['prodotti', 'ingredienti', 'rimozioni', 'codici_sconto', 'occupazione_forno']
         || (coll == 'impostazioni' && id in ['negozio', 'licenza', 'forno', 'app_cliente', 'fidelity']);
     }
 
@@ -117,7 +119,7 @@ service cloud.firestore {
     }
 
     function puoElencare(coll) {
-      return coll in ['prodotti', 'ingredienti', 'rimozioni', 'sconti']
+      return coll in ['prodotti', 'ingredienti', 'rimozioni']
         || (coll == 'ordini' && ordineDelCliente(resource.data));
     }
 

@@ -27,6 +27,8 @@ await env.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(db, base + 'ordini/o2'), { nome: 'Anna', telefono: '3339998888', data_ritiro: '2026-10-26', stato: 'In attesa', totale: 12, cliente: { telefono: '3339998888' } });
     await setDoc(doc(db, base + 'occupazione_forno/2026-10-27'), { slot: { '20:00': 4 }, aggiornato: new Date() });
     await setDoc(doc(db, base + 'clienti/3339998888'), { nome: 'Anna', telefono: '3339998888', numOrdini: 3, totaleSpeso: 40, tag: 'VIP' });
+    await setDoc(doc(db, base + 'sconti/s1'), { nome: 'AMICI50', codice: 'AMICI50', tipo: 'percent', valore: 50 });
+    await setDoc(doc(db, base + 'codici_sconto/AMICI50'), { tipo: 'percent', valore: 50 });
   }
 });
 
@@ -72,6 +74,15 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('staff crea/rinnova la chiave QZ del locale', true, () => setDoc(d(staff, 'impostazioni/qz_firma'), { certificato: 'CERT2', chiave: 'CHIAVE2', creato: serverTimestamp() }));
   await t('App Rider iscrive il telefono alle notifiche', true, () => setDoc(d(staff, 'notifiche_rider/tok1'), { token: 'tok1', rider_id: 'D1', rider_nome: 'Marco', aggiornato: serverTimestamp() }));
   await t('App Rider cancella l\'iscrizione a fine turno', true, () => deleteDoc(d(staff, 'notifiche_rider/tok1')));
+
+  // Codici sconto: il cliente controlla solo il codice che conosce, non può vederli tutti
+  await t('cliente controlla un codice sconto che conosce', true, () => getDoc(d(anon, 'codici_sconto/AMICI50')));
+  await t('cliente NON elenca i codici sconto', false, () => getDocs(c(anon, 'codici_sconto')));
+  await t('cliente NON elenca la raccolta sconti', false, () => getDocs(c(anon, 'sconti')));
+  await t('cliente NON legge un documento di sconti', false, () => getDoc(d(anon, 'sconti/s1')));
+  await t('cliente NON crea codici sconto', false, () => setDoc(d(anon, 'codici_sconto/GRATIS'), { tipo: 'percent', valore: 100 }));
+  await t('staff elenca e aggiorna i codici sconto', true, () => getDocs(c(staff, 'codici_sconto')).then(() => setDoc(d(staff, 'codici_sconto/AMICI50'), { tipo: 'percent', valore: 50 })));
+  await t('personale di un ALTRO locale NON scrive i codici sconto', false, () => setDoc(d(altroStaff, 'codici_sconto/GRATIS'), { tipo: 'percent', valore: 100 }));
 
   // Isolamento tra locali e account non collegati
   await t('personale di un ALTRO locale NON legge gli ordini', false, () => getDocs(c(altroStaff, 'ordini')));

@@ -596,6 +596,8 @@ async function init() {
 
     const docSnap = await getDoc(doc(db, "impostazioni", "stampanti")); if(docSnap.exists()) PRINTER_CONFIG = docSnap.data();
     avviaMonitorStampa();
+    // Copia pubblica dei codici sconto per l'App Clienti (anche per quelli creati prima di questa versione)
+    window.caricaSconti().catch(e => console.warn("Codici sconto:", e));
     
     // Ascolto in tempo reale dei dati del ristorante selezionato
     onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
@@ -742,9 +744,25 @@ async function init() {
 }
 
 
+// L'App Clienti non può elencare i codici sconto: controlla solo il codice scritto dal cliente,
+// leggendo codici_sconto/{CODICE}. Qui si tiene questa copia allineata alla raccolta sconti.
+const idCodiceSconto = (s) => String(s.codice || s.nome || '').trim().toUpperCase().replace(/\//g, '_');
+async function sincronizzaCodiciSconto(sconti) {
+    const pubblici = await getDocs(collection(db, "codici_sconto"));
+    const voluti = new Map();
+    sconti.forEach(s => { const id = idCodiceSconto(s); if (id && !/^\.\.?$|^__.*__$/.test(id)) voluti.set(id, { tipo: s.tipo || 'percent', valore: parseFloat(s.valore ?? s.val ?? 0) || 0 }); });
+    const esistenti = new Map(pubblici.docs.map(d => [d.id, d.data()]));
+    for (const [id, dati] of voluti) {
+        const e = esistenti.get(id);
+        if (!e || e.tipo !== dati.tipo || e.valore !== dati.valore) await setDoc(doc(db, "codici_sconto", id), dati);
+    }
+    for (const id of esistenti.keys()) if (!voluti.has(id)) await deleteDoc(doc(db, "codici_sconto", id));
+}
+
 window.caricaSconti = async () => {
     const snap = await getDocs(collection(db, "sconti"));
     window.SCONTI_CACHE = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    sincronizzaCodiciSconto(window.SCONTI_CACHE).catch(e => console.warn("Codici sconto per l'App:", e));
     const l = document.getElementById('lista-sconti');
     if (!l) return;
     l.innerHTML = "";
