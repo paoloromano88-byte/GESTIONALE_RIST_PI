@@ -404,6 +404,14 @@ Controllo automatico di tutto il codice più prove a mano; tutto corretto nella 
 - Il preconto, senza una stampante apposta, esce sulla stampante CASSA.
 - Pulsanti della scheda su due righe (3 + 2): prima su PC le scritte erano tagliate («MODIFIC», «PRECON»).
 
+### Aggiunte e rimozioni dal menu (27/10/2026)
+- In Gestionale → Aggiunte, «IMPORTA DA MENU» creava **rimozioni** invece di aggiunte: chiamava `generarimozioniAuto()`.
+- Ora `importaDaPizze()`:
+  - prende gli ingredienti dei prodotti del menu che non sono ancora tra le aggiunte;
+  - li mostra e chiede il prezzo di ognuno (proposto 1,00 €);
+  - li crea in `ingredienti`.
+- Aggiunte e rimozioni usano lo stesso elenco, `ingredientiNuoviDalMenu()`. I doppioni si riconoscono senza maiuscole e senza spazi ai lati: prima «Mozzarella» e «mozzarella» diventavano due voci.
+
 ## 8. Come riprendere in una nuova sessione
 
 1. Leggere questo file e le issue aperte su GitHub.

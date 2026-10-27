@@ -1045,8 +1045,44 @@ window.caricaAllergeniBase = async () => {
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Allergeni base selezionati', showConfirmButton: false, timer: 1200 });
 };
 
+// Ingredienti dei prodotti del menu che non sono ancora nell'elenco dato (aggiunte o rimozioni).
+// Confronto senza maiuscole e spazi ai lati; nomi di almeno 3 lettere.
+function ingredientiNuoviDalMenu(esistenti) {
+    const chiave = (s) => String(s || '').trim().toLowerCase();
+    const visti = new Set((esistenti || []).map(x => chiave(x.nome)));
+    const nuovi = [];
+    (window.MENU || []).forEach(p => (Array.isArray(p.ingredienti) ? p.ingredienti : []).forEach(ing => {
+        const nome = String(ing || '').trim();
+        if (nome.length > 2 && !visti.has(chiave(nome))) { visti.add(chiave(nome)); nuovi.push(nome); }
+    }));
+    return nuovi.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+}
+const elencoIngredientiHtml = (nomi) => `<div style="max-height:160px; overflow:auto; text-align:left; font-size:0.9em; background:#f5f5f5; padding:8px 10px; border-radius:6px; line-height:1.5;">${nomi.map(n => window.escapeHtml(n)).join(', ')}</div>`;
+
+// Aggiunte: un'aggiunta per ogni ingrediente del menu che non c'è ancora, al prezzo scelto
 window.importaDaPizze = async () => {
-    window.generarimozioniAuto();
+    const nuovi = ingredientiNuoviDalMenu(window.INGS);
+    if (!nuovi.length) return Swal.fire('Niente da importare', 'Tutti gli ingredienti del menu sono già tra le aggiunte.', 'info');
+    const r = await Swal.fire({
+        title: 'Importare gli ingredienti del menu come aggiunte?',
+        html: `<p style="margin:0 0 8px;">Ingredienti nuovi: <b>${nuovi.length}</b></p>${elencoIngredientiHtml(nuovi)}
+            <label for="swal-prezzo-aggiunte" style="display:block; margin-top:14px; font-weight:bold;">Prezzo di ogni aggiunta (€)</label>
+            <input id="swal-prezzo-aggiunte" type="number" step="0.50" min="0" value="1.00" class="swal2-input" style="margin-top:6px;">
+            <p style="margin:6px 0 0; font-size:0.85em; color:#666;">Dopo puoi cambiare il prezzo di ognuna con la matita.</p>`,
+        showCancelButton: true, confirmButtonText: 'Importa', cancelButtonText: 'Annulla',
+        preConfirm: () => {
+            const prezzo = parseFloat(String(document.getElementById('swal-prezzo-aggiunte').value).replace(',', '.'));
+            if (isNaN(prezzo) || prezzo < 0) { Swal.showValidationMessage('Scrivi il prezzo delle aggiunte (anche 0)'); return false; }
+            return prezzo;
+        }
+    });
+    if (!r.isConfirmed) return;
+    try {
+        await Promise.all(nuovi.map(nome => addDoc(collection(db, "ingredienti"), { nome, prezzo: r.value })));
+        Swal.fire('Fatto!', `Importate ${nuovi.length} aggiunte a € ${r.value.toFixed(2)}.`, 'success');
+    } catch (e) {
+        Swal.fire('Errore', e.message, 'error');
+    }
 };
 
 window.copiaPizzeSuStirate = async () => {
@@ -4129,27 +4165,22 @@ window.resetFormRimozioni = () => {
     document.getElementById('btn-cancel-rim').style.display = "none";
 };
 
+// Rimozioni: una rimozione (prezzo 0) per ogni ingrediente del menu che non c'è ancora
 window.generarimozioniAuto = async () => {
-    Swal.fire({title:'Analizzare menu per creare rimozioni?', showCancelButton:true}).then(async (r)=>{
-        if(!r.isConfirmed) return;
-        const uniqueIngs = new Set();
-        window.MENU.forEach(p => {
-            if(p.ingredienti && Array.isArray(p.ingredienti)) {
-                p.ingredienti.forEach(ing => uniqueIngs.add(ing.trim()));
-            }
-        });
-        const existingNames = new Set(window.RIMS.map(r => r.nome));
-        let count = 0;
-        const batchPromises = [];
-        uniqueIngs.forEach(ing => {
-            if(!existingNames.has(ing) && ing.length > 2) {
-                batchPromises.push(addDoc(collection(db, "rimozioni"), { nome: ing, prezzo: 0, attivo: true }));
-                count++;
-            }
-        });
-        await Promise.all(batchPromises);
-        Swal.fire(`Generate ${count} nuove rimozioni!`);
+    const nuovi = ingredientiNuoviDalMenu(window.RIMS);
+    if (!nuovi.length) return Swal.fire('Niente da generare', 'Tutti gli ingredienti del menu sono già tra le rimozioni.', 'info');
+    const r = await Swal.fire({
+        title: 'Creare le rimozioni dagli ingredienti del menu?',
+        html: `<p style="margin:0 0 8px;">Ingredienti nuovi: <b>${nuovi.length}</b></p>${elencoIngredientiHtml(nuovi)}`,
+        showCancelButton: true, confirmButtonText: 'Crea', cancelButtonText: 'Annulla'
     });
+    if (!r.isConfirmed) return;
+    try {
+        await Promise.all(nuovi.map(nome => addDoc(collection(db, "rimozioni"), { nome, prezzo: 0, attivo: true })));
+        Swal.fire('Fatto!', `Generate ${nuovi.length} nuove rimozioni.`, 'success');
+    } catch (e) {
+        Swal.fire('Errore', e.message, 'error');
+    }
 };
 
 window.renderizzaConfigStampanti = () => {
