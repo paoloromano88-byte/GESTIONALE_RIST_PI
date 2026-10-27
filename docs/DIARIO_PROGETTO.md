@@ -191,6 +191,9 @@ File condivisi:
   1. test;
   2. **backend**: Cloud Functions e regole Firestore;
   3. **sito**, solo se il backend è andato a buon fine.
+- **Versione sempre aggiornata sui dispositivi** (PR #38): in `firebase.json` c'è `Cache-Control: no-cache` per tutti i file del sito.
+  - Il browser chiede ogni volta se il file è cambiato. Se non è cambiato riceve solo un «304» grazie all'ETag, quindi non lo riscarica.
+  - Prima Firebase lasciava ai browser fino a un'ora di copia vecchia: dopo un aggiornamento un telefono poteva avere ancora la Cassa di prima (successo il 27/10 con l'anteprima del pulsante «Rimuovi logo»).
 - Segreto GitHub: `FIREBASE_SERVICE_ACCOUNT_GESTIONALE_RISTORANTI_96C5B` (account di servizio `firebase-adminsdk-…`).
 - Ruoli dati a quell'account in Google Cloud IAM, che servono tutti:
   - **Editor**;
