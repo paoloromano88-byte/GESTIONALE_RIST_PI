@@ -491,24 +491,23 @@
         }, 2000);
 
         let activeCategoryMemory = null;
+        // Senza nome del locale (Cassa > Gestionale > Impostazioni) il menu resta anonimo
         const defaultFallbackName = window.TENANT_ID === 'default'
-            ? "Da Mimmo"
+            ? ""
             : window.TENANT_ID.replace(/-/g, ' ').toUpperCase();
+        const mostraNomeMenu = (nome) => {
+            document.title = nome ? `Menu - ${nome}` : 'Menu';
+            document.getElementById('app-window-title').innerText = document.title;
+            document.getElementById('restaurant-name').innerText = nome || 'Menu';
+        };
 
         // --- 1. WHITE-LABEL E COPERTO IN TEMPO REALE ---
         onSnapshot(doc(db, "impostazioni", "negozio"), (docSnap) => {
             const loader = document.getElementById('loader-overlay');
             if (docSnap.exists()) {
                 const dati = docSnap.data();
-                const nomeLocale = dati.nome || defaultFallbackName;
-                
-                document.title = `Menu - ${nomeLocale}`;
-                document.getElementById('app-window-title').innerText = `Menu - ${nomeLocale}`;
-                document.getElementById('restaurant-name').innerText = nomeLocale;
-
-                if (dati.slogan) {
-                    document.getElementById('restaurant-subtitle').innerText = dati.slogan;
-                }
+                mostraNomeMenu(dati.nome || defaultFallbackName);
+                document.getElementById('restaurant-subtitle').innerText = dati.slogan || 'Il Menu Digitale';
 
                 const logoEl = document.getElementById('restaurant-logo');
                 if (logoEl && logoValido(dati.logo_url)) {
@@ -522,15 +521,13 @@
                 const copertoVal = dati.prezzo_coperto !== undefined ? parseFloat(dati.prezzo_coperto).toFixed(2) : "2.50";
                 document.getElementById('restaurant-coperto').innerText = `Coperto: € ${copertoVal}`;
             } else {
-                document.title = `Menu - ${defaultFallbackName}`;
-                document.getElementById('app-window-title').innerText = `Menu - ${defaultFallbackName}`;
-                document.getElementById('restaurant-name').innerText = defaultFallbackName;
+                mostraNomeMenu(defaultFallbackName);
                 document.getElementById('restaurant-coperto').innerText = "Coperto: € 2.50";
             }
             if (loader) loader.style.display = 'none';
         }, (error) => {
             console.warn("Lettura dati negozio:", error);
-            document.getElementById('restaurant-name').innerText = defaultFallbackName;
+            mostraNomeMenu(defaultFallbackName);
             const loader = document.getElementById('loader-overlay');
             if (loader) loader.style.display = 'none';
         });

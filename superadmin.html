@@ -57,7 +57,7 @@
         <div class="tenant-bar">
             <i class="fa-solid fa-store" style="color:#58a6ff; font-size:1.3em;"></i>
             <select id="select-tenant" class="input" style="margin:0; flex:1; font-weight:bold;" onchange="cambiaTenant(this.value)">
-                <option value="default">📍 Locale Principale (Da Mimmo)</option>
+                <option value="default">📍 Locale principale</option>
             </select>
             <span id="current-tenant-badge" class="tenant-id-pill">ID: default</span>
         </div>
@@ -115,7 +115,7 @@
         <input type="text" id="lic-msg-blocco" class="input" placeholder="Abbonamento scaduto. Contatta l'assistenza per il rinnovo.">
 
         <label class="label">Tuo Contatto Assistenza</label>
-        <input type="text" id="lic-contatto" class="input" placeholder="Es. Assistenza Paolo - 340 1234567">
+        <input type="text" id="lic-contatto" class="input" placeholder="Es. Assistenza clienti - 333 1234567">
 
         <!-- DATI WHITE-LABEL DEL LOCALE -->
         <div class="section-box">
@@ -127,7 +127,7 @@
                 </div>
                 <div style="flex:1; min-width:140px;">
                     <label class="label" style="margin-top:0;">Telefono Ordini</label>
-                    <input type="text" id="wl-telefono" class="input" placeholder="Es. 0965370013">
+                    <input type="text" id="wl-telefono" class="input" placeholder="Es. 0123456789">
                 </div>
                 <div style="flex:1; min-width:100px;">
                     <label class="label" style="margin-top:0;">Coperto (€)</label>
@@ -344,7 +344,7 @@
 
         async function caricaListaRistoranti() {
             const sel = document.getElementById('select-tenant');
-            sel.innerHTML = `<option value="default">📍 Locale Principale (Da Mimmo)</option>`;
+            sel.innerHTML = `<option value="default">📍 Locale principale</option>`;
             try {
                 const snap = await getDocs(collection(db, "saas_clienti"));
                 snap.forEach(d => {
@@ -363,7 +363,7 @@
                         <input id="new-tenant-name" class="swal2-input" style="margin:6px 0 15px 0; width:100%; box-sizing:border-box;" placeholder="Es. Pizzeria Bella Napoli">
                         
                         <label style="font-size:0.85em; color:#8b949e; font-weight:bold;">Telefono Ordini (Opz.)</label>
-                        <input id="new-tenant-phone" class="swal2-input" style="margin:6px 0 15px 0; width:100%; box-sizing:border-box;" placeholder="Es. 0965 123456">
+                        <input id="new-tenant-phone" class="swal2-input" style="margin:6px 0 15px 0; width:100%; box-sizing:border-box;" placeholder="Es. 0123 456789">
 
                         <label style="display:flex; align-items:center; gap:10px; background:#21262d; padding:12px; border-radius:8px; cursor:pointer; margin-top:5px;">
                             <input type="checkbox" id="new-tenant-clone" checked style="width:18px; height:18px;">
@@ -544,7 +544,7 @@
                     document.getElementById('wl-telefono').value = nd.telefono_ordini || '';
                     document.getElementById('wl-coperto').value = nd.prezzo_coperto !== undefined ? nd.prezzo_coperto : 2.50;
                 } else {
-                    document.getElementById('wl-nome').value = tenantId === 'default' ? 'Da Mimmo' : tenantId.replace(/-/g, ' ').toUpperCase();
+                    document.getElementById('wl-nome').value = tenantId === 'default' ? '' : tenantId.replace(/-/g, ' ').toUpperCase();
                     document.getElementById('wl-telefono').value = '';
                     document.getElementById('wl-coperto').value = 2.50;
                 }

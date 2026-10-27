@@ -43,9 +43,11 @@ const doc = (database, ...pathSegments) => {
     return _doc(database, ...pathSegments);
 };
 
+// Nome del locale in alto: finché non lo inserisce (Gestionale > Impostazioni) la cassa resta anonima
 window.nomeLocaleCorrenteCassa = window.TENANT_ID === 'default'
-    ? 'DA MIMMO'
+    ? ''
     : window.TENANT_ID.replace(/-/g, ' ').toUpperCase();
+const titoloCassa = () => window.nomeLocaleCorrenteCassa ? `${window.nomeLocaleCorrenteCassa} - CASSA` : 'CASSA';
 
 // --- CONTROLLO STATO LICENZA E BLOCCO CASSA IN TEMPO REALE ---
 function attivaControlloLicenzaCassa() {
@@ -93,11 +95,9 @@ window.prezzoCopertoLocale = 2.50;
 window.supplementoConsegnaLocale = 2.00;
 let PRINTER_CONFIG = { pizzeria: {ip:'', cats:[]}, cucina: {ip:'', cats:[]}, bar: {ip:'', cats:[]}, conto: {ip:''}, preconto: {ip:''} };
 // Il gestionale non è fiscale: lo scontrino si batte sul registratore del locale, di qualunque marca.
-// Solo l'Olivetti con ElaExecute sul PC della cassa si può collegare (Gestionale > Stampanti).
-// Finché non viene salvata un'impostazione, il locale "default" resta collegato alla sua cartella di sempre.
-const CARTELLA_OLIVETTI_LOCALE_DEFAULT = "C:/Users/paolo/OneDrive/Desktop/SwInstallato/Olivetti/ElaExecute/IN/";
-window.configFiscale = () => PRINTER_CONFIG.fiscale
-    || (window.TENANT_ID === 'default' ? { modo: 'olivetti', cartella: CARTELLA_OLIVETTI_LOCALE_DEFAULT } : { modo: 'nessuno' });
+// Solo l'Olivetti con ElaExecute sul PC della cassa si può collegare (Gestionale > Stampanti):
+// finché il locale non lo sceglie e salva, nessun registratore collegato.
+window.configFiscale = () => PRINTER_CONFIG.fiscale || { modo: 'nessuno' };
 let printedViaCache = new Set();
 let ALL_RIMOZIONI_CACHE = [];
 window.notifiedMessages = new Set();
@@ -427,7 +427,7 @@ window.checkLogin = async () => {
         document.getElementById('login-overlay').style.display = 'none';
         sessionStorage.setItem('operatore_corrente', 'ADMIN');
         if(document.getElementById('nome-locale-ui')) {
-            document.getElementById('nome-locale-ui').innerText = `${window.nomeLocaleCorrenteCassa} - CASSA`;
+            document.getElementById('nome-locale-ui').innerText = titoloCassa();
         }
         
         if(typeof playSound === 'function') playSound(); 
@@ -451,7 +451,7 @@ onAuthStateChanged(auth, async (user) => {
         if (!(await verificaAccountLocale(user))) return;
         sessionStorage.setItem('operatore_corrente', 'ADMIN');
         if(document.getElementById('nome-locale-ui')) {
-            document.getElementById('nome-locale-ui').innerText = `${window.nomeLocaleCorrenteCassa} - CASSA`;
+            document.getElementById('nome-locale-ui').innerText = titoloCassa();
         }
         if (!initAvviato) init();
     } else {
@@ -607,7 +607,7 @@ async function init() {
             if (document.getElementById('day-closed')) document.getElementById('day-closed').value = dn.giorno_riposo || '';
             if (dn.nome) {
                 window.nomeLocaleCorrenteCassa = dn.nome.toUpperCase();
-                if (document.getElementById('nome-locale-ui')) document.getElementById('nome-locale-ui').innerText = `${window.nomeLocaleCorrenteCassa} - CASSA`;
+                if (document.getElementById('nome-locale-ui')) document.getElementById('nome-locale-ui').innerText = titoloCassa();
                 if (document.getElementById('setting-nome-locale')) document.getElementById('setting-nome-locale').value = dn.nome;
             }
             if (dn.slogan && document.getElementById('setting-slogan')) document.getElementById('setting-slogan').value = dn.slogan;
@@ -628,7 +628,7 @@ async function init() {
             if (document.getElementById('btn-rimuovi-logo')) document.getElementById('btn-rimuovi-logo').style.display = (logoValido(dn.logo_url) || tempLogoBase64) ? '' : 'none';
         } else {
             if (document.getElementById('nome-locale-ui')) {
-                document.getElementById('nome-locale-ui').innerText = `${window.nomeLocaleCorrenteCassa} - CASSA`;
+                document.getElementById('nome-locale-ui').innerText = titoloCassa();
             }
         }
     });
@@ -3314,7 +3314,7 @@ window.salvaZoneConsegna = async () => {
         const cap = String(z.cap || '').trim();
         if (!nome || !cap) return Swal.fire("Attenzione", "Ogni zona deve avere un nome e almeno un CAP.", "warning");
         const vociNonValide = cap.split(/[,;\s]+/).filter(v => v && !/^\d{5}(-\d{5})?$/.test(v.replace(/\s/g, '')));
-        if (vociNonValide.length) return Swal.fire("CAP non valido", `Zona "${nome}": controlla ${vociNonValide.join(', ')} (5 cifre, intervalli come 89121-89135).`, "warning");
+        if (vociNonValide.length) return Swal.fire("CAP non valido", `Zona "${nome}": controlla ${vociNonValide.join(', ')} (5 cifre, intervalli come 00118-00199).`, "warning");
         zone.push({ nome, cap, supplemento: num(z.supplemento), ordine_minimo: num(z.ordine_minimo), gratis_sopra: num(z.gratis_sopra), attiva: z.attiva !== false && z.attiva !== 'false' });
     }
     const payload = {

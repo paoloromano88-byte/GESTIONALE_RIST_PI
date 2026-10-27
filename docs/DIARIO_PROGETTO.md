@@ -65,6 +65,15 @@ File condivisi:
   - Senza logo si usa `logo.png`: un'icona neutra uguale per tutti, cioè forchetta e coltello dorati su fondo scuro (icona «utensils» di Font Awesome Free, licenza CC BY 4.0). Prima era un file rotto.
   - «🗑️ Rimuovi logo» (accanto alla scelta del file, visibile solo se c'è un logo) chiede conferma e cancella `logo_url`. Scarta anche un logo scelto per sbaglio e non ancora salvato. Le app aperte tornano subito all'icona di base, comprese App Clienti e Menu.
   - L'icona dell'App Rider aggiunta alla schermata Home di **Android** è sempre quella neutra (`delivery.webmanifest`); su iPhone è il logo del locale.
+- **Sito anonimo** (decisione del 27/10/2026, PR #38): il programma si vende a più locali, quindi nel codice non c'è più niente di Da Mimmo.
+  - Finché un locale non inserisce i suoi dati (Cassa → Gestionale → Impostazioni: nome, sottotitolo, telefono, logo) le app mostrano diciture neutre:
+    - «CASSA», «KDS», «Agenda», «Menu»;
+    - nell'App Clienti «Ordina online», senza telefono;
+    - nella privacy, come titolare, «il gestore del locale che riceve l'ordine».
+  - Il locale principale (`default`) non ha più nomi di riserva; gli altri locali usano il loro codice (es. «PIZZERIA BELLA»).
+  - Tolti anche: il telefono 0965 370013 scritto nell'App Clienti, «Da Mimmo - Restaurant & Pizza» nella privacy, la cartella Olivetti del PC di Da Mimmo, gli esempi con CAP e prefissi di Reggio Calabria e il file `sfondo.jpg` (non usato, conteneva solo testo).
+  - Le chiavi del telefono del cliente nell'App Clienti (carrello, accesso, indirizzo, ultimo ordine) ora iniziano con `app_`. Quelle vecchie si spostano da sole una volta, senza perdere niente.
+  - Il diario (`docs/`, non pubblicato) e il nome del progetto Firebase restano come sono.
   - **Firebase Storage non è attivo** nel progetto e il programma non lo usa (verificato il 27/10/2026, PR #33). Non ci sono regole di Storage da gestire.
   - Se un giorno servisse (es. file grandi), attivarlo in **modalità produzione** (tutto chiuso), mettere i file in `locali/{locale}/…`, scrivere `storage.rules` sul modello di `firestore.rules` e aggiungere `storage` al deploy.
 
@@ -166,7 +175,7 @@ File condivisi:
   - alla fine compare "Ora batti € X sul registratore di cassa", con la quota a testa se il conto è diviso.
 - **Olivetti** (solo chi ha ElaExecute sul PC della cassa e QZ Tray): si collega in Gestionale → Stampanti → "Scontrino fiscale", scrivendo la cartella IN di ElaExecute.
   - Il valore è salvato in `impostazioni/stampanti`, campo `fiscale: { modo: "nessuno" | "olivetti", cartella }`.
-  - Da Mimmo (`default`) resta collegato alla cartella di sempre finché in quella pagina non si salva un'altra scelta. Gli altri locali partono da "Nessuno: batto il totale a mano".
+  - Ogni locale, Da Mimmo compreso, parte da "Nessuno: batto il totale a mano" finché non sceglie e salva l'Olivetti con la sua cartella. Fino alla PR #38 il locale `default` aveva come riserva la cartella del PC di Da Mimmo, scritta nel codice: è stata tolta per rendere il sito anonimo.
 - Strade valutate e scartate per ora:
   - scontrino online tramite servizi a pagamento che usano la procedura "Documento commerciale online" dell'Agenzia;
   - software certificato (provvedimento del 7/3/2025, operativo secondo gli addetti dal 2027).

@@ -301,10 +301,11 @@
         function initKDS() {
             isKdsInitialized = true;
 
+            // Senza nome del locale (Cassa > Gestionale > Impostazioni) il titolo resta anonimo
             const fallbackTitle = window.TENANT_ID === 'default'
-                ? 'DA MIMMO'
+                ? ''
                 : window.TENANT_ID.replace(/-/g, ' ').toUpperCase();
-            document.getElementById('nome-locale-kds').innerText = fallbackTitle + " - KDS";
+            document.getElementById('nome-locale-kds').innerText = fallbackTitle ? fallbackTitle + " - KDS" : "KDS";
 
             // 1. White-Label Nome Locale in Tempo Reale
             onSnapshot(doc(db, "impostazioni", "negozio"), (docSnap) => {
