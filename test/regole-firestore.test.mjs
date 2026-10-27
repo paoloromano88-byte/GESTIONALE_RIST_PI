@@ -70,6 +70,8 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('staff NON cancella la licenza', false, () => deleteDoc(d(staff, 'impostazioni/licenza')));
   await t('staff legge la chiave QZ del locale', true, () => getDoc(d(staff, 'impostazioni/qz_firma')));
   await t('staff crea/rinnova la chiave QZ del locale', true, () => setDoc(d(staff, 'impostazioni/qz_firma'), { certificato: 'CERT2', chiave: 'CHIAVE2', creato: serverTimestamp() }));
+  await t('App Rider iscrive il telefono alle notifiche', true, () => setDoc(d(staff, 'notifiche_rider/tok1'), { token: 'tok1', rider_id: 'D1', rider_nome: 'Marco', aggiornato: serverTimestamp() }));
+  await t('App Rider cancella l\'iscrizione a fine turno', true, () => deleteDoc(d(staff, 'notifiche_rider/tok1')));
 
   // Isolamento tra locali e account non collegati
   await t('personale di un ALTRO locale NON legge gli ordini', false, () => getDocs(c(altroStaff, 'ordini')));
@@ -78,6 +80,7 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('personale di un ALTRO locale NON legge la chiave QZ', false, () => getDoc(d(altroStaff, 'impostazioni/qz_firma')));
   await t('personale di un ALTRO locale NON cambia la chiave QZ', false, () => setDoc(d(altroStaff, 'impostazioni/qz_firma'), { certificato: 'X', chiave: 'X' }));
   await t('account email non collegato NON legge la chiave QZ', false, () => getDoc(d(abusivo, 'impostazioni/qz_firma')));
+  await t('personale di un ALTRO locale NON iscrive telefoni alle notifiche', false, () => setDoc(d(altroStaff, 'notifiche_rider/tokX'), { token: 'tokX', rider_id: 'D1' }));
   await t('account email non collegato NON legge ordini', false, () => getDocs(c(abusivo, 'ordini')));
   await t('account email non collegato NON legge dipendenti', false, () => getDocs(c(abusivo, 'dipendenti')));
 
@@ -92,6 +95,8 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('anonimo NON legge la chiave QZ', false, () => getDoc(d(anon, 'impostazioni/qz_firma')));
   await t('anonimo NON elenca le impostazioni', false, () => getDocs(c(anon, 'impostazioni')));
   await t('cliente SMS NON legge la chiave QZ', false, () => getDoc(d(mario, 'impostazioni/qz_firma')));
+  await t('anonimo NON elenca i telefoni dei rider', false, () => getDocs(c(anon, 'notifiche_rider')));
+  await t('anonimo NON iscrive telefoni alle notifiche', false, () => setDoc(d(anon, 'notifiche_rider/tokY'), { token: 'tokY', rider_id: 'D1' }));
   await t('anonimo NON legge dipendenti/PIN', false, () => getDocs(c(anon, 'dipendenti')));
   await t('anonimo NON elenca ordini del giorno', false, () => getDocs(query(c(anon, 'ordini'), where('data_ritiro', '==', '2026-10-26'))));
   await t('anonimo NON elenca ordini di un telefono', false, () => getDocs(query(c(anon, 'ordini'), where('telefono', '==', '3339998888'))));

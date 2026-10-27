@@ -9,6 +9,8 @@
     <title id="page-title">Delivery Fattorini</title>
     <link rel="icon" href="data:,">
     <link rel="apple-touch-icon" href="logo.png">
+    <!-- Su iPhone le notifiche arrivano solo all'app aggiunta alla schermata Home -->
+    <link rel="manifest" href="delivery.webmanifest">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="sanitize.js"></script>
@@ -47,6 +49,13 @@
         }
         @keyframes lampeggia { 50% { opacity: 0.55; } }
         .kitchen-tag { font-size: 0.75em; padding: 3px 8px; border-radius: 6px; font-weight: 800; }
+        /* Invito ad attivare le notifiche push (avviso "pronto" con l'app chiusa) */
+        .banner-notifiche {
+            display: none; align-items: center; gap: 10px; padding: 10px 16px; flex-shrink: 0;
+            background: #1e3a8a; color: #e0e7ff; font-size: 0.85em; font-weight: 700; border-bottom: 1px solid #3b82f6;
+        }
+        .banner-notifiche span { flex: 1; line-height: 1.3; }
+        .banner-notifiche button { background: #fbbf24; color: #111; border: none; border-radius: 8px; padding: 8px 14px; font-weight: 900; cursor: pointer; flex-shrink: 0; }
         .driver-badge {
             background: #1e293b; border: 1px solid #475569; padding: 6px 12px;
             border-radius: 20px; font-size: 0.82em; font-weight: bold; color: #38bdf8;
@@ -188,6 +197,12 @@
         </div>
     </div>
 
+    <!-- NOTIFICHE PUSH -->
+    <div class="banner-notifiche" id="banner-notifiche">
+        <span id="banner-notifiche-testo"></span>
+        <button id="btn-notifiche" onclick="attivaNotifiche()">ATTIVA</button>
+    </div>
+
     <!-- TAB FILTRI STATO -->
     <div class="status-tabs">
         <div class="status-tab active" id="tab-attive" onclick="filtraStato('attive')">
@@ -225,8 +240,9 @@
 
     <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection as _collection, doc as _doc, onSnapshot, updateDoc, getDoc, getDocs, query, where, serverTimestamp, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection as _collection, doc as _doc, onSnapshot, updateDoc, getDoc, getDocs, setDoc, deleteDoc, query, where, serverTimestamp, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
 
         const firebaseConfig = {
@@ -324,6 +340,64 @@
             try { if (navigator.setAppBadge) (n > 0 ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
         }
 
+        // --- NOTIFICHE PUSH: avviso "pronto" anche con l'app chiusa ---
+        // Il telefono si iscrive in notifiche_rider/{token} col rider di turno; la notifica la manda
+        // il server (functions/avvisi-rider.js) quando la cucina segna "Pronto". A fine turno si cancella.
+        let tokenPush = localStorage.getItem('push_token') || "";
+
+        async function pushSupportato() {
+            try { return 'Notification' in window && 'serviceWorker' in navigator && await isSupported(); } catch (e) { return false; }
+        }
+
+        async function iscriviNotifiche() {
+            const token = await getToken(getMessaging(app));
+            if (tokenPush && tokenPush !== token) await deleteDoc(doc(db, "notifiche_rider", tokenPush)).catch(() => {});
+            tokenPush = token;
+            localStorage.setItem('push_token', token);
+            await setDoc(doc(db, "notifiche_rider", token), { token, rider_id: currentDriverId, rider_nome: currentDriver, aggiornato: serverTimestamp() });
+        }
+
+        async function disiscriviNotifiche() {
+            if (tokenPush) await deleteDoc(doc(db, "notifiche_rider", tokenPush)).catch(() => {});
+        }
+
+        async function aggiornaBannerNotifiche() {
+            const banner = document.getElementById('banner-notifiche');
+            const mostra = (testo, conPulsante) => {
+                document.getElementById('banner-notifiche-testo').innerText = testo;
+                document.getElementById('btn-notifiche').style.display = conPulsante ? '' : 'none';
+                banner.style.display = 'flex';
+            };
+            banner.style.display = 'none';
+            if (!currentDriver) return;
+            if (!(await pushSupportato())) {
+                // iPhone: le notifiche arrivano solo all'app aggiunta alla schermata Home
+                if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone) {
+                    mostra("📲 Per gli avvisi con l'app chiusa: tocca Condividi → «Aggiungi alla schermata Home» e apri l'App Rider da lì.", false);
+                }
+                return;
+            }
+            if (Notification.permission === 'granted') {
+                iscriviNotifiche().catch(e => console.warn("Notifiche non attivate:", e));
+            } else if (Notification.permission === 'denied') {
+                mostra("🔕 Notifiche bloccate: abilitale per questo sito nelle impostazioni del browser.", false);
+            } else {
+                mostra("🔔 Ricevi l'avviso «Pronto» anche con l'app chiusa.", true);
+            }
+        }
+
+        window.attivaNotifiche = async () => {
+            try {
+                if (await Notification.requestPermission() !== 'granted') return aggiornaBannerNotifiche();
+                await iscriviNotifiche();
+                document.getElementById('banner-notifiche').style.display = 'none';
+                Swal.fire({ toast: true, position: 'top', icon: 'success', title: 'Notifiche attive', showConfirmButton: false, timer: 2000 });
+            } catch (e) {
+                console.error(e);
+                Swal.fire({ icon: 'error', title: 'Notifiche non attivate', text: e.message, background: '#1e293b', color: '#fff' });
+            }
+        };
+
         function getTodayLocal() {
             const d = new Date();
             return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -364,6 +438,7 @@
                 document.getElementById('current-driver-display').innerText = rider.nome;
                 document.getElementById('driver-login-overlay').style.display = 'none';
                 renderDeliveries();
+                aggiornaBannerNotifiche();
                 if (window.ordineDaLink) gestisciOrdineDaLink();
                 else Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Buon turno, ${rider.nome}!`, showConfirmButton: false, timer: 1500 });
             } catch (e) {
@@ -387,6 +462,8 @@
                 });
                 if (!res.isConfirmed) return;
             }
+            // Fine turno: questo telefono non riceve più gli avvisi (senza aspettare: offline resterebbe fermo qui)
+            disiscriviNotifiche();
             currentDriver = "";
             currentDriverId = "";
             localStorage.removeItem('delivery_driver_name');
@@ -394,6 +471,7 @@
             document.getElementById('current-driver-display').innerText = 'Rider';
             document.getElementById('driver-login-overlay').style.display = 'flex';
             aggiornaBadgePronte();
+            aggiornaBannerNotifiche();
             setTimeout(() => document.getElementById('driver-pin-input').focus(), 100);
         };
 
@@ -409,6 +487,7 @@
                 document.getElementById('driver-login-overlay').style.display = 'none';
                 document.getElementById('current-driver-display').innerText = currentDriver;
             }
+            aggiornaBannerNotifiche();
 
             onSnapshot(doc(db, "impostazioni", "negozio"), (snap) => {
                 if (snap.exists() && snap.data().nome) {

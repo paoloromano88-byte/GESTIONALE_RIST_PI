@@ -81,6 +81,13 @@ File condivisi:
    - È stampato come **immagine raster ESC/POS (`GS v 0`)** inviata a QZ in base64 (`datiQrConsegnaESC` in `cassa.html`): funziona con tutte le termiche, senza il comando QR nativo.
    - L'intercettore di stampa in `cassa.html` modifica solo le voci di testo (`isTestoSemplice`), non i byte delle immagini.
 3. **Cucina**: quando l'ordine passa a "Pronto", l'App Rider suona e vibra; in alto compare "🔔 N pronte".
+   - **Anche con l'app chiusa** (PR #36): notifica push «🍕 Pronto da ritirare · Cognome Nome · ore HH:MM». Toccandola si apre l'App Rider.
+   - Il rider la attiva una volta con «🔔 … ATTIVA» in alto. Il telefono si iscrive in `notifiche_rider/{token}` col suo nome; a «Fine turno» l'iscrizione si cancella, e al rider successivo si rifà da sola.
+   - La manda il server (`functions/avvisi-rider.js`, trigger `avvisoRiderPrincipale` / `avvisoRiderLocali`). Destinatari: il rider che ha preso l'ordine; se nessuno l'ha preso, tutti i rider iscritti del locale. Solo ordini a domicilio di oggi (ora italiana), non consegnati.
+   - Usa Firebase Cloud Messaging con la chiave web predefinita di Firebase. Il service worker è `firebase-messaging-sw.js`, alla radice del sito. I telefoni che non ricevono più si tolgono da soli dall'elenco.
+   - **Android** (Chrome): funziona dal browser.
+   - **iPhone** (iOS 16.4 o più recente): solo se l'App Rider è aggiunta alla schermata Home (Condividi → «Aggiungi alla schermata Home») e aperta da lì. L'app lo spiega da sola. `delivery.webmanifest` serve a questo.
+   - Nell'emulatore non c'è FCM: le notifiche finiscono in `_push_emulatore` per i test.
 4. **Presa in carico (App Rider)**: il rider scansiona il QR della busta che ha in mano.
    - Pulsante "📷 SCANSIONA QR" in basso, oppure "Scansiona e prendi" sulla scheda. Se il QR è di un'altra busta, l'app avvisa ("Busta diversa!").
    - Lettore: quello nativo del telefono (`BarcodeDetector`) o la libreria `jsQR`. Se la fotocamera non va, c'è "Fai una foto al QR".
@@ -226,6 +233,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #31 | **Comande dal server**: con «Agente di stampa» ordini nuovi e messaggi alla cucina vanno in coda dal server, anche a cassa chiusa. Testo delle stampe in `comande-escpos.js`, condiviso da cassa e server |
 | #32 | **Niente più PIN 0000** in Sala e Agenda: si entra solo col PIN di un dipendente. Nuovo ruolo «Responsabile» (accesso d'emergenza scelto dal locale). Senza dipendenti registrati, Sala e Agenda spiegano dove aggiungerli |
 | #33 | Firebase Storage verificato: non attivo e non usato. Tolto dalla Cassa il codice di Storage rimasto (non si scarica più) |
+| #36 | **Avviso "pronto" al rider anche con l'app chiusa**: notifiche push (Firebase Cloud Messaging), da attivare una volta nell'App Rider; su iPhone dall'app aggiunta alla schermata Home |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue
@@ -264,7 +272,7 @@ Da verificare sul posto:
 
 Idee per dopo (non richieste):
 - Togliere "Prendi a mano" dall'App Rider se si vuole la presa **solo** con il QR.
-- Notifiche push al rider anche con l'app chiusa (oggi l'avviso "pronto" richiede l'app aperta).
+- `logo.png` alla radice non è un'immagine vera (contiene testo): l'icona dell'App Rider sulla schermata Home e quella delle notifiche usano quindi le icone predefinite. Basta caricare un PNG quadrato del locale.
 - Ritocchi minori su smartphone:
   - nomi dei prodotti stretti nella finestra Modifica;
   - filtri delle categorie del menu che scorrono di lato;
