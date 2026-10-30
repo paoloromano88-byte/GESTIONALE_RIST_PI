@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#f4efe6" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>Mise en Place</title>
+    <link rel="stylesheet" href="/src/stile.css" />
+  </head>
+  <body>
+    <canvas id="banco" aria-label="Banco con i barattoli"></canvas>
+    <div id="margini" aria-hidden="true"></div>
+
+    <header id="barra-alta" class="barra" hidden>
+      <button id="indietro" class="tondo" aria-label="Torna al menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+      </button>
+      <p class="titolo-livello">Livello <b id="numero-livello">1</b></p>
+      <button id="ricomincia" class="tondo" aria-label="Ricomincia il livello">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7" /><path d="M4 4v4.5h4.5" /></svg>
+      </button>
+    </header>
+
+    <nav id="barra-bassa" class="barra" hidden>
+      <button id="annulla" class="aiuto">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></svg>
+        <span>Annulla</span>
+      </button>
+      <button id="suggerisci" class="aiuto">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" /></svg>
+        <span>Aiuto</span><i id="conta-aiuti">3</i>
+      </button>
+      <button id="extra" class="aiuto">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10M8 4v3c-2 1-3 2.5-3 4.5V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7.5c0-2-1-3.5-3-4.5V4" /><path d="M12 11v6M9 14h6" /></svg>
+        <span>Barattolo</span><i id="conta-extra">1</i>
+      </button>
+    </nav>
+
+    <p id="avviso" class="avviso" role="status" hidden></p>
+
+    <section id="menu" class="schermata attiva">
+      <canvas class="vetrina" width="260" height="170" aria-hidden="true"></canvas>
+      <h1>Mise <span>en Place</span></h1>
+      <p class="sottotitolo">Prepara il banco della pizzeria: un solo ingrediente per barattolo.</p>
+      <ul class="regole">
+        <li>Tocca un barattolo, poi quello dove spostare gli ingredienti in cima.</li>
+        <li>Si appoggia solo su un barattolo vuoto o sullo stesso ingrediente.</li>
+        <li>Quattro uguali e il barattolo si chiude.</li>
+      </ul>
+      <button id="gioca" class="bottone grande">Gioca <small id="livello-menu">Livello 1</small></button>
+      <button id="apri-livelli" class="bottone secondario">Tutti i livelli</button>
+      <div class="opzioni">
+        <button id="audio" class="interruttore" aria-pressed="true">Audio: sì</button>
+        <button id="vibrazione" class="interruttore" aria-pressed="true">Vibrazione: sì</button>
+      </div>
+    </section>
+
+    <section id="livelli" class="schermata">
+      <div class="testata">
+        <button id="chiudi-livelli" class="tondo" aria-label="Torna al menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <h2>Livelli</h2>
+        <p id="totale-stelle" class="totale-stelle"></p>
+      </div>
+      <div id="griglia-livelli" class="griglia"></div>
+    </section>
+
+    <section id="vittoria" class="schermata velo">
+      <div class="scheda">
+        <h2>Banco pronto!</h2>
+        <div id="stelle" class="stelle" aria-label="Stelle"></div>
+        <p id="esito" class="esito"></p>
+        <p id="consiglio" class="consiglio"></p>
+        <button id="prossimo" class="bottone grande">Avanti</button>
+        <div class="riga">
+          <button id="rigioca" class="bottone secondario">Rigioca</button>
+          <button id="menu-vittoria" class="bottone secondario">Menu</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="bloccato" class="schermata velo">
+      <div class="scheda">
+        <h2>Nessuna mossa</h2>
+        <p class="esito">Non si può più spostare niente. Annulla qualche mossa, prendi un barattolo in più o ricomincia.</p>
+        <button id="blocco-annulla" class="bottone grande">Annulla</button>
+        <div class="riga">
+          <button id="blocco-extra" class="bottone secondario">Barattolo in più</button>
+          <button id="blocco-ricomincia" class="bottone secondario">Ricomincia</button>
+        </div>
+      </div>
+    </section>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

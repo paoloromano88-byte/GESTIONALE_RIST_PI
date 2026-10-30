@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mise en Place</string>
+    <string name="title_activity_main">Mise en Place</string>
+    <string name="package_name">it.miseenplace.gioco</string>
+    <string name="custom_url_scheme">it.miseenplace.gioco</string>
+</resources>

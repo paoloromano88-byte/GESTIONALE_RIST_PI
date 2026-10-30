@@ -25,6 +25,7 @@
       "docs/**",
       "agente-stampa/**",
       "gioco/**",
+      "mise-en-place/**",
       "**/agente-stampa.json",
       "**/.*",
       "**/node_modules/**"

@@ -1,0 +1,12 @@
+{
+  "appId": "it.miseenplace.gioco",
+  "appName": "Mise en Place",
+  "webDir": "dist",
+  "backgroundColor": "#f4efe6",
+  "plugins": {
+    "SystemBars": {
+      "style": "LIGHT",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}
