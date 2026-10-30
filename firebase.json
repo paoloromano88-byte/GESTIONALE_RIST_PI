@@ -24,6 +24,7 @@
       "functions/**",
       "docs/**",
       "agente-stampa/**",
+      "gioco/**",
       "**/agente-stampa.json",
       "**/.*",
       "**/node_modules/**"

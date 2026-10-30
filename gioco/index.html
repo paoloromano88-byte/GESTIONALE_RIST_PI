@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#2a160f" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>Pizza al Volo</title>
+    <link rel="stylesheet" href="/src/stile.css" />
+  </head>
+  <body>
+    <canvas id="gioco" aria-label="Area di gioco"></canvas>
+    <div id="margini" aria-hidden="true"></div>
+
+    <section id="menu" class="schermata attiva">
+      <canvas class="logo" data-tipo="logo" width="160" height="160" aria-hidden="true"></canvas>
+      <h1>Pizza <span>al Volo</span></h1>
+      <ul class="regole">
+        <li><canvas data-tipo="pizza" width="40" height="40"></canvas>Trascina il dito: la pala segue.</li>
+        <li><canvas data-tipo="pomodoro" width="40" height="40"></canvas>Prendi gli ingredienti della comanda prima che scada il tempo.</li>
+        <li><canvas data-tipo="ananas" width="40" height="40"></canvas>Ingredienti sbagliati e ananas costano una vita.</li>
+        <li><canvas data-tipo="cuore" width="40" height="40"></canvas>Il cuore ridà una vita, l'orologio rallenta tutto.</li>
+      </ul>
+      <p class="record">Record <b id="record-menu">0</b></p>
+      <button id="gioca" class="bottone grande">Gioca</button>
+      <div class="opzioni">
+        <button id="audio" class="bottone piccolo" aria-pressed="true">Audio: sì</button>
+        <button id="vibrazione" class="bottone piccolo" aria-pressed="true">Vibrazione: sì</button>
+      </div>
+    </section>
+
+    <section id="pausa" class="schermata">
+      <h2>Pausa</h2>
+      <button id="riprendi" class="bottone grande">Riprendi</button>
+      <button id="esci" class="bottone piccolo">Torna al menu</button>
+    </section>
+
+    <section id="fine" class="schermata">
+      <h2 id="titolo-fine">Forno spento!</h2>
+      <p class="nuovo-record" id="nuovo-record" hidden>Nuovo record!</p>
+      <dl class="risultato">
+        <div><dt>Punti</dt><dd id="punti-fine">0</dd></div>
+        <div><dt>Pizze servite</dt><dd id="pizze-fine">0</dd></div>
+        <div><dt>Record</dt><dd id="record-fine">0</dd></div>
+      </dl>
+      <button id="ancora" class="bottone grande">Gioca ancora</button>
+      <button id="menu-fine" class="bottone piccolo">Menu</button>
+    </section>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

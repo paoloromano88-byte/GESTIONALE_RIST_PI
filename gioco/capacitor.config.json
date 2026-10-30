@@ -1,0 +1,12 @@
+{
+  "appId": "it.pizzaalvolo.gioco",
+  "appName": "Pizza al Volo",
+  "webDir": "dist",
+  "backgroundColor": "#2a160f",
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}
