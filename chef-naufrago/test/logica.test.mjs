@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Gioco, GIORNO, CICLO, ATTREZZI, COSTRUZIONI, NEMICI, RICETTE } from '../src/logica.js';
+import { Gioco, GIORNO, CICLO, ATTREZZI, COSTRUZIONI, NEMICI, RICETTE, FUOCO, NOTTE_DEL_BOSS, forzaMostri } from '../src/logica.js';
 import { generaIsola, terrenoIn, centroIsola, OGGETTI, ACQUA, ERBA } from '../src/mondo.js';
 
 const nuovo = (seme = 42) => new Gioco({ seme });
@@ -142,12 +142,14 @@ test('di giorno nessun mostro; di notte arrivano, lontani dalla luce; all\'alba 
   for (let t = 0; t < GIORNO - 20; t += 0.5) g.aggiorna(0.5);
   assert.equal(g.nemici.length, 0);
   g.chef.salute = 1e9;
-  g.inventario = { legna: 5, pietra: 3 };
+  g.inventario = { legna: 40, pietra: 3 };
   g.crea('falo');
   g.piazza();
   const falo = g.strutture[0];
   let visti = 0;
   while (g.tempo < CICLO - 12) {
+    // Il fuoco va tenuto acceso, altrimenti la luce si stringe e poi sparisce
+    if (falo.fuoco < 70) g.alimenta();
     g.aggiorna(0.1);
     visti = Math.max(visti, g.nemici.length);
     for (const n of g.nemici) assert.ok(Math.hypot(n.x - falo.x, n.y - falo.y) > COSTRUZIONI.falo.luce * 0.75, 'un mostro è entrato nella luce');
@@ -192,4 +194,96 @@ test('salvare e ricaricare riporta la stessa partita', () => {
   assert.deepEqual(h.strutture, g.strutture);
   assert.deepEqual(h.oggetti.map((o) => o.colpi), g.oggetti.map((o) => o.colpi));
   assert.equal(h.chef.x, g.chef.x);
+});
+
+test('il falò consuma legna: spento non fa luce né cucina; con la legna si riaccende', () => {
+  const g = nuovo();
+  g.inventario = { legna: 6, pietra: 3, pomodoro: 2 };
+  g.crea('falo');
+  g.piazza();
+  const falo = g.strutture[0];
+  assert.equal(falo.fuoco, FUOCO.iniziale);
+  assert.equal(g.luci().length, 1);
+  g.aggiorna(FUOCO.iniziale + 1);
+  assert.equal(falo.fuoco, 0);
+  assert.equal(g.luci().length, 0);
+  assert.ok(g.prendiEventi().some((e) => e.tipo === 'fuocoSpento'));
+  assert.equal(g.cucina('pomodoroArrosto'), false);
+  assert.ok(g.alimenta());
+  assert.equal(falo.fuoco, FUOCO.perLegna);
+  assert.equal(g.inventario.legna, 0);
+  assert.equal(g.alimenta(), false);
+  assert.ok(g.cucina('pomodoroArrosto'));
+});
+
+test('il peperoncino non ha paura del fuoco', () => {
+  const g = nuovo();
+  g.giorno = 2;
+  g.inventario = { legna: 5, pietra: 3 };
+  g.crea('falo');
+  g.piazza();
+  g.chef.salute = 1e9;
+  const falo = g.strutture[0];
+  g.nemici.push({ id: 1, tipo: 'peperoncino', x: falo.x + 200, y: falo.y, raggio: 14, vita: 28, attesa: 0, colpito: 0, fase: 0 });
+  g.nemici.push({ id: 2, tipo: 'polpetta', x: falo.x - 200, y: falo.y, raggio: 16, vita: 40, attesa: 0, colpito: 0, fase: 0 });
+  for (let i = 0; i < 40; i++) g.aggiorna(0.05);
+  const [pep, pol] = g.nemici;
+  assert.ok(Math.hypot(pep.x - falo.x, pep.y - falo.y) < 90, 'il peperoncino è entrato nella luce');
+  assert.ok(Math.hypot(pol.x - falo.x, pol.y - falo.y) > 120, 'la polpetta è rimasta fuori');
+});
+
+test('dal secondo giorno qualche polpetta gira anche di giorno', () => {
+  const g = nuovo();
+  for (let t = 0; t < 60; t += 0.5) g.aggiorna(0.5);
+  assert.equal(g.nemici.length, 0);
+  g.giorno = 2;
+  g.chef.salute = 1e9;
+  for (let t = 0; t < 30; t += 0.5) g.aggiorna(0.5);
+  assert.ok(g.nemici.length > 0);
+  assert.ok(g.nemici.every((n) => n.tipo === 'polpetta'));
+});
+
+test('il Grande Polpettone arriva nella notte giusta e i mostri si rinforzano', () => {
+  const g = nuovo();
+  g.giorno = NOTTE_DEL_BOSS;
+  g.tempo = GIORNO - 6;
+  g.chef.salute = 1e9;
+  for (let i = 0; i < 20; i++) g.aggiorna(0.5);
+  assert.ok(g.prendiEventi().some((e) => e.tipo === 'boss'));
+  const boss = g.nemici.find((n) => n.tipo === 'polpettone');
+  assert.ok(boss);
+  assert.equal(boss.vitaMax, Math.round(NEMICI.polpettone.vita * forzaMostri(NEMICI_GIORNO_BOSS()).vita));
+  assert.ok(forzaMostri(10).vita > forzaMostri(1).vita);
+});
+
+function NEMICI_GIORNO_BOSS() {
+  return NOTTE_DEL_BOSS;
+}
+
+test('i mostri sfondano gli steccati', () => {
+  const g = nuovo();
+  g.inventario = { legna: 3 };
+  g.crea('steccato');
+  g.piazza();
+  const s = g.strutture[0];
+  g.chef.x -= 150;
+  g.chef.salute = 1e9;
+  g.nemici.push({ id: 1, tipo: 'polpetta', x: s.x + 40, y: s.y, raggio: 16, vita: 40, attesa: 0, colpito: 0, fase: 0 });
+  g.aggiorna(0.05);
+  assert.equal(s.vita, COSTRUZIONI.steccato.vita - NEMICI.polpetta.danno);
+  s.vita = 5;
+  g.nemici[0].attesa = 0;
+  g.nemici[0].x = s.x + 38;
+  g.nemici[0].y = s.y;
+  g.aggiorna(0.05);
+  assert.equal(g.strutture.length, 0);
+  assert.ok(g.prendiEventi().some((e) => e.tipo === 'distrutto'));
+});
+
+test('la salute non torna da sola se si ha fame', () => {
+  const g = nuovo();
+  g.chef.salute = 50;
+  g.chef.fame = 60;
+  g.aggiorna(10);
+  assert.equal(Math.round(g.chef.salute), 50);
 });

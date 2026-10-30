@@ -1,4 +1,4 @@
-import { Gioco, ATTREZZI, COSTRUZIONI, CIBI, RICETTE, RISORSE, haAbbastanza } from './logica.js';
+import { Gioco, ATTREZZI, COSTRUZIONI, CIBI, RICETTE, RISORSE, FUOCO, NOTTE_DEL_BOSS, haAbbastanza } from './logica.js';
 import { Disegnatore } from './disegno.js';
 import { icona } from './icone.js';
 import { suona, sbloccaAudio, impostaAudio } from './suoni.js';
@@ -36,6 +36,7 @@ const COLORI = {
   polpetta: '#9a5532',
   cipolla: '#b46bb8',
   peperoncino: '#ff7b00',
+  polpettone: '#7d4024',
 };
 
 // ---------- Schermo ----------
@@ -397,12 +398,20 @@ function apriPannello(tipo, dove) {
       }));
     }
   } else {
-    $('titolo-pannello').textContent = dove === 'falo' ? 'Cucina al falò' : 'Forno a legna';
+    $('titolo-pannello').textContent = dove === 'falo' ? 'Falò' : 'Forno a legna';
+    if (dove === 'falo') {
+      const f = gioco.vicina('falo');
+      const stato = f && f.fuoco > 0 ? `Brucia ancora ${Math.ceil(f.fuoco)} secondi. Ogni legna +${FUOCO.perLegna} s (massimo ${FUOCO.massimo} s)` : 'È spento: i mostri non hanno più paura. Aggiungi legna!';
+      c.appendChild(voce('legna', 'Alimenta il fuoco', stato, { legna: 1 }, 'Aggiungi', !!f && inv.legna > 0 && f.fuoco < FUOCO.massimo - 1, () => {
+        if (gioco.alimenta()) apriPannello('cucina', dove);
+      }));
+      c.appendChild(sezione(f && f.fuoco > 0 ? 'Cucina' : 'Cucina (serve il fuoco acceso)'));
+    }
     for (const [k, r] of Object.entries(RICETTE)) {
       if (r.dove !== dove) continue;
       const cibo = CIBI[k];
       const descr = `Fame +${cibo.fame} · Salute +${cibo.salute}${inv[k] ? ` · ne hai ${inv[k]}` : ''}`;
-      c.appendChild(voce(k, cibo.nome, descr, r.costo, dove === 'falo' ? 'Cucina' : 'Inforna', haAbbastanza(inv, r.costo), () => {
+      c.appendChild(voce(k, cibo.nome, descr, r.costo, dove === 'falo' ? 'Cucina' : 'Inforna', haAbbastanza(inv, r.costo) && gioco.vicinoA(dove), () => {
         if (gioco.cucina(k)) apriPannello('cucina', dove);
       }));
     }
@@ -505,12 +514,37 @@ function gestisciEventi(eventi) {
         break;
       case 'notte':
         suona.notte();
-        avviso(gioco.strutture.some((s) => s.tipo === 'falo') ? 'Cala la notte: resta vicino al fuoco!' : 'Cala la notte! Senza un falò i mostri ti trovano.', 4000);
+        avviso(gioco.strutture.some((s) => s.tipo === 'falo' && s.fuoco > 0) ? 'Cala la notte: resta vicino al fuoco e tienilo acceso con la legna!' : 'Cala la notte! Senza un falò acceso i mostri ti trovano.', 4000);
+        break;
+      case 'boss':
+        effetti.scossa = 0.6;
+        vibra.errore();
+        setTimeout(() => avviso('Arriva il Grande Polpettone! Non teme il fuoco.', 4500), 4200);
+        break;
+      case 'fuocoBasso':
+        avviso('Il falò si sta spegnendo: aggiungi legna!', 3500);
+        break;
+      case 'fuocoSpento':
+        suona.colpo();
+        avviso('Il falò si è spento!', 3000);
+        break;
+      case 'alimentato':
+        scritta(`+${FUOCO.perLegna} s`, e.x, e.y, '#ffb000');
+        particelle(e.x, e.y + 40, '#ff7b00', 6);
+        suona.raccogli();
+        break;
+      case 'steccatoColpito':
+        particelle(e.x, e.y, '#c98a52', 4);
+        suona.colpo();
+        break;
+      case 'distrutto':
+        fumo(e.x, e.y);
+        avviso('Uno steccato è stato distrutto!', 2500);
         break;
       case 'alba':
         suona.alba();
         vibra.successo();
-        avviso(`Giorno ${e.giorno}: sei sopravvissuto alla notte!`, 3500);
+        avviso(e.giorno === 2 ? 'Giorno 2: sei vivo! Da oggi le polpette girano anche di giorno.' : e.giorno % NOTTE_DEL_BOSS === 0 ? `Giorno ${e.giorno}: stanotte arriva il Grande Polpettone. Preparati!` : `Giorno ${e.giorno}: sei sopravvissuto alla notte!`, 4000);
         salvaPartita();
         break;
       case 'affamato':
@@ -584,9 +618,9 @@ function aggiornaHud() {
   imposta('luna', gioco.buio() > 0.5, (v) => ($('sole-luna').className = v ? 'luna' : 'sole'));
   const b = gioco.bersaglio();
   effetti.bersaglio = b;
-  imposta('azione', b?.azione || 'vuoto', (v) => {
-    $('testo-azione').textContent = ETICHETTE[v] || 'Agisci';
-    tastoAzione.className = `tasto grande ${b?.tipo === 'nemico' ? 'nemico' : v === 'cucina' ? 'cucina' : v === 'vuoto' ? 'vuoto' : ''}`.trim() + (comandi.azione ? ' premuto' : '');
+  imposta('azione', b?.tipo === 'struttura' ? b.ref.tipo : b?.azione || 'vuoto', (v) => {
+    $('testo-azione').textContent = v === 'falo' ? 'Falò' : v === 'forno' ? 'Forno' : ETICHETTE[v] || 'Agisci';
+    tastoAzione.className = `tasto grande ${b?.tipo === 'nemico' ? 'nemico' : v === 'falo' || v === 'forno' ? 'cucina' : v === 'vuoto' ? 'vuoto' : ''}`.trim() + (comandi.azione ? ' premuto' : '');
   });
   const arma = gioco.attrezzi.coltello ? 'coltello' : gioco.attrezzi.mattarello ? 'mattarello' : null;
   effetti.attrezzo = b?.azione === 'taglia' && gioco.attrezzi.ascia ? 'ascia' : b?.azione === 'scava' && gioco.attrezzi.piccone ? 'piccone' : arma || (gioco.attrezzi.ascia ? 'ascia' : null);

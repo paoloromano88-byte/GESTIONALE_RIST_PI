@@ -44,11 +44,11 @@ function rumore(seme, scala) {
 
 // Caratteristiche di ogni oggetto: solido = blocca il passaggio, colpi = quanti colpi servono
 export const OGGETTI = {
-  albero: { raggio: 18, solido: true, colpi: 3, risorsa: 'legna', perColpo: 1, ricresce: 2 * 220, attrezzo: 'ascia' },
-  roccia: { raggio: 20, solido: true, colpi: 4, risorsa: 'pietra', perColpo: 1, ricresce: 3 * 220, attrezzo: 'piccone' },
-  pomodori: { raggio: 18, solido: false, colpi: 1, risorsa: 'pomodoro', perColpo: 2, ricresce: 110 },
-  grano: { raggio: 16, solido: false, colpi: 1, risorsa: 'grano', perColpo: 2, ricresce: 140 },
-  funghi: { raggio: 14, solido: false, colpi: 1, risorsa: 'fungo', perColpo: 2, ricresce: 170 },
+  albero: { raggio: 18, solido: true, colpi: 3, risorsa: 'legna', perColpo: 1, ricresce: 3 * 210, attrezzo: 'ascia' },
+  roccia: { raggio: 20, solido: true, colpi: 4, risorsa: 'pietra', perColpo: 1, ricresce: 5 * 210, attrezzo: 'piccone' },
+  pomodori: { raggio: 18, solido: false, colpi: 1, risorsa: 'pomodoro', perColpo: 2, ricresce: 160 },
+  grano: { raggio: 16, solido: false, colpi: 1, risorsa: 'grano', perColpo: 2, ricresce: 180 },
+  funghi: { raggio: 14, solido: false, colpi: 1, risorsa: 'fungo', perColpo: 2, ricresce: 220 },
 };
 
 export function generaIsola(seme) {

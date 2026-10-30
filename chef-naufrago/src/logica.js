@@ -3,22 +3,25 @@
 
 import { generaIsola, terrenoIn, centroIsola, creaIndice, creaCasuale, OGGETTI, ACQUA } from './mondo.js';
 
-export const GIORNO = 150;
-export const NOTTE = 70;
+export const GIORNO = 120;
+export const NOTTE = 90;
 export const CICLO = GIORNO + NOTTE;
 
 export const ATTREZZI = {
-  mattarello: { nome: 'Mattarello', costo: { legna: 3 }, danno: 16, descrizione: 'Colpisce il doppio dei pugni' },
-  ascia: { nome: 'Ascia', costo: { legna: 3, pietra: 2 }, danno: 12, descrizione: 'Doppia legna dagli alberi' },
-  piccone: { nome: 'Piccone', costo: { legna: 2, pietra: 3 }, danno: 10, descrizione: 'Doppia pietra dalle rocce' },
-  coltello: { nome: 'Coltello da chef', costo: { legna: 2, pietra: 4, peperoncino: 1 }, danno: 28, descrizione: 'L\'arma migliore' },
+  mattarello: { nome: 'Mattarello', costo: { legna: 3 }, danno: 14, descrizione: 'Colpisce più del doppio dei pugni' },
+  ascia: { nome: 'Ascia', costo: { legna: 3, pietra: 2 }, danno: 11, descrizione: 'Doppia legna dagli alberi' },
+  piccone: { nome: 'Piccone', costo: { legna: 2, pietra: 3 }, danno: 9, descrizione: 'Doppia pietra dalle rocce' },
+  coltello: { nome: 'Coltello da chef', costo: { legna: 2, pietra: 4, peperoncino: 1 }, danno: 24, descrizione: 'L\'arma migliore' },
 };
 
 export const COSTRUZIONI = {
-  falo: { nome: 'Falò', costo: { legna: 5, pietra: 3 }, raggio: 20, luce: 170, descrizione: 'Fa luce: i mostri non si avvicinano. Ci si cucina' },
-  forno: { nome: 'Forno a legna', costo: { pietra: 12, legna: 6 }, raggio: 30, luce: 90, descrizione: 'Pane e pizze: il cibo migliore' },
-  steccato: { nome: 'Steccato', costo: { legna: 3 }, raggio: 20, luce: 0, descrizione: 'Blocca i mostri' },
+  falo: { nome: 'Falò', costo: { legna: 5, pietra: 3 }, raggio: 20, luce: 170, descrizione: 'Finché brucia tiene lontani i mostri (non i peperoncini). Va alimentato con la legna. Ci si cucina' },
+  forno: { nome: 'Forno a legna', costo: { pietra: 12, legna: 6 }, raggio: 30, luce: 0, descrizione: 'Pane e pizze: il cibo migliore' },
+  steccato: { nome: 'Steccato', costo: { legna: 3 }, raggio: 20, luce: 0, vita: 80, descrizione: 'Blocca i mostri finché regge: lo prendono a morsi' },
 };
+
+// Il falò brucia legna: secondi di fuoco alla costruzione, per ogni legna aggiunta e al massimo
+export const FUOCO = { iniziale: 60, perLegna: 40, massimo: 240, basso: 20 };
 
 export const CIBI = {
   pomodoro: { nome: 'Pomodoro', fame: 8, salute: 0 },
@@ -46,17 +49,25 @@ export const RICETTE = {
 };
 
 export const NEMICI = {
-  polpetta: { nome: 'Polpetta rabbiosa', vita: 30, velocita: 85, danno: 8, raggio: 16, bottino: { carne: 1 }, daGiorno: 1, peso: 1 },
-  cipolla: { nome: 'Cipolla piagnona', vita: 45, velocita: 55, danno: 6, raggio: 18, bottino: { cipolla: 2 }, daGiorno: 2, peso: 0.6, lacrime: 130 },
-  peperoncino: { nome: 'Peperoncino infuocato', vita: 22, velocita: 135, danno: 11, raggio: 14, bottino: { peperoncino: 1 }, daGiorno: 3, peso: 0.6 },
+  polpetta: { nome: 'Polpetta rabbiosa', vita: 40, velocita: 105, danno: 12, raggio: 16, bottino: { carne: 1 }, daGiorno: 1, peso: 1 },
+  cipolla: { nome: 'Cipolla piagnona', vita: 60, velocita: 72, danno: 9, raggio: 18, bottino: { cipolla: 2 }, daGiorno: 1, peso: 0.5, lacrime: 150 },
+  // Il peperoncino è fuoco anche lui: la luce del falò non lo spaventa
+  peperoncino: { nome: 'Peperoncino infuocato', vita: 28, velocita: 165, danno: 14, raggio: 14, bottino: { peperoncino: 1 }, daGiorno: 2, peso: 0.6, senzaPaura: true },
+  polpettone: { nome: 'Grande Polpettone', vita: 320, velocita: 62, danno: 26, raggio: 34, bottino: { carne: 6 }, daGiorno: Infinity, peso: 0, senzaPaura: true },
 };
+
+// Ogni quante notti arriva il Grande Polpettone
+export const NOTTE_DEL_BOSS = 4;
+
+// I mostri si rinforzano giorno dopo giorno
+export const forzaMostri = (giorno) => ({ vita: 1 + (giorno - 1) * 0.12, danno: 1 + (giorno - 1) * 0.08 });
 
 export const RISORSE = { legna: 'Legna', pietra: 'Pietra', pomodoro: 'Pomodori', grano: 'Grano', fungo: 'Funghi', carne: 'Polpette crude', cipolla: 'Cipolle', peperoncino: 'Peperoncini' };
 
 const VELOCITA = 150;
 const RAGGIO_CHEF = 15;
 const PORTATA = 46;
-const FAME_AL_SECONDO = 100 / 280;
+const FAME_AL_SECONDO = 100 / 190;
 
 export function haAbbastanza(inventario, costo) {
   return Object.entries(costo).every(([k, n]) => (inventario[k] || 0) >= n);
@@ -117,13 +128,16 @@ export class Gioco {
   }
 
   arma() {
-    let danno = 8;
+    let danno = 6;
     for (const [k, a] of Object.entries(ATTREZZI)) if (this.attrezzi[k]) danno = Math.max(danno, a.danno);
     return danno;
   }
 
+  // Solo i falò accesi fanno luce; quando la legna sta finendo la luce si stringe
   luci() {
-    return this.strutture.filter((s) => COSTRUZIONI[s.tipo].luce).map((s) => ({ x: s.x, y: s.y, raggio: COSTRUZIONI[s.tipo].luce }));
+    return this.strutture
+      .filter((s) => s.tipo === 'falo' && s.fuoco > 0)
+      .map((s) => ({ x: s.x, y: s.y, raggio: COSTRUZIONI.falo.luce * (0.45 + 0.55 * Math.min(s.fuoco / FUOCO.iniziale, 1)) }));
   }
 
   // ---------- Movimento e ostacoli ----------
@@ -271,7 +285,10 @@ export class Gioco {
   piazza() {
     const p = this.puntoPiazzamento();
     if (!this.puoPiazzare(p.x, p.y)) return false;
-    this.strutture.push({ id: this.prossimoId++, tipo: this.piazzamento, x: p.x, y: p.y });
+    const s = { id: this.prossimoId++, tipo: this.piazzamento, x: p.x, y: p.y };
+    if (s.tipo === 'falo') s.fuoco = FUOCO.iniziale;
+    if (COSTRUZIONI[s.tipo].vita) s.vita = COSTRUZIONI[s.tipo].vita;
+    this.strutture.push(s);
     this.emetti('piazzato', { nome: this.piazzamento, x: p.x, y: p.y });
     this.piazzamento = null;
     return true;
@@ -283,8 +300,23 @@ export class Gioco {
     this.piazzamento = null;
   }
 
+  vicina(tipo) {
+    return this.strutture.find((s) => s.tipo === tipo && Math.hypot(s.x - this.chef.x, s.y - this.chef.y) < COSTRUZIONI[tipo].raggio + this.chef.raggio + PORTATA + 30);
+  }
+
+  // Si cucina solo sul fuoco acceso
   vicinoA(tipo) {
-    return this.strutture.some((s) => s.tipo === tipo && Math.hypot(s.x - this.chef.x, s.y - this.chef.y) < COSTRUZIONI[tipo].raggio + this.chef.raggio + PORTATA + 30);
+    const s = this.vicina(tipo);
+    return !!s && (tipo !== 'falo' || s.fuoco > 0);
+  }
+
+  alimenta() {
+    const s = this.vicina('falo');
+    if (!s || !(this.inventario.legna > 0) || s.fuoco >= FUOCO.massimo - 1) return false;
+    this.inventario.legna--;
+    s.fuoco = Math.min(s.fuoco + FUOCO.perLegna, FUOCO.massimo);
+    this.emetti('alimentato', { x: s.x, y: s.y - 50 });
+    return true;
   }
 
   cucina(nome) {
@@ -332,8 +364,18 @@ export class Gioco {
 
     // Fame e salute
     c.fame = Math.max(c.fame - FAME_AL_SECONDO * dt, 0);
-    if (c.fame <= 0) c.salute -= 1.2 * dt;
-    else if (c.fame > 60 && this.tempoAssoluto - c.ultimaFerita > 3) c.salute = Math.min(c.salute + 0.6 * dt, 100);
+    // Si guarisce da soli solo a pancia piena e lontani dai guai, e piano: per il resto serve cibo cotto
+    if (c.fame <= 0) c.salute -= 2.5 * dt;
+    else if (c.fame > 75 && this.tempoAssoluto - c.ultimaFerita > 8) c.salute = Math.min(c.salute + 0.3 * dt, 100);
+
+    // I falò consumano la legna
+    for (const s of this.strutture) {
+      if (s.tipo !== 'falo' || !(s.fuoco > 0)) continue;
+      const prima = s.fuoco;
+      s.fuoco = Math.max(s.fuoco - dt, 0);
+      if (prima > FUOCO.basso && s.fuoco <= FUOCO.basso) this.emetti('fuocoBasso', { x: s.x, y: s.y });
+      if (s.fuoco <= 0) this.emetti('fuocoSpento', { x: s.x, y: s.y });
+    }
     if (c.fame < 25 && c.fame + FAME_AL_SECONDO * dt >= 25) this.emetti('affamato');
 
     // Le piante e gli alberi ricrescono
@@ -348,12 +390,17 @@ export class Gioco {
     // Giorno e notte
     const prima = this.buio();
     this.tempo += dt;
-    if (prima < 0.5 && this.buio() >= 0.5) this.emetti('notte', { giorno: this.giorno });
+    if (prima < 0.5 && this.buio() >= 0.5) {
+      this.emetti('notte', { giorno: this.giorno });
+      this.prossimoNemico = 1;
+      if (this.giorno % NOTTE_DEL_BOSS === 0 && this.generaNemico('polpettone')) this.emetti('boss');
+    }
     if (this.tempo >= CICLO) {
       this.tempo -= CICLO;
       this.giorno++;
       for (const n of this.nemici) this.emetti('sciolto', { x: n.x, y: n.y, nemico: n.tipo });
       this.nemici = [];
+      this.prossimoNemico = 12;
       this.emetti('alba', { giorno: this.giorno });
     }
 
@@ -365,22 +412,26 @@ export class Gioco {
     }
   }
 
-  generaNemico() {
+  generaNemico(tipo) {
     const c = this.chef;
-    const disponibili = Object.entries(NEMICI).filter(([, n]) => this.giorno >= n.daGiorno);
-    const totale = disponibili.reduce((a, [, n]) => a + n.peso, 0);
-    let r = this.casuale() * totale;
-    const [tipo] = disponibili.find(([, n]) => (r -= n.peso) <= 0) || disponibili[0];
-    const luci = this.luci();
+    if (!tipo) {
+      const disponibili = Object.entries(NEMICI).filter(([, n]) => this.giorno >= n.daGiorno && n.peso > 0);
+      const totale = disponibili.reduce((a, [, n]) => a + n.peso, 0);
+      let r = this.casuale() * totale;
+      [tipo] = disponibili.find(([, n]) => (r -= n.peso) <= 0) || disponibili[0];
+    }
+    const def = NEMICI[tipo];
+    const forza = forzaMostri(this.giorno);
+    const luci = def.senzaPaura ? [] : this.luci();
     for (let tentativo = 0; tentativo < 12; tentativo++) {
       const a = this.casuale() * Math.PI * 2;
-      const d = 360 + this.casuale() * 160;
+      const d = 300 + this.casuale() * 130;
       const x = c.x + Math.cos(a) * d;
       const y = c.y + Math.sin(a) * d;
       if (terrenoIn(this.isola, x, y) === ACQUA) continue;
       if (luci.some((l) => Math.hypot(l.x - x, l.y - y) < l.raggio + 40)) continue;
-      const def = NEMICI[tipo];
-      this.nemici.push({ id: this.prossimoId++, tipo, x, y, raggio: def.raggio, vita: def.vita, attesa: 0, colpito: 0, fase: this.casuale() * 6 });
+      const vita = Math.round(def.vita * forza.vita);
+      this.nemici.push({ id: this.prossimoId++, tipo, x, y, raggio: def.raggio, vita, vitaMax: vita, danno: Math.round(def.danno * forza.danno), attesa: 0, colpito: 0, fase: this.casuale() * 6 });
       return true;
     }
     return false;
@@ -388,13 +439,18 @@ export class Gioco {
 
   aggiornaNemici(dt) {
     const c = this.chef;
+    this.prossimoNemico -= dt;
     if (this.buio() > 0.6) {
-      this.prossimoNemico -= dt;
-      const massimo = Math.min(3 + this.giorno * 2, 22);
+      // Di notte: sempre di più, sempre più spesso
+      const massimo = Math.min(5 + this.giorno * 3, 30);
       if (this.prossimoNemico <= 0 && this.nemici.length < massimo) {
         this.generaNemico();
-        this.prossimoNemico = Math.max(5 - this.giorno * 0.4, 1.6);
+        this.prossimoNemico = Math.max(3.2 - this.giorno * 0.3, 0.9);
       }
+    } else if (this.buio() === 0 && this.giorno >= 2) {
+      // Dal secondo giorno qualche polpetta gira anche con la luce del sole
+      if (this.prossimoNemico <= 0 && this.nemici.length < 1 + Math.floor(this.giorno / 2)) this.generaNemico('polpetta');
+      if (this.prossimoNemico <= 0) this.prossimoNemico = 14;
     }
     const luci = this.luci();
     c.piange = false;
@@ -409,8 +465,8 @@ export class Gioco {
       if (def.lacrime && d < def.lacrime) c.piange = true;
       let vx = dx / d;
       let vy = dy / d;
-      // La luce del fuoco li respinge
-      for (const l of luci) {
+      // La luce del fuoco li respinge (tranne chi non ha paura del fuoco)
+      for (const l of def.senzaPaura ? [] : luci) {
         const lx = n.x - l.x;
         const ly = n.y - l.y;
         const ld = Math.hypot(lx, ly) || 1;
@@ -434,13 +490,26 @@ export class Gioco {
       const vd = Math.hypot(vx, vy) || 1;
       const passo = def.velocita * dt * (n.colpito > 0 ? 0.3 : 1);
       if (d > n.raggio + c.raggio + 2) this.muovi(n, (vx / vd) * passo, (vy / vd) * passo);
+      const danno = n.danno || def.danno;
       if (d < n.raggio + c.raggio + 8 && n.attesa <= 0) {
         n.attesa = 1;
-        c.salute -= def.danno;
+        c.salute -= danno;
         c.ferito = 0.3;
         c.ultimaFerita = this.tempoAssoluto;
-        this.muovi(c, (dx / d) * 22, (dy / d) * 22);
-        this.emetti('ferito', { danno: def.danno, nemico: n.tipo });
+        this.muovi(c, (dx / d) * 28, (dy / d) * 28);
+        this.emetti('ferito', { danno, nemico: n.tipo });
+      } else if (n.attesa <= 0) {
+        // Uno steccato in mezzo: lo prendono a morsi
+        const s = this.strutture.find((s) => s.tipo === 'steccato' && Math.hypot(s.x - n.x, s.y - n.y) < n.raggio + COSTRUZIONI.steccato.raggio + 6);
+        if (s) {
+          n.attesa = 1;
+          s.vita -= danno;
+          this.emetti('steccatoColpito', { x: s.x, y: s.y - 20 });
+          if (s.vita <= 0) {
+            this.strutture = this.strutture.filter((x) => x !== s);
+            this.emetti('distrutto', { x: s.x, y: s.y });
+          }
+        }
       }
     }
   }
@@ -474,6 +543,10 @@ export class Gioco {
     g.inventario = { ...dati.inventario };
     g.attrezzi = { ...dati.attrezzi };
     g.strutture = dati.strutture.map((s) => ({ ...s }));
+    for (const s of g.strutture) {
+      if (s.tipo === 'falo' && s.fuoco === undefined) s.fuoco = FUOCO.iniziale;
+      if (COSTRUZIONI[s.tipo].vita && s.vita === undefined) s.vita = COSTRUZIONI[s.tipo].vita;
+    }
     for (const [id, colpi, ricresce] of dati.oggetti) Object.assign(g.oggetti[id], { colpi, ricresce });
     g.statistiche = { ...g.statistiche, ...dati.statistiche };
     g.prossimoId = dati.prossimoId || 1000;

@@ -8,17 +8,23 @@ sopravvivere più giorni possibile.
 
 - **Muoversi:** si appoggia il dito in un punto qualsiasi dello schermo e lo si trascina (joystick).
 - **Tasto rosso:** fa l'azione giusta per quello che c'è vicino: *Taglia* gli alberi (legna), *Scava*
-  le rocce (pietra), *Raccogli* pomodori, grano e funghi, *Colpisci* i mostri, *Cucina* accanto a falò e forno.
+  le rocce (pietra), *Raccogli* pomodori, grano e funghi, *Colpisci* i mostri; accanto a *Falò* e *Forno* apre la cucina (e al falò si aggiunge legna).
   Si può tenere premuto.
 - **Crea:** attrezzi (mattarello, ascia, piccone, coltello da chef) e costruzioni (falò, forno a legna,
   steccato). Una costruzione si piazza davanti allo chef: si cammina per scegliere il posto e si tocca *Posiziona*.
 - **Zaino:** risorse, attrezzi e cibo da mangiare.
-- **Fame e salute:** la fame scende sempre; a zero si perde salute. Il cibo cotto sazia molto di più:
-  al falò arrosti, funghi trifolati e polpette, al forno pane e pizze (margherita, ai funghi, diavola).
-- **Notte:** dopo 2 minuti e mezzo cala il buio per poco più di un minuto. Arrivano polpette rabbiose,
-  cipolle piagnone (le loro lacrime rallentano) e, dal terzo giorno, peperoncini infuocati, sempre più numerosi.
-  Non entrano nella luce del falò. All'alba spariscono e lasciano il bottino a chi li ha sconfitti.
-- Alberi e piante ricrescono dopo un po'. La partita si salva da sola all'alba, in pausa e ogni 45 secondi.
+- **Fame e salute:** la fame scende in fretta; a zero si perde salute. La salute torna da sola solo a
+  pancia piena e lontano dai mostri, e molto piano: per curarsi serve cibo cotto. Al falò arrosti, funghi
+  trifolati e polpette, al forno pane e pizze (margherita, ai funghi, diavola).
+- **Falò:** fa luce solo finché brucia. Parte con 60 secondi di fuoco; ogni legna aggiunta (tasto *Falò*,
+  poi *Aggiungi*) ne dà 40, fino a 240. Quando la legna sta finendo la luce si stringe; spento non protegge
+  e non cucina.
+- **Notte:** dopo 2 minuti cala il buio per un minuto e mezzo. Polpette rabbiose e cipolle piagnone (le loro
+  lacrime rallentano) restano fuori dalla luce del falò. Dal secondo giorno arrivano i peperoncini infuocati,
+  più veloci dello chef, che il fuoco non lo temono. Ogni 4 notti arriva il **Grande Polpettone**.
+  I mostri sono più numerosi e più forti giorno dopo giorno e prendono a morsi gli steccati.
+- **Giorno:** dal secondo giorno qualche polpetta gira anche con il sole.
+- Alberi e piante ricrescono piano. La partita si salva da sola all'alba, in pausa e ogni 45 secondi.
 
 | Risorsa | Da dove |
 |---|---|

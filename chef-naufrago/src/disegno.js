@@ -398,25 +398,40 @@ export class Disegnatore {
   disegnaNemico(g, n, t, chef) {
     const def = NEMICI[n.tipo];
     const r = def.raggio;
-    const salto = n.tipo === 'polpetta' ? Math.abs(Math.sin(n.fase)) * 7 : n.tipo === 'peperoncino' ? Math.abs(Math.sin(n.fase * 1.5)) * 4 : 0;
+    const salto = n.tipo === 'polpetta' ? Math.abs(Math.sin(n.fase)) * 7 : n.tipo === 'polpettone' ? Math.abs(Math.sin(n.fase * 0.6)) * 5 : n.tipo === 'peperoncino' ? Math.abs(Math.sin(n.fase * 1.5)) * 4 : 0;
     const guarda = Math.sign(chef.x - n.x) || 1;
     ombra(g, n.x, n.y + 2, r * 1.05, r * 0.38);
     g.save();
     g.translate(n.x, n.y - salto);
     const bianco = n.colpito > 0;
-    if (n.tipo === 'polpetta') {
+    if (n.tipo === 'polpetta' || n.tipo === 'polpettone') {
+      const grande = n.tipo === 'polpettone';
+      const k = r / 16;
       const sq = 1 + Math.sin(n.fase * 2) * 0.06;
       g.scale(sq, 1 / sq);
-      contornato(g, [() => cerchio(g, 0, -r, r)], bianco ? '#fff' : '#9a5532');
+      contornato(g, [() => cerchio(g, 0, -r, r)], bianco ? '#fff' : grande ? '#7d4024' : '#9a5532', grande ? 4 : 3);
       if (!bianco) {
-        g.fillStyle = '#7a3e22';
-        for (const [x, y, s] of [[-7, -8, 3], [6, -22, 2.5], [8, -10, 2], [-4, -24, 2]]) {
-          cerchio(g, x, y, s);
+        g.fillStyle = grande ? '#5e2c16' : '#7a3e22';
+        for (const [x, y, s] of [[-7, -8, 3], [6, -22, 2.5], [8, -10, 2], [-4, -24, 2], [-10, -18, 1.8]]) {
+          cerchio(g, x * k, y * k, s * k);
           g.fill();
         }
         contornato(g, [() => { g.beginPath(); g.ellipse(0, -r * 1.7, r * 0.7, r * 0.35, 0, 0, TAU); }], '#e5383b', 1.8);
       }
-      occhiCattivi(g, guarda * 3, -r - 2, 4.5, guarda);
+      occhiCattivi(g, guarda * 3 * k, -r - 2 * k, 4.5 * k, guarda);
+      if (grande) {
+        // Bocca piena di denti e una foglia di basilico come cresta
+        contornato(g, [() => { g.beginPath(); g.ellipse(guarda * 4, -r * 0.55, r * 0.45, r * 0.22, 0, 0, Math.PI); g.closePath(); }], '#3a1010', 2.5);
+        g.fillStyle = '#fff';
+        for (let i = -2; i <= 2; i++) {
+          g.beginPath();
+          g.moveTo(guarda * 4 + i * r * 0.16 - 3, -r * 0.55);
+          g.lineTo(guarda * 4 + i * r * 0.16 + 3, -r * 0.55);
+          g.lineTo(guarda * 4 + i * r * 0.16, -r * 0.42);
+          g.fill();
+        }
+        contornato(g, [() => { g.beginPath(); g.ellipse(-6, -r * 2.05, 6, 12, -0.5, 0, TAU); }, () => { g.beginPath(); g.ellipse(6, -r * 2.05, 6, 12, 0.5, 0, TAU); }], '#4cbb47', 2);
+      }
     } else if (n.tipo === 'cipolla') {
       g.rotate(Math.sin(n.fase * 0.7) * 0.08);
       contornato(g, [() => { g.beginPath(); g.moveTo(0, -r * 2.3); g.quadraticCurveTo(r * 1.25, -r * 1.3, r * 0.9, -r * 0.3); g.quadraticCurveTo(0, r * 0.35, -r * 0.9, -r * 0.3); g.quadraticCurveTo(-r * 1.25, -r * 1.3, 0, -r * 2.3); }], bianco ? '#fff' : '#b46bb8');
@@ -460,13 +475,14 @@ export class Disegnatore {
       occhiCattivi(g, guarda * 2, -r * 1.35, 3.6, guarda);
     }
     g.restore();
-    if (n.vita < def.vita) {
+    const vitaMax = n.vitaMax || def.vita;
+    if (n.vita < vitaMax) {
       const w = r * 1.8;
-      const y = n.y - r * (n.tipo === 'peperoncino' ? 3.8 : n.tipo === 'cipolla' ? 3.1 : 2.5) - salto;
+      const y = n.y - r * (n.tipo === 'peperoncino' ? 3.8 : n.tipo === 'cipolla' ? 3.1 : n.tipo === 'polpettone' ? 2.9 : 2.5) - salto;
       g.fillStyle = O;
       g.fillRect(n.x - w / 2 - 1.5, y - 1.5, w + 3, 6);
       g.fillStyle = '#ff5c5c';
-      g.fillRect(n.x - w / 2, y, w * Math.max(n.vita / def.vita, 0), 3);
+      g.fillRect(n.x - w / 2, y, w * Math.max(n.vita / vitaMax, 0), 3);
     }
   }
 
@@ -549,8 +565,21 @@ export class Disegnatore {
     for (const s of gioco.strutture) {
       scena.push({ y: s.y, f: () => {
         this.disegnaSprite(g, s.tipo, s.x, s.y);
-        if (s.tipo === 'falo') this.disegnaFuoco(g, s.x, s.y, t);
+        if (s.tipo === 'falo') {
+          // La fiamma cala con la legna; spenta resta un filo di fumo
+          if (s.fuoco > 0) this.disegnaFuoco(g, s.x, s.y, t, 0.55 + 0.45 * Math.min(s.fuoco / 60, 1));
+          else {
+            g.fillStyle = 'rgba(200,200,210,0.6)';
+            for (let i = 0; i < 3; i++) {
+              const k = (t * 0.5 + i / 3) % 1;
+              cerchio(g, s.x + Math.sin(k * 6 + i) * 5, s.y - 12 - k * 34, 4 + k * 6);
+              g.fill();
+            }
+          }
+          barretta(g, s.x, s.y - 52, 40, Math.min(s.fuoco / 240, 1), s.fuoco > 20 ? '#ffb000' : '#ff4f4f');
+        }
         if (s.tipo === 'forno') this.disegnaFuoco(g, s.x, s.y + 6, t, 0.45);
+        if (s.tipo === 'steccato' && s.vita < 80) barretta(g, s.x, s.y - 40, 36, s.vita / 80, '#7dff7a');
       } });
     }
     for (const n of gioco.nemici) scena.push({ y: n.y, f: () => this.disegnaNemico(g, n, t, gioco.chef) });
@@ -622,6 +651,13 @@ export class Disegnatore {
       g.fillRect(0, 0, this.L, this.A);
     }
   }
+}
+
+function barretta(g, x, y, w, k, colore) {
+  g.fillStyle = O;
+  g.fillRect(x - w / 2 - 2, y - 2, w + 4, 8);
+  g.fillStyle = colore;
+  g.fillRect(x - w / 2, y, w * Math.max(k, 0), 4);
 }
 
 function occhiCattivi(g, dx, y, r, guarda) {
