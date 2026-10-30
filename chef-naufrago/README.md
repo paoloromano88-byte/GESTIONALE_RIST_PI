@@ -7,7 +7,7 @@ sopravvivere più giorni possibile.
 ## Come si gioca
 
 - **Muoversi:** si appoggia il dito in un punto qualsiasi dello schermo e lo si trascina (joystick).
-- **Tasto rosso:** fa l'azione giusta per quello che c'è vicino: *Taglia* gli alberi (legna), *Scava*
+- **Tasto rotondo:** fa l'azione giusta per quello che c'è vicino: *Taglia* gli alberi (legna), *Scava*
   le rocce (pietra), *Raccogli* pomodori, grano e funghi, *Colpisci* i mostri; accanto a *Falò* e *Forno* apre la cucina (e al falò si aggiunge legna).
   Si può tenere premuto.
 - **Crea:** attrezzi (mattarello, ascia, piccone, coltello da chef) e costruzioni (falò, forno a legna,
@@ -42,7 +42,7 @@ con [Capacitor](https://capacitorjs.com) in `android/` e `ios/`.
 |---|---|
 | `src/mondo.js` | Isola generata da un seme: terreno, alberi, rocce, piante; ricerca veloce degli oggetti vicini |
 | `src/logica.js` | Regole: movimento e ostacoli, raccolta, attrezzi, costruzioni, cucina, fame, giorno e notte, mostri, salvataggio |
-| `src/disegno.js` | Grafica cartoon: costa morbida, oggetti, chef, mostri, fuoco, buio con le luci |
+| `src/disegno.js` | Grafica realistica: texture di erba, sabbia e mare, ombre del sole, alberi, rocce, chef e mostri in volume, fuoco a strati, notte con le luci dei falò |
 | `src/icone.js` | Icone di risorse, cibi, attrezzi e costruzioni per i pannelli |
 | `src/main.js` | Ciclo di gioco, telecamera, joystick, tasti, pannelli, avvisi, salvataggio |
 | `src/suoni.js`, `src/nativo.js` | Suoni generati al momento; vibrazione, memoria e tasto Indietro di Android |
@@ -68,4 +68,4 @@ Come per gli altri giochi (vedi `gioco/README.md`):
 - **Android Studio:** `npm run android`. **Xcode (serve un Mac):** `npm run ios`.
 - L'identificativo dell'app è `it.chefnaufrago.gioco`: va deciso quello definitivo prima della prima pubblicazione.
 - Icona e schermata d'avvio: immagini in `assets/`, poi
-  `npx @capacitor/assets generate --ios --android --iconBackgroundColor '#39c2e6' --splashBackgroundColor '#39c2e6'`.
+  `npx @capacitor/assets generate --ios --android --iconBackgroundColor '#0c1a1c' --splashBackgroundColor '#0c1a1c'`.

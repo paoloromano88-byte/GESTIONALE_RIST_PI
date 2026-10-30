@@ -1,4 +1,4 @@
-import { Gioco, ATTREZZI, COSTRUZIONI, CIBI, RICETTE, RISORSE, FUOCO, NOTTE_DEL_BOSS, haAbbastanza } from './logica.js';
+import { Gioco, ATTREZZI, COSTRUZIONI, CIBI, RICETTE, RISORSE, FUOCO, GIORNO, NOTTE_DEL_BOSS, haAbbastanza } from './logica.js';
 import { Disegnatore } from './disegno.js';
 import { icona } from './icone.js';
 import { suona, sbloccaAudio, impostaAudio } from './suoni.js';
@@ -84,7 +84,7 @@ function avvia(g) {
   mostra(null);
   $('hud').hidden = false;
   aggiornaPiazzamento();
-  consiglio('muoversi', 'Trascina il dito per camminare. Tieni premuto il tasto rosso per raccogliere e colpire.', 5000);
+  consiglio('muoversi', 'Trascina il dito per camminare. Tieni premuto il tasto rotondo per raccogliere e colpire.', 5000);
 }
 
 function nuovaPartita() {
@@ -339,7 +339,7 @@ function apriPannello(tipo, dove) {
     if (!risorse.length && !cibi.length && !attrezzi.length) {
       const p = document.createElement('p');
       p.className = 'vuoto-testo';
-      p.textContent = "Lo zaino è vuoto. Avvicinati ad alberi, rocce e piante e tieni premuto il tasto rosso.";
+      p.textContent = "Lo zaino è vuoto. Avvicinati ad alberi, rocce e piante e tieni premuto il tasto rotondo.";
       c.appendChild(p);
     }
     if (cibi.length) {
@@ -660,24 +660,28 @@ function ciclo(ora) {
     }
     disegnatore.disegna(gioco, vista, t, effetti);
   } else if (stato === 'menu') {
-    disegnaRitratto(t);
+    disegnaMenu(t);
   }
   requestAnimationFrame(ciclo);
 }
 
-// Lo chef nel menu, con il mattarello che saluta
-const ritratto = $('ritratto');
-function disegnaRitratto(t) {
-  const lato = ritratto.clientWidth || 150;
-  const k = Math.min(window.devicePixelRatio || 1, 3);
-  if (ritratto.width !== Math.round(lato * k)) ritratto.width = ritratto.height = Math.round(lato * k);
-  const g = ritratto.getContext('2d');
-  g.setTransform(k, 0, 0, k, 0, 0);
-  g.clearRect(0, 0, lato, lato);
-  g.translate(lato / 2, lato * 0.95);
-  g.scale(lato / 85, lato / 85);
-  const finto = { x: 0, y: 0, direzione: 1, passo: 0, colpo: (Math.sin(t * 3) * 0.5 + 0.5) * 0.24, ferito: 0, piange: false };
-  disegnatore.disegnaChef(g, finto, t, 'mattarello');
+// Sfondo del menu: un angolo dell'isola al tramonto, con lo chef accanto al fuoco
+const scenaMenu = (() => {
+  const g = new Gioco({ seme: 20261030 });
+  g.tempo = GIORNO - 12;
+  g.chef.x += 10;
+  g.inventario = { legna: 5, pietra: 3 };
+  g.crea('falo');
+  g.piazza();
+  g.strutture[0].fuoco = FUOCO.massimo;
+  return g;
+})();
+const effettiMenu = { scritte: [], particelle: [], bersaglio: null, attrezzo: 'mattarello' };
+function disegnaMenu(t) {
+  const c = scenaMenu.chef;
+  // Il fuoco resta nella parte alta dello schermo, sopra il titolo
+  const z = disegnatore.zoom || 1;
+  disegnatore.disegna(scenaMenu, { x: c.x + 20 + Math.sin(t * 0.07) * 40, y: c.y + (A * 0.22) / z + Math.cos(t * 0.05) * 20 }, t, effettiMenu);
 }
 
 // ---------- Avvio ----------
