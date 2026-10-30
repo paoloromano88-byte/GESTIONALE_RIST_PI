@@ -41,6 +41,7 @@ File condivisi:
 - `functions/`: Cloud Functions (server).
 - `gioco/`: **Pizza al Volo**, gioco arcade per smartphone (app Android e iOS con Capacitor). È separato dal gestionale e non è pubblicato sul sito. Istruzioni in `gioco/README.md`; l'APK di prova lo compila il workflow `gioco-android.yml`.
 - `mise-en-place/`: **Mise en Place**, puzzle per smartphone (riordinare gli ingredienti nei barattoli), stessa struttura del gioco precedente. Istruzioni in `mise-en-place/README.md`; APK di prova dal workflow `mise-en-place-android.yml`.
+- `chef-naufrago/`: **Chef Naufrago**, survival per smartphone (raccolta, costruzione, cucina, notti con i mostri). Stessa struttura dei giochi precedenti. Istruzioni in `chef-naufrago/README.md`; APK di prova dal workflow `chef-naufrago-android.yml`.
 - `firestore.rules`: regole di sicurezza del database.
 - `test/`, `functions/test/`: test automatici.
 

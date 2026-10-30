@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Chef Naufrago</string>
+    <string name="title_activity_main">Chef Naufrago</string>
+    <string name="package_name">it.chefnaufrago.gioco</string>
+    <string name="custom_url_scheme">it.chefnaufrago.gioco</string>
+</resources>

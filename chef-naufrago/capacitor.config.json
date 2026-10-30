@@ -1,0 +1,12 @@
+{
+  "appId": "it.chefnaufrago.gioco",
+  "appName": "Chef Naufrago",
+  "webDir": "dist",
+  "backgroundColor": "#39c2e6",
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#39c2e6" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>Chef Naufrago</title>
+    <link rel="stylesheet" href="/src/stile.css" />
+  </head>
+  <body>
+    <canvas id="isola" aria-label="L'isola"></canvas>
+    <div id="margini" aria-hidden="true"></div>
+
+    <div id="hud" hidden>
+      <div class="stato">
+        <div class="barra salute" aria-label="Salute">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z" /></svg>
+          <span><b id="salute"></b></span>
+        </div>
+        <div class="barra fame" aria-label="Fame">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 2 2v8h2v-8a2 2 0 0 0 2-2V3h-1.5v6h-1V3h-1v6h-1V3zM17 3c-2 1-3 4-3 7v3h2v8h2V3z" /></svg>
+          <span><b id="fame"></b></span>
+        </div>
+      </div>
+      <div class="ora">
+        <i id="sole-luna" class="sole" aria-hidden="true"></i>
+        <b id="giorno">Giorno 1</b>
+      </div>
+      <button id="pausa" class="tondo" aria-label="Pausa">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
+      </button>
+
+      <div id="joystick" hidden><i></i></div>
+
+      <div id="comandi" class="comandi">
+        <button id="zaino" class="tasto piccolo">Zaino</button>
+        <button id="crea" class="tasto piccolo">Crea</button>
+        <button id="azione" class="tasto grande" aria-label="Azione"><span id="testo-azione">Agisci</span></button>
+      </div>
+      <div id="piazzamento" class="piazzamento" hidden>
+        <p>Cammina per scegliere il posto</p>
+        <div class="riga">
+          <button id="annulla-piazza" class="tasto piccolo">Annulla</button>
+          <button id="piazza" class="tasto medio">Posiziona</button>
+        </div>
+      </div>
+    </div>
+
+    <p id="avviso" class="avviso" role="status" hidden></p>
+
+    <section id="menu" class="schermata attiva">
+      <canvas id="ritratto" class="ritratto" width="180" height="180" aria-hidden="true"></canvas>
+      <h1>Chef <span>Naufrago</span></h1>
+      <p class="trama">La nave delle provviste è affondata. Sull'isola il cibo ha preso vita, e di notte ha fame di chef.</p>
+      <ul class="istruzioni">
+        <li><b>Di giorno</b> raccogli, costruisci attrezzi e cucina.</li>
+        <li><b>Di notte</b> resta vicino al falò: i mostri temono la luce.</li>
+        <li><b>Non saltare i pasti:</b> la pizza è il cibo migliore.</li>
+      </ul>
+      <button id="continua" class="tasto grande-largo" hidden>Continua <small id="continua-giorno"></small></button>
+      <button id="nuova" class="tasto grande-largo">Nuova isola</button>
+      <p class="record">Record: <b id="record">0</b> giorni</p>
+      <div class="opzioni">
+        <button id="audio" class="interruttore" aria-pressed="true">Audio: sì</button>
+        <button id="vibrazione" class="interruttore" aria-pressed="true">Vibrazione: sì</button>
+      </div>
+    </section>
+
+    <section id="pannello" class="schermata velo">
+      <div class="foglio">
+        <header>
+          <h2 id="titolo-pannello">Zaino</h2>
+          <button id="chiudi-pannello" class="tondo" aria-label="Chiudi">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </header>
+        <div id="contenuto-pannello" class="contenuto"></div>
+      </div>
+    </section>
+
+    <section id="pausa-schermata" class="schermata velo">
+      <div class="foglio stretto">
+        <h2>Pausa</h2>
+        <p id="riepilogo" class="riepilogo"></p>
+        <button id="riprendi" class="tasto grande-largo">Riprendi</button>
+        <button id="salva-esci" class="tasto piccolo">Salva e torna al menu</button>
+      </div>
+    </section>
+
+    <section id="fine" class="schermata velo">
+      <div class="foglio stretto">
+        <h2>Lo chef è svenuto!</h2>
+        <p id="esito" class="riepilogo"></p>
+        <p id="nuovo-record" class="nuovo-record" hidden>Nuovo record!</p>
+        <button id="ancora" class="tasto grande-largo">Nuova isola</button>
+        <button id="menu-fine" class="tasto piccolo">Menu</button>
+      </div>
+    </section>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

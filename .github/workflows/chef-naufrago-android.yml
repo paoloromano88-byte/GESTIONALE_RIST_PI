@@ -1,0 +1,43 @@
+# Chef Naufrago (cartella chef-naufrago/): prova le regole del gioco e compila l'app Android (APK di prova).
+# L'APK si scarica dalla pagina dell'esecuzione, in fondo, alla voce "Artifacts" (chef-naufrago-apk).
+name: Gioco Chef Naufrago (Android)
+
+on:
+  push:
+    paths:
+      - 'chef-naufrago/**'
+      - '.github/workflows/chef-naufrago-android.yml'
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: chef-naufrago
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: chef-naufrago/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Dipendenze
+        run: npm ci --no-audit --no-fund
+      - name: Test delle regole del gioco
+        run: npm test
+      - name: Build web e copia nel progetto Android
+        run: npm run build && npx cap sync android
+      - name: APK di prova
+        working-directory: chef-naufrago/android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chef-naufrago-apk
+          path: chef-naufrago/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

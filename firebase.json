@@ -26,6 +26,7 @@
       "agente-stampa/**",
       "gioco/**",
       "mise-en-place/**",
+      "chef-naufrago/**",
       "**/agente-stampa.json",
       "**/.*",
       "**/node_modules/**"
