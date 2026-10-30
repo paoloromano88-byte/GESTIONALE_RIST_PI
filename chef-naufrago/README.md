@@ -35,14 +35,17 @@ sopravvivere più giorni possibile.
 
 ## Com'è fatto
 
-Stessa struttura degli altri giochi del repository: JavaScript senza librerie su `<canvas>`, app native
-con [Capacitor](https://capacitorjs.com) in `android/` e `ios/`.
+Grafica 3D con [three.js](https://threejs.org): telecamera dall'alto inclinata, modelli generati dal codice
+(nessun file 3D da scaricare), sole con ombre vere, notte buia rischiarata solo dai falò e dalla lanterna dello
+chef. Le regole sono 2D e non dipendono dalla grafica. App native con [Capacitor](https://capacitorjs.com) in
+`android/` e `ios/`.
 
 | File | Contenuto |
 |---|---|
 | `src/mondo.js` | Isola generata da un seme: terreno, alberi, rocce, piante; ricerca veloce degli oggetti vicini |
 | `src/logica.js` | Regole: movimento e ostacoli, raccolta, attrezzi, costruzioni, cucina, fame, giorno e notte, mostri, salvataggio |
-| `src/disegno.js` | Grafica realistica: texture di erba, sabbia e mare, ombre del sole, alberi, rocce, chef e mostri in volume, fuoco a strati, notte con le luci dei falò |
+| `src/scena3d.js` | Scena 3D: terreno con rilievi, mare, alberi, rocce e piante (istanze), chef e mostri animati, costruzioni, fuoco, luci di giorno e di notte; sopra, barre e scritte |
+| `src/disegno.js` | Pittura 2D: la texture dell'isola intera (erba, sabbia, mare, fango) e i disegni usati dalle icone |
 | `src/icone.js` | Icone di risorse, cibi, attrezzi e costruzioni per i pannelli |
 | `src/main.js` | Ciclo di gioco, telecamera, joystick, tasti, pannelli, avvisi, salvataggio |
 | `src/suoni.js`, `src/nativo.js` | Suoni generati al momento; vibrazione, memoria e tasto Indietro di Android |

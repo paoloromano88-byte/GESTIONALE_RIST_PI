@@ -1,13 +1,12 @@
 import { Gioco, ATTREZZI, COSTRUZIONI, CIBI, RICETTE, RISORSE, FUOCO, GIORNO, NOTTE_DEL_BOSS, haAbbastanza } from './logica.js';
-import { Disegnatore } from './disegno.js';
+import { Scena3D } from './scena3d.js';
 import { icona } from './icone.js';
 import { suona, sbloccaAudio, impostaAudio } from './suoni.js';
 import { vibra, impostaVibrazione, leggi, salva, suIndietro, suSecondoPiano } from './nativo.js';
 
-const tela = document.getElementById('isola');
-const ctx = tela.getContext('2d');
-const disegnatore = new Disegnatore(ctx);
 const $ = (id) => document.getElementById(id);
+const tela = $('isola');
+const disegnatore = new Scena3D(tela, $('sopra'));
 const parametri = new URLSearchParams(location.search);
 
 let L = 0;
@@ -45,8 +44,6 @@ function misura() {
   dpr = Math.min(window.devicePixelRatio || 1, 3);
   L = window.innerWidth;
   A = window.innerHeight;
-  tela.width = Math.round(L * dpr);
-  tela.height = Math.round(A * dpr);
   const zoom = Math.min(Math.max(Math.min(L, A) / 380, 0.9), 1.8);
   disegnatore.imposta(L, A, dpr, zoom);
 }

@@ -7,5 +7,7 @@ export default defineConfig({
     outDir: 'dist',
     // WebView di Android 7+ aggiornata e Safari di iOS 14+
     target: ['chrome87', 'safari14'],
+    // Il motore 3D (three.js) da solo supera i 500 kB: è previsto
+    chunkSizeWarningLimit: 1500,
   },
 });
