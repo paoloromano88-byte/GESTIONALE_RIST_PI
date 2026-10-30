@@ -27,6 +27,7 @@
       "gioco/**",
       "mise-en-place/**",
       "chef-naufrago/**",
+      "terra-di-nessuno/**",
       "**/agente-stampa.json",
       "**/.*",
       "**/node_modules/**"

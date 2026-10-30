@@ -1,0 +1,29 @@
+{
+  "name": "terra-di-nessuno",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Terra di Nessuno: survival con zombie per smartphone (Android e iOS con Capacitor)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "anteprima": "vite preview --host",
+    "test": "node --test test/*.test.mjs",
+    "android": "vite build && cap sync android && cap open android",
+    "ios": "vite build && cap sync ios && cap open ios",
+    "sync": "vite build && cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.6.0",
+    "@capacitor/preferences": "^8.0.1",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
+    "vite": "^8.3.5"
+  }
+}

@@ -1,0 +1,733 @@
+/* Interfaccia sobria sopra la scena: vetro scuro, toni di ruggine e ambra, rosso per il pericolo */
+:root {
+  --inchiostro: #f1e9dc;
+  --tenue: rgba(241, 233, 220, 0.66);
+  --pannello: rgba(22, 20, 18, 0.86);
+  --vetro: rgba(26, 24, 22, 0.72);
+  --bordo: rgba(255, 238, 215, 0.16);
+  --brace: #b8743a;
+  --brace-scura: #6e3a18;
+  --acqua: #5aa8d8;
+  --sangue: #c0392b;
+  --grano: #d6a24a;
+  --titolo: ui-serif, 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --testo: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --sicuro-alto: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  --sicuro-basso: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  --sicuro-sx: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+  --sicuro-dx: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Gli elementi nascosti restano nascosti anche se una regola dà loro un display */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #163d4f;
+  color: var(--inchiostro);
+  font-family: var(--testo);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+#isola,
+#sopra {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Scritte, barre e vignettatura sopra il 3D: non deve rubare i tocchi */
+#sopra {
+  pointer-events: none;
+}
+
+#margini {
+  position: fixed;
+  visibility: hidden;
+  pointer-events: none;
+  padding: var(--sicuro-alto) var(--sicuro-dx) var(--sicuro-basso) var(--sicuro-sx);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--grano);
+  outline-offset: 3px;
+}
+
+svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Tasti ---------- */
+
+.tasto {
+  border: 1px solid var(--bordo);
+  border-radius: 12px;
+  background: var(--vetro);
+  color: var(--inchiostro);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition: transform 0.08s, background 0.15s;
+}
+
+.tasto:active,
+.tasto.premuto {
+  transform: scale(0.96);
+  background: rgba(60, 55, 50, 0.85);
+}
+
+.tasto:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tasto.piccolo {
+  padding: 9px 14px;
+  font-size: 0.88rem;
+}
+
+.tasto.medio {
+  padding: 9px 18px;
+  font-size: 0.95rem;
+  background: linear-gradient(#cf7036, var(--brace-scura));
+  border-color: rgba(255, 200, 150, 0.3);
+}
+
+.tasto.grande {
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 235, 210, 0.35);
+  background: radial-gradient(circle at 35% 30%, rgba(85, 78, 70, 0.92), rgba(22, 20, 18, 0.92));
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: grid;
+  place-items: center;
+}
+
+.tasto.grande-largo {
+  min-width: 240px;
+  padding: 14px 26px;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: linear-gradient(#cf7036, var(--brace-scura));
+  border-color: rgba(255, 200, 150, 0.35);
+  display: grid;
+  gap: 2px;
+}
+
+.tasto.grande-largo small {
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+
+.tondo {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--bordo);
+  border-radius: 50%;
+  background: var(--vetro);
+  color: var(--inchiostro);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.tondo:active {
+  transform: scale(0.94);
+}
+
+/* ---------- HUD ---------- */
+
+.stato {
+  position: fixed;
+  top: calc(var(--sicuro-alto) + 12px);
+  left: calc(var(--sicuro-sx) + 12px);
+  display: grid;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 1px solid var(--bordo);
+  border-radius: 12px;
+  background: rgba(18, 16, 14, 0.5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.barra {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.barra svg {
+  width: 16px;
+  height: 16px;
+  stroke: none;
+}
+
+.salute svg {
+  fill: #e0533f;
+}
+
+.fame svg {
+  fill: var(--grano);
+}
+
+.sete svg {
+  fill: var(--acqua);
+}
+
+.sete b {
+  background: linear-gradient(90deg, #1f5a8a, var(--acqua));
+}
+
+.barra span {
+  width: min(32vw, 140px);
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.barra b {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.25s;
+}
+
+.salute b {
+  background: linear-gradient(90deg, #8e1f16, #e0533f);
+}
+
+.fame b {
+  background: linear-gradient(90deg, #8a5a14, #e4b04f);
+}
+
+.barra.bassa span {
+  animation: lampeggia 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes lampeggia {
+  to {
+    box-shadow: 0 0 0 1px #e0533f, 0 0 10px rgba(224, 83, 63, 0.6);
+  }
+}
+
+.ora {
+  position: fixed;
+  top: calc(var(--sicuro-alto) + 18px);
+  right: calc(var(--sicuro-dx) + 66px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--titolo);
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+.ora i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #fff6c8, #f2b23a 60%, #c9692f);
+  box-shadow: 0 0 12px rgba(255, 190, 80, 0.8);
+}
+
+.ora i.luna {
+  background: radial-gradient(circle at 40% 40%, #ffffff, #c9d2e8 60%, #8a95b5);
+  box-shadow: 0 0 12px rgba(190, 205, 255, 0.6);
+}
+
+/* Arma in mano: si tocca per passare alla prossima */
+.arma {
+  position: fixed;
+  left: calc(var(--sicuro-sx) + 12px);
+  bottom: calc(var(--sicuro-basso) + 18px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid var(--bordo);
+  border-radius: 14px;
+  background: var(--vetro);
+  color: var(--inchiostro);
+  text-align: left;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.arma:active {
+  transform: scale(0.96);
+}
+
+.arma-testo {
+  display: grid;
+  line-height: 1.15;
+}
+
+.arma-testo b {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.arma-testo small {
+  font-size: 0.72rem;
+  color: var(--tenue);
+  font-variant-numeric: tabular-nums;
+}
+
+.nota-modelli {
+  margin: 0;
+  max-width: 320px;
+  font-size: 0.75rem;
+  color: var(--tenue);
+}
+
+.nota-modelli:empty {
+  display: none;
+}
+
+#pausa {
+  position: fixed;
+  top: calc(var(--sicuro-alto) + 10px);
+  right: calc(var(--sicuro-dx) + 12px);
+}
+
+.comandi {
+  position: fixed;
+  right: calc(var(--sicuro-dx) + 16px);
+  bottom: calc(var(--sicuro-basso) + 18px);
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+#zaino {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+#crea {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+#azione {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+
+#azione.nemico {
+  border-color: #e0533f;
+  box-shadow: 0 0 0 3px rgba(224, 83, 63, 0.35), 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+#azione.cucina {
+  border-color: #e8913f;
+  box-shadow: 0 0 0 3px rgba(232, 145, 63, 0.35), 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+#azione.vuoto {
+  opacity: 0.6;
+}
+
+#joystick {
+  position: fixed;
+  width: 116px;
+  height: 116px;
+  margin: -58px 0 0 -58px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+#joystick i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 50px;
+  height: 50px;
+  margin: -25px 0 0 -25px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, rgba(255, 255, 255, 0.75), rgba(200, 195, 185, 0.35));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.piazzamento {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--sicuro-basso) + 18px);
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.piazzamento p {
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(18, 16, 14, 0.75);
+  font-size: 0.9rem;
+}
+
+.riga {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.avviso {
+  position: fixed;
+  left: 50%;
+  top: calc(var(--sicuro-alto) + 92px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 10px 16px;
+  border: 1px solid var(--bordo);
+  border-radius: 12px;
+  background: rgba(18, 16, 14, 0.85);
+  font-size: 0.92rem;
+  line-height: 1.35;
+  text-align: center;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: cala 0.3s ease-out;
+}
+
+@keyframes cala {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+}
+
+/* ---------- Schermate ---------- */
+
+.schermata {
+  position: fixed;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: calc(var(--sicuro-alto) + 16px) calc(var(--sicuro-dx) + 18px) calc(var(--sicuro-basso) + 16px) calc(var(--sicuro-sx) + 18px);
+  text-align: center;
+  overflow-y: auto;
+}
+
+.schermata.attiva {
+  display: flex;
+}
+
+/* Il menu lascia vedere l'isola al tramonto dietro */
+#menu {
+  justify-content: flex-end;
+  padding-bottom: calc(var(--sicuro-basso) + 34px);
+  background: linear-gradient(to bottom, rgba(6, 8, 12, 0.15), rgba(6, 8, 12, 0.35) 40%, rgba(6, 8, 12, 0.88));
+}
+
+.schermata.velo {
+  background: rgba(6, 6, 8, 0.6);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-family: var(--titolo);
+  font-weight: 600;
+  line-height: 1;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2.6rem, 13vw, 4rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
+}
+
+h1 span {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.48em;
+  letter-spacing: 0.42em;
+  color: #e8a066;
+}
+
+h2 {
+  font-size: clamp(1.6rem, 7vw, 2.1rem);
+  letter-spacing: 0.03em;
+}
+
+.trama {
+  margin: 0;
+  max-width: 320px;
+  font-family: var(--titolo);
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  color: var(--tenue);
+}
+
+.istruzioni {
+  margin: 0;
+  padding: 12px 16px 12px 30px;
+  max-width: 340px;
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--tenue);
+  background: rgba(18, 16, 14, 0.6);
+  border: 1px solid var(--bordo);
+  border-radius: 12px;
+}
+
+.istruzioni b {
+  color: var(--inchiostro);
+  font-weight: 600;
+}
+
+.record {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tenue);
+}
+
+.record b {
+  color: var(--grano);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.opzioni {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.interruttore {
+  padding: 7px 12px;
+  border: 1px solid var(--bordo);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.82rem;
+  color: var(--tenue);
+}
+
+.interruttore[aria-pressed='false'] {
+  opacity: 0.5;
+}
+
+/* ---------- Pannelli (zaino, crea, cucina) ---------- */
+
+.foglio {
+  width: 100%;
+  max-width: 420px;
+  max-height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--bordo);
+  border-radius: 18px;
+  background: var(--pannello);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  animation: entra 0.25s ease-out;
+}
+
+.foglio.stretto {
+  max-width: 340px;
+  grid-template-rows: none;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px 18px;
+}
+
+@keyframes entra {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+
+.foglio header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.contenuto {
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  padding: 2px 2px 6px;
+}
+
+.sezione {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tenue);
+}
+
+.voce {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--bordo);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.voce b {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.voce small {
+  display: block;
+  color: var(--tenue);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.costi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.costo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.costo.manca {
+  color: #ff8a78;
+}
+
+.risorse {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.risorsa {
+  display: grid;
+  justify-items: center;
+  padding: 6px 2px;
+  border: 1px solid var(--bordo);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.risorsa small {
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--tenue);
+}
+
+.vuoto-testo {
+  margin: 0;
+  color: var(--tenue);
+  line-height: 1.4;
+}
+
+.riepilogo {
+  margin: 0;
+  line-height: 1.45;
+  color: var(--tenue);
+}
+
+.nuovo-record {
+  margin: 0;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: var(--grano);
+  color: #1a1206;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+@media (max-height: 700px) {
+  .istruzioni {
+    font-size: 0.8rem;
+  }
+  .schermata {
+    gap: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barra.bassa span,
+  .foglio,
+  .avviso {
+    animation: none;
+  }
+}

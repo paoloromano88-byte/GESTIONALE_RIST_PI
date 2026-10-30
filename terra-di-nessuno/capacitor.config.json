@@ -1,0 +1,12 @@
+{
+  "appId": "it.terradinessuno.gioco",
+  "appName": "Terra di Nessuno",
+  "webDir": "dist",
+  "backgroundColor": "#14170f",
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}

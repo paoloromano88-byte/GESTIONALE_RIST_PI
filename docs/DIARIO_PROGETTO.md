@@ -42,6 +42,7 @@ File condivisi:
 - `gioco/`: **Pizza al Volo**, gioco arcade per smartphone (app Android e iOS con Capacitor). È separato dal gestionale e non è pubblicato sul sito. Istruzioni in `gioco/README.md`; l'APK di prova lo compila il workflow `gioco-android.yml`.
 - `mise-en-place/`: **Mise en Place**, puzzle per smartphone (riordinare gli ingredienti nei barattoli), stessa struttura del gioco precedente. Istruzioni in `mise-en-place/README.md`; APK di prova dal workflow `mise-en-place-android.yml`.
 - `chef-naufrago/`: **Chef Naufrago**, survival per smartphone (raccolta, costruzione, cucina, notti con i mostri). Stessa struttura dei giochi precedenti. Istruzioni in `chef-naufrago/README.md`; APK di prova dal workflow `chef-naufrago-android.yml`.
+- `terra-di-nessuno/`: **Terra di Nessuno**, survival con zombie in 3D (frugare, armi con usura, rifugio, notti a ondate). Grafica provvisoria generata dal codice, pronta per modelli `.glb` veri in `public/modelli/`. Istruzioni in `terra-di-nessuno/README.md`; APK di prova dal workflow `terra-di-nessuno-android.yml`.
 - `firestore.rules`: regole di sicurezza del database.
 - `test/`, `functions/test/`: test automatici.
 
