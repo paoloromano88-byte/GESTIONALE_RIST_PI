@@ -34,6 +34,7 @@ dall'hosting in `firebase.json`.
 File condivisi:
 - `login-dispositivo.js`: accesso del dispositivo con l'account del locale e controllo della scheda `utenti`.
 - `sanitize.js`: protezione da HTML iniettato (`escapeHtml`, `sanitizeHtml`, `safeId`).
+- `protezione.js` (PR #54): blocca tasto destro (fuori dai campi di testo), F12, Ctrl+U/S, Ctrl+Shift+I/J/C/K e trascinamento immagini in tutte le app. È solo un deterrente: il codice resta leggibile a chi sa come fare. La sicurezza vera è nelle regole e nel server, e nel codice non ci sono segreti.
 - `licenza-locale.js`: blocca la pagina se l'abbonamento è sospeso o il suo modulo è spento (Telecomando, App Rider, Mappa Sale).
 - `zone-consegna.js`: zone di consegna per CAP. È usato da App Clienti, Cassa e server, così il calcolo è identico ovunque.
 - `comande-escpos.js`: testo ESC/POS di comande, conto/preconto, chiamata turni, aggiornamenti, blocco domicilio e QR. È lo stesso per Cassa e server (`functions/comande.js`): le comande escono identiche.
