@@ -29,3 +29,12 @@
         if (e.target && e.target.tagName === 'IMG') e.preventDefault();
     }, true);
 })();
+
+// Telefono: niente zoom con il doppio tocco (l'iPhone ignora user-scalable=no del viewport).
+// touch-action: manipulation lascia scorrere la pagina e toglie solo l'ingrandimento a doppio tocco;
+// le regole più precise delle pagine (es. touch-action: none sui tavoli della Mappa Sale) restano valide.
+(function () {
+    const stile = document.createElement('style');
+    stile.textContent = 'html, body, * { touch-action: manipulation; }';
+    (document.head || document.documentElement).appendChild(stile);
+})();
