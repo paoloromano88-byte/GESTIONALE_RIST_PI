@@ -319,6 +319,20 @@
             background: #1e293b; color: #fff; font-weight: 900; font-size: 1.1em; cursor: pointer;
         }
 
+        /* DISPOSIZIONE DEL GIORNO (standard o speciale) */
+        .chip-disposizione {
+            display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 12px;
+            font-weight: 800; font-size: 0.95em; white-space: nowrap;
+            background: #1e293b; color: #cbd5e1; border: 1px solid #475569;
+        }
+        .chip-disposizione.speciale { background: #451a03; color: #fbbf24; border-color: #f59e0b; }
+        .box-disposizione { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+        .box-disposizione .testo { font-size: 0.82em; color: #cbd5e1; line-height: 1.35; }
+        .btn-torna-standard {
+            background: #334155; color: #fff; border: 1px solid #f59e0b; padding: 6px 10px; border-radius: 8px;
+            font-weight: 800; font-size: 0.78em; cursor: pointer; white-space: nowrap;
+        }
+
         /* LEGENDA COMPATTA IN BASSO */
         .legend-bar {
             background: #090d16; border-top: 1px solid var(--border-col);
@@ -416,6 +430,14 @@
                 <div class="drawer-pill"></div>
                 <span style="font-size:0.72em; color:#94a3b8; font-weight:bold;">Tocca qui per abbassare / alzare il pannello</span>
                 <button type="button" class="btn-riduci-icona" title="Riduci a icona per spostare i tavoli" onclick="event.stopPropagation(); window.riduciEditorAIcona(true)"><i class="fa-solid fa-down-left-and-up-right-to-center"></i></button>
+            </div>
+
+            <!-- DISPOSIZIONE DEL GIORNO SCELTO IN ALTO -->
+            <div class="panel-box box-disposizione">
+                <div class="testo" id="editor-testo-disposizione"></div>
+                <button type="button" id="btn-torna-standard" class="btn-torna-standard" style="display:none;" onclick="window.tornaAllaStandard()">
+                    <i class="fa fa-rotate-left"></i> Torna alla standard
+                </button>
             </div>
 
             <!-- BOX AGGIUNTA TAVOLI E STRUTTURA -->
@@ -583,12 +605,13 @@
             <span><span class="leg-dot" style="background:var(--reserved);"></span>Prenotato</span>
             <span><span class="leg-dot" style="background:var(--ready);"></span>Pronto</span>
         </div>
+        <span id="etichetta-disposizione" class="chip-disposizione" title="Disposizione dei tavoli del giorno scelto"></span>
         <div id="live-room-summary" style="font-weight:bold; color:#e2e8f0;"></div>
     </div>
 
     <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection as _collection, doc as _doc, onSnapshot, setDoc, addDoc, updateDoc, query, where, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection as _collection, doc as _doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
         import { applicaLogoLocale } from "./logo-locale.js";
@@ -645,6 +668,15 @@
         let unsubOrdini = null;
         let prezzoCopertoLocale = 2.50;
 
+        // Disposizione dei tavoli: quella STANDARD (impostazioni/mappa_sala) vale per tutti i giorni;
+        // un giorno può averne una SPECIALE (mappe_giorno/AAAA-MM-GG) che vale solo per quella data.
+        let layoutStandard = null;      // null = mai salvata: si usa quella di esempio qui sotto
+        let layoutGiorno = null;        // null = il giorno scelto usa la standard
+        let dataMappa = '';             // giorno scelto in alto (AAAA-MM-GG)
+        let unsubLayoutGiorno = null;
+        let layoutSalvatoJSON = '';     // ultima disposizione caricata o salvata: per le modifiche non salvate
+        let primoDisegnoMappa = true;
+
         let LAYOUT_DATA = {
             sale: [
                 { id: 'sala_grande', nome: 'Sala Grande', w: 1200, h: 800 },
@@ -664,6 +696,64 @@
                 { id: 'el_cas', tipo: 'cassa', sala: 'sala_grande', label: '🖥️ CASSA', w: 100, h: 60, x: 830, y: 130 }
             ]
         };
+        const LAYOUT_ESEMPIO = JSON.parse(JSON.stringify(LAYOUT_DATA));
+
+        function normalizzaLayout(raw) {
+            return JSON.parse(JSON.stringify({
+                sale: (raw.sale || []).map(s => ({ ...s, w: s.w || 1200, h: s.h || 800 })),
+                tavoli: raw.tavoli || [],
+                elementi: Array.isArray(raw.elementi) ? raw.elementi : []
+            }));
+        }
+        const layoutValido = (d) => !!(d && Array.isArray(d.sale) && d.sale.length && Array.isArray(d.tavoli));
+        const jsonLayout = (l) => JSON.stringify(normalizzaLayout(l));
+        const ciSonoModificheNonSalvate = () => jsonLayout(LAYOUT_DATA) !== layoutSalvatoJSON;
+        const dataLeggibile = (iso) => { const [a, m, g] = String(iso || '').split('-'); return g ? `${g}/${m}/${a}` : iso; };
+
+        // Mostra la disposizione del giorno scelto (speciale se c'è, altrimenti standard).
+        // Nell'editor non cancella le modifiche non ancora salvate, a meno che non venga chiesto (forza).
+        function applicaDisposizioneDelGiorno(forza = false) {
+            aggiornaEtichettaDisposizione();
+            if (isEditorMode && !forza && layoutSalvatoJSON && ciSonoModificheNonSalvate()) return;
+            LAYOUT_DATA = normalizzaLayout(layoutGiorno || layoutStandard || LAYOUT_ESEMPIO);
+            layoutSalvatoJSON = jsonLayout(LAYOUT_DATA);
+            if (!LAYOUT_DATA.sale.some(s => s.id === currentRoomId) && LAYOUT_DATA.sale.length > 0) {
+                currentRoomId = LAYOUT_DATA.sale[0].id;
+            }
+            if (selectedItemId && ![...LAYOUT_DATA.tavoli, ...LAYOUT_DATA.elementi].some(x => x.id === selectedItemId)) {
+                selectedItemId = null;
+                selectedItemCategory = null;
+            }
+            aggiornaPannelloIspettore();
+            renderRoomTabs();
+            renderFloorPlan();
+            if (primoDisegnoMappa) {
+                primoDisegnoMappa = false;
+                setTimeout(() => window.adattaMappaAlloSchermo(), 100);
+            }
+        }
+
+        function aggiornaEtichettaDisposizione() {
+            const speciale = !!layoutGiorno;
+            const data = dataLeggibile(dataMappa);
+            const chip = document.getElementById('etichetta-disposizione');
+            chip.classList.toggle('speciale', speciale);
+            chip.textContent = speciale ? `📅 Disposizione speciale del ${data}` : '⭐ Disposizione standard';
+            document.getElementById('editor-testo-disposizione').innerHTML = speciale
+                ? `📅 <b style="color:#fbbf24;">${data}</b>: questo giorno ha una <b style="color:#fbbf24;">disposizione speciale</b>.`
+                : `📅 <b>${data}</b>: usa la <b>disposizione standard</b>, uguale per tutti i giorni.`;
+            document.getElementById('btn-torna-standard').style.display = speciale ? '' : 'none';
+        }
+
+        // Ascolta la disposizione speciale del giorno scelto
+        function ascoltaDisposizioneGiorno(dateStr) {
+            if (unsubLayoutGiorno) unsubLayoutGiorno();
+            unsubLayoutGiorno = onSnapshot(doc(db, "mappe_giorno", dateStr), (snap) => {
+                if (dateStr !== dataMappa) return;
+                layoutGiorno = snap.exists() && layoutValido(snap.data()) ? snap.data() : null;
+                applicaDisposizioneDelGiorno();
+            });
+        }
 
         // --- DIMENSIONI DINAMICHE DELLA SALA ATTIVA ---
         function getSalaCorrenteObj() {
@@ -788,42 +878,33 @@
                 }
             });
 
-            let firstMapRender = true;
+            dataMappa = today;
+            let standardArrivata = false, giornoArrivato = false;
             onSnapshot(doc(db, "impostazioni", "mappa_sala"), (snap) => {
-                if (snap.exists() && snap.data().sale && snap.data().tavoli) {
-                    if (!isEditorMode) {
-                        const raw = snap.data();
-                        LAYOUT_DATA = {
-                            sale: (raw.sale || []).map(s => ({ ...s, w: s.w || 1200, h: s.h || 800 })),
-                            tavoli: raw.tavoli || [],
-                            elementi: Array.isArray(raw.elementi) ? raw.elementi : []
-                        };
-                        if (!LAYOUT_DATA.sale.some(s => s.id === currentRoomId) && LAYOUT_DATA.sale.length > 0) {
-                            currentRoomId = LAYOUT_DATA.sale[0].id;
-                        }
-                        renderRoomTabs();
-                        renderFloorPlan();
-                        if (firstMapRender) {
-                            firstMapRender = false;
-                            setTimeout(() => window.adattaMappaAlloSchermo(), 100);
-                        }
-                    }
-                } else {
-                    renderRoomTabs();
-                    renderFloorPlan();
-                    if (firstMapRender) {
-                        firstMapRender = false;
-                        setTimeout(() => window.adattaMappaAlloSchermo(), 100);
-                    }
-                }
+                layoutStandard = snap.exists() && layoutValido(snap.data()) ? snap.data() : null;
+                standardArrivata = true;
+                if (giornoArrivato) applicaDisposizioneDelGiorno();
             });
+            // Prima volta: si disegna quando sono arrivate sia la standard sia quella del giorno
+            unsubLayoutGiorno = onSnapshot(doc(db, "mappe_giorno", today), (snap) => {
+                if (dataMappa !== today) return;
+                layoutGiorno = snap.exists() && layoutValido(snap.data()) ? snap.data() : null;
+                giornoArrivato = true;
+                if (standardArrivata) applicaDisposizioneDelGiorno();
+            });
+            aggiornaEtichettaDisposizione();
 
             ascoltaOrdiniPerData(today);
         }
 
+        // Cambio giorno: ordini e disposizione dei tavoli di quel giorno.
+        // Nell'editor le modifiche non salvate restano e si possono salvare per il giorno nuovo.
         window.cambiaDataMappa = (dateStr) => {
             if (!dateStr) return;
+            dataMappa = dateStr;
             ascoltaOrdiniPerData(dateStr);
+            ascoltaDisposizioneGiorno(dateStr);
+            aggiornaEtichettaDisposizione();
         };
 
         function ascoltaOrdiniPerData(dateStr) {
@@ -1168,7 +1249,19 @@
             btn.title = on ? 'Sposta i tavoli (ora la mappa scorre)' : 'Scorri la mappa: i tavoli restano fermi';
         };
 
-        window.toggleEditorMode = () => {
+        window.toggleEditorMode = async () => {
+            if (isEditorMode && ciSonoModificheNonSalvate()) {
+                const r = await Swal.fire({
+                    title: 'Modifiche non salvate', icon: 'question',
+                    html: '<p style="color:#cbd5e1; margin:0;">Hai cambiato la disposizione dei tavoli. Vuoi salvarla?</p>',
+                    showDenyButton: true, showCancelButton: true,
+                    confirmButtonText: '💾 Salva', denyButtonText: 'Esci senza salvare', cancelButtonText: 'Continua a modificare',
+                    confirmButtonColor: '#10b981', denyButtonColor: '#dc2626',
+                    background: '#1e293b', color: '#fff'
+                });
+                if (r.isDismissed) return;
+                if (r.isConfirmed && !(await window.salvaPlanimetriaSuFirebase())) return;
+            }
             isEditorMode = !isEditorMode;
             const btn = document.getElementById('btn-toggle-editor');
             const sidebar = document.getElementById('editor-sidebar');
@@ -1188,6 +1281,9 @@
             if (!isEditorMode) {
                 selectedItemId = null;
                 selectedItemCategory = null;
+                // Fuori dall'editor si vede sempre la disposizione salvata del giorno scelto
+                applicaDisposizioneDelGiorno(true);
+                return;
             }
             aggiornaPannelloIspettore();
             renderFloorPlan();
@@ -1413,16 +1509,63 @@
             }
         };
 
+        // Salva la disposizione: solo per il giorno scelto in alto (speciale) o per tutti i giorni (standard).
+        // Restituisce true se è stata salvata.
         window.salvaPlanimetriaSuFirebase = async () => {
+            const giorno = dataMappa || getTodayLocal();
+            const data = dataLeggibile(giorno);
+            const scelta = await Swal.fire({
+                title: 'Salva la disposizione',
+                html: `<p style="color:#cbd5e1; margin:0 0 6px 0;">Per quali giorni vale questa disposizione dei tavoli?</p>
+                       <p style="color:#94a3b8; font-size:0.85em; margin:0;"><b>Solo il ${data}</b>: gli altri giorni restano come sono.<br>
+                       <b>Tutti i giorni</b>: diventa la disposizione standard${layoutGiorno ? ` (il ${data} però ha una disposizione speciale: quel giorno resta quella)` : ''}.</p>`,
+                icon: 'question',
+                showDenyButton: true, showCancelButton: true,
+                confirmButtonText: `📅 Solo il ${data}`, denyButtonText: '⭐ Tutti i giorni', cancelButtonText: 'Annulla',
+                confirmButtonColor: '#f59e0b', denyButtonColor: '#10b981',
+                background: '#1e293b', color: '#fff'
+            });
+            if (scelta.isDismissed) return false;
+            const soloGiorno = scelta.isConfirmed;
+            const dati = normalizzaLayout(LAYOUT_DATA);
             try {
                 Swal.fire({ title: 'Salvataggio...', allowOutsideClick: false, didOpen: () => Swal.showLoading(), background: '#1e293b', color: '#fff' });
-                await setDoc(doc(db, "impostazioni", "mappa_sala"), {
-                    sale: LAYOUT_DATA.sale,
-                    tavoli: LAYOUT_DATA.tavoli,
-                    elementi: LAYOUT_DATA.elementi || [],
+                await setDoc(soloGiorno ? doc(db, "mappe_giorno", giorno) : doc(db, "impostazioni", "mappa_sala"), {
+                    ...dati,
                     updated_at: serverTimestamp()
                 });
-                Swal.fire({ icon: 'success', title: 'Planimetria Salvata!', timer: 1400, showConfirmButton: false, background: '#1e293b', color: '#fff' });
+                if (soloGiorno && giorno === dataMappa) layoutGiorno = dati;
+                if (!soloGiorno) layoutStandard = dati;
+                layoutSalvatoJSON = jsonLayout(dati);
+                aggiornaEtichettaDisposizione();
+                Swal.fire({
+                    icon: 'success', title: soloGiorno ? `Salvata solo per il ${data}` : 'Salvata per tutti i giorni',
+                    timer: 1600, showConfirmButton: false, background: '#1e293b', color: '#fff'
+                });
+                return true;
+            } catch (e) {
+                Swal.fire("Errore", e.message, "error");
+                return false;
+            }
+        };
+
+        // Il giorno scelto torna alla disposizione standard (si cancella quella speciale)
+        window.tornaAllaStandard = async () => {
+            if (!layoutGiorno) return;
+            const giorno = dataMappa;
+            const data = dataLeggibile(giorno);
+            const r = await Swal.fire({
+                title: `Il ${data} torna alla disposizione standard?`, icon: 'warning',
+                html: '<p style="color:#cbd5e1; margin:0;">La disposizione speciale di questo giorno verrà cancellata.</p>',
+                showCancelButton: true, confirmButtonText: 'Sì, torna alla standard', cancelButtonText: 'Annulla',
+                confirmButtonColor: '#f59e0b', background: '#1e293b', color: '#fff'
+            });
+            if (!r.isConfirmed) return;
+            try {
+                await deleteDoc(doc(db, "mappe_giorno", giorno));
+                if (giorno === dataMappa) layoutGiorno = null;
+                applicaDisposizioneDelGiorno(true);
+                Swal.fire({ icon: 'success', title: `Il ${data} usa la standard`, timer: 1400, showConfirmButton: false, background: '#1e293b', color: '#fff' });
             } catch (e) {
                 Swal.fire("Errore", e.message, "error");
             }

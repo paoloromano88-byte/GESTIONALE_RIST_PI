@@ -74,6 +74,12 @@ for (const base of ['', 'ristoranti/pizzeria-test/']) {
   await t('staff crea/rinnova la chiave QZ del locale', true, () => setDoc(d(staff, 'impostazioni/qz_firma'), { certificato: 'CERT2', chiave: 'CHIAVE2', creato: serverTimestamp() }));
   await t('App Rider iscrive il telefono alle notifiche', true, () => setDoc(d(staff, 'notifiche_rider/tok1'), { token: 'tok1', rider_id: 'D1', rider_nome: 'Marco', aggiornato: serverTimestamp() }));
   await t('App Rider cancella l\'iscrizione a fine turno', true, () => deleteDoc(d(staff, 'notifiche_rider/tok1')));
+  // Mappa Sale: disposizione dei tavoli di un giorno (mappe_giorno/AAAA-MM-GG)
+  await t('staff salva la disposizione dei tavoli di un giorno', true, () => setDoc(d(staff, 'mappe_giorno/2026-12-24'), { sale: [{ id: 's1', nome: 'Sala', w: 1200, h: 800 }], tavoli: [], elementi: [], updated_at: serverTimestamp() }));
+  await t('staff legge la disposizione del giorno', true, () => getDoc(d(staff, 'mappe_giorno/2026-12-24')));
+  await t('staff torna alla disposizione standard (cancella il giorno)', true, () => deleteDoc(d(staff, 'mappe_giorno/2026-12-24')));
+  await t('cliente NON legge le disposizioni dei giorni', false, () => getDoc(d(anon, 'mappe_giorno/2026-12-24')));
+  await t('personale di un ALTRO locale NON cambia la disposizione del giorno', false, () => setDoc(d(altroStaff, 'mappe_giorno/2026-12-25'), { sale: [], tavoli: [] }));
 
   // Codici sconto: il cliente controlla solo il codice che conosce, non può vederli tutti
   await t('cliente controlla un codice sconto che conosce', true, () => getDoc(d(anon, 'codici_sconto/AMICI50')));

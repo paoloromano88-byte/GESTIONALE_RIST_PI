@@ -55,6 +55,13 @@ File condivisi:
   - locale principale (Da Mimmo, id `default`): raccolte alla radice (`ordini`, `prodotti`, …);
   - altri locali: `ristoranti/{id-locale}/...`;
   - ogni pagina sceglie il locale da `?locale=` o dal valore ricordato sul dispositivo.
+- **Disposizione dei tavoli (Mappa Sale)**:
+  - quella **standard**, uguale per tutti i giorni, è in `impostazioni/mappa_sala` (sale, tavoli, elementi);
+  - un giorno può averne una **speciale** in `mappe_giorno/{AAAA-MM-GG}`, con gli stessi campi: vale solo per quella data. I giorni senza disposizione speciale usano la standard;
+  - nella Mappa Sale si sceglie il giorno in alto. In basso c'è scritto «⭐ Disposizione standard» oppure «📅 Disposizione speciale del …»;
+  - «SALVA MAPPA» chiede se salvare **solo per il giorno scelto** o **per tutti i giorni**. «Torna alla standard» cancella la disposizione speciale del giorno;
+  - uscendo dall'editor con modifiche non salvate chiede se salvarle;
+  - le altre app (Sala, Agenda, Cassa) non leggono la disposizione: usano solo i numeri dei tavoli.
 - **Schede account** `utenti/{uid}`, una per ogni account email/password:
   - Super Admin: `ruolo: "superadmin"`;
   - personale di un locale: `ruolo: "locale"`, `locale: "<id-locale>"`. Per Da Mimmo serve `locale: "default"`, minuscolo e senza spazi.
@@ -310,6 +317,7 @@ npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project d
 | #41 | **Controllo generale del codice**: testi dei clienti mai eseguiti come codice, codici sconto riservati, Super Admin (ID nuovi, account scollegati), controllo prezzi più severo; stampa (cambio turno, niente doppie stampe dell'agente, ESP32 1.0.1, date italiane, domicilio); forno, statistiche, accesso senza internet. Dettagli nella sezione 7 |
 | #45 | **Pulsanti della scheda ordine in Cassa**: PIZZA/CUCINA/BAR e PRECONTO dicono sempre com'è andata la stampa; preconto sulla stampante CASSA se manca la sua; scritte intere |
 | #47 | **Agente di stampa come programma per Windows**: si scarica dal gestionale, si collega dal browser, parte con il PC, cerca e prova le stampanti, si aggiorna da solo. Al posto dell'ESP32 per i clienti lontani. **Super Admin**: link e moduli per tutte le app (App Rider, Mappa Sale, programma di stampa; moduli App Clienti e App Rider); Telecomando e Menu QR ora si spengono davvero (#48) |
+| #65 | **Mappa Sale, disposizione per giorno**: oltre alla disposizione standard, ogni giorno può avere la sua (es. una cena di gruppo), salvata solo per quella data |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue
