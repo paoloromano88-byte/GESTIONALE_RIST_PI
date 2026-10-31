@@ -59,9 +59,10 @@ File condivisi:
   - quella **standard**, uguale per tutti i giorni, è in `impostazioni/mappa_sala` (sale, tavoli, elementi);
   - un giorno può averne una **speciale** in `mappe_giorno/{AAAA-MM-GG}`, con gli stessi campi: vale solo per quella data. I giorni senza disposizione speciale usano la standard;
   - nella Mappa Sale si sceglie il giorno in alto. In basso c'è scritto «⭐ Disposizione standard» oppure «📅 Disposizione speciale del …»;
-  - «SALVA MAPPA» chiede se salvare **solo per il giorno scelto** o **per tutti i giorni**. «Torna alla standard» cancella la disposizione speciale del giorno;
+  - «SALVA» chiede se salvare **solo per il giorno scelto** o **per tutti i giorni**. Il pulsante «↺ Standard» dell'editor cancella la disposizione speciale del giorno;
   - uscendo dall'editor con modifiche non salvate chiede se salvarle;
   - le altre app (Sala, Agenda, Cassa) non leggono la disposizione: usano solo i numeri dei tavoli.
+  - Pannello dell'editor compatto: in alto la barra con giorno e SALVA; subito sotto, se c'è, la scheda dell'oggetto selezionato; poi «Aggiungi» (8 pulsanti in una griglia) e il perimetro della sala, chiuso. Sul telefono il pannello è alto al massimo il 46% dello schermo. Lo spazio sotto la mappa e i pulsanti dello zoom seguono la sua altezza vera (variabile CSS `--h-pannello`).
 - **Schede account** `utenti/{uid}`, una per ogni account email/password:
   - Super Admin: `ruolo: "superadmin"`;
   - personale di un locale: `ruolo: "locale"`, `locale: "<id-locale>"`. Per Da Mimmo serve `locale: "default"`, minuscolo e senza spazi.

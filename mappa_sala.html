@@ -275,19 +275,20 @@
         /* SIDEBAR EDITOR (DIVENTA CASSETTO BOTTOM-SHEET SU SMARTPHONE) */
         .editor-sidebar {
             width: 340px; background: var(--panel-bg); border-left: 2px solid var(--border-col);
-            padding: 14px; display: none; flex-direction: column; gap: 10px; overflow-y: auto; z-index: 90;
+            padding: 10px; display: none; flex-direction: column; gap: 8px; overflow-y: auto; z-index: 90;
         }
         .editor-sidebar.open { display: flex; }
 
         .drawer-handle {
-            display: none; text-align: center; padding: 4px 0 8px 0; cursor: pointer;
-            border-bottom: 1px solid #334155; margin-bottom: 4px;
+            display: none; text-align: center; padding: 2px 0 4px 0; cursor: pointer; flex-shrink: 0;
+            border-bottom: 1px solid #334155; min-height: 30px;
         }
+        .drawer-testo { font-size: 0.66em; color: #94a3b8; font-weight: bold; }
         .drawer-pill { width: 42px; height: 5px; background: #64748b; border-radius: 5px; margin: 0 auto 4px auto; }
         .drawer-handle { position: relative; }
         .btn-riduci-icona {
-            position: absolute; right: 0; top: 0; width: 38px; height: 38px; border-radius: 10px;
-            border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 1em; cursor: pointer;
+            position: absolute; right: 0; top: 0; width: 34px; height: 30px; border-radius: 8px;
+            border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 0.9em; cursor: pointer;
         }
         .btn-editor-icona {
             display: none; position: fixed; left: 14px; bottom: 56px; z-index: 95;
@@ -296,18 +297,35 @@
             align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(0,0,0,0.7);
         }
 
-        .panel-box { background: #0f172a; border: 1px solid var(--border-col); padding: 12px; border-radius: 10px; }
+        .panel-box { background: #0f172a; border: 1px solid var(--border-col); padding: 9px 10px; border-radius: 10px; flex-shrink: 0; }
         .panel-title { font-size: 0.78em; font-weight: 800; color: var(--gold); text-transform: uppercase; margin: 0 0 8px 0; }
-        .shape-btns-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-        .struct-btns-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 6px; }
+        .add-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
         .btn-add-shape {
             background: #1e293b; color: #fff; border: 1px solid #475569;
-            padding: 8px 4px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.74em;
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            padding: 5px 2px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.68em;
+            display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
+        .btn-add-shape i { font-size: 1.5em; }
+        /* Barra in alto del pannello: disposizione del giorno e salva */
+        .editor-barra { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .editor-barra .chip-disposizione { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 0.78em; padding: 6px 9px; }
+        .btn-salva-mappa {
+            background: #10b981; color: #000; border: none; padding: 7px 12px; border-radius: 8px;
+            font-weight: 900; font-size: 0.8em; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+        }
+        /* Perimetro: chiuso di base */
+        .box-perimetro > summary {
+            list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.78em; font-weight: 800; color: var(--gold); text-transform: uppercase;
+        }
+        .box-perimetro > summary::-webkit-details-marker { display: none; }
+        .box-perimetro .perimetro-breve { color: #94a3b8; text-transform: none; font-weight: 700; margin-left: 4px; }
+        .box-perimetro .freccia { color: #94a3b8; transition: transform 0.2s; }
+        .box-perimetro[open] .freccia { transform: rotate(180deg); }
         .btn-add-shape:active { border-color: var(--gold); background: #334155; }
 
-        .ctrl-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+        .ctrl-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 8px; }
         .ctrl-label { font-size: 0.8em; color: #94a3b8; font-weight: 700; }
         .ctrl-input {
             background: #1e293b; border: 1px solid #475569; color: #fff;
@@ -326,11 +344,9 @@
             background: #1e293b; color: #cbd5e1; border: 1px solid #475569;
         }
         .chip-disposizione.speciale { background: #451a03; color: #fbbf24; border-color: #f59e0b; }
-        .box-disposizione { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-        .box-disposizione .testo { font-size: 0.82em; color: #cbd5e1; line-height: 1.35; }
         .btn-torna-standard {
-            background: #334155; color: #fff; border: 1px solid #f59e0b; padding: 6px 10px; border-radius: 8px;
-            font-weight: 800; font-size: 0.78em; cursor: pointer; white-space: nowrap;
+            background: #334155; color: #fff; border: 1px solid #f59e0b; padding: 6px 9px; border-radius: 8px;
+            font-weight: 800; font-size: 0.76em; cursor: pointer; white-space: nowrap; flex-shrink: 0;
         }
 
         /* LEGENDA COMPATTA IN BASSO */
@@ -352,25 +368,25 @@
             .workspace { flex-direction: column; }
             .editor-sidebar {
                 position: fixed; left: 0; right: 0; bottom: 0;
-                width: 100%; max-height: 58dvh;
+                width: 100%; max-height: 46dvh;
                 border-left: none; border-top: 2px solid var(--gold);
                 border-radius: 18px 18px 0 0;
                 box-shadow: 0 -10px 30px rgba(0,0,0,0.85);
-                padding: 8px 12px 14px 12px;
+                padding: 6px 10px 10px 10px;
                 transition: max-height 0.25s ease;
             }
-            .editor-sidebar.minimized { max-height: 46px; overflow: hidden; }
+            .editor-sidebar.minimized { max-height: 40px; overflow: hidden; }
             /* Pannello ridotto a icona: la mappa resta tutta libera per spostare i tavoli */
             .editor-sidebar.a-icona { display: none !important; }
             .btn-editor-icona.visibile { display: flex; }
             .drawer-handle { display: block; }
             .zoom-controls { bottom: 45px; right: 10px; }
             /* Pannello aperto: zoom e mano in riga, appena sopra il pannello (prima finivano sotto) */
-            .workspace:has(.editor-sidebar.open:not(.a-icona):not(.minimized)) .zoom-controls { bottom: calc(58dvh + 8px); flex-direction: row; }
-            .workspace:has(.editor-sidebar.open.minimized:not(.a-icona)) .zoom-controls { bottom: 56px; }
-            /* Con il pannello aperto si può far salire anche il fondo della sala sopra il pannello */
-            .workspace:has(.editor-sidebar.open:not(.a-icona):not(.minimized)) .floor-Wrapper { padding-bottom: calc(58dvh + 20px); }
-            .workspace:has(.editor-sidebar.open.minimized:not(.a-icona)) .floor-Wrapper { padding-bottom: 70px; }
+            .workspace:has(.editor-sidebar.open:not(.a-icona)) .zoom-controls { bottom: calc(var(--h-pannello, 46dvh) + 8px); }
+            .workspace:has(.editor-sidebar.open:not(.a-icona):not(.minimized)) .zoom-controls { flex-direction: row; }
+            /* Con il pannello aperto si può far salire anche il fondo della sala sopra il pannello
+               (--h-pannello è l'altezza vera del pannello, la aggiorna lo script) */
+            .workspace:has(.editor-sidebar.open:not(.a-icona)) .floor-Wrapper { padding-bottom: calc(var(--h-pannello, 46dvh) + 20px); }
         }
     </style>
 </head>
@@ -424,89 +440,23 @@
         <!-- Editor ridotto a icona (telefono): tocca per riaprire il pannello -->
         <button type="button" id="btn-editor-icona" class="btn-editor-icona" title="Apri il pannello dell'editor" onclick="window.riduciEditorAIcona(false)"><i class="fa-solid fa-pen-ruler"></i></button>
 
-        <!-- SIDEBAR / BOTTOM-SHEET EDITOR -->
+        <!-- SIDEBAR / BOTTOM-SHEET EDITOR (compatto: barra, oggetto selezionato, aggiungi, perimetro chiuso) -->
         <div id="editor-sidebar" class="editor-sidebar">
-            <div class="drawer-handle" onclick="window.toggleMinimizeDrawer()">
+            <div class="drawer-handle" onclick="window.toggleMinimizeDrawer()" title="Tocca per abbassare o alzare il pannello">
                 <div class="drawer-pill"></div>
-                <span style="font-size:0.72em; color:#94a3b8; font-weight:bold;">Tocca qui per abbassare / alzare il pannello</span>
+                <span class="drawer-testo">abbassa / alza</span>
                 <button type="button" class="btn-riduci-icona" title="Riduci a icona per spostare i tavoli" onclick="event.stopPropagation(); window.riduciEditorAIcona(true)"><i class="fa-solid fa-down-left-and-up-right-to-center"></i></button>
             </div>
 
-            <!-- DISPOSIZIONE DEL GIORNO SCELTO IN ALTO -->
-            <div class="panel-box box-disposizione">
-                <div class="testo" id="editor-testo-disposizione"></div>
-                <button type="button" id="btn-torna-standard" class="btn-torna-standard" style="display:none;" onclick="window.tornaAllaStandard()">
-                    <i class="fa fa-rotate-left"></i> Torna alla standard
+            <!-- BARRA: DISPOSIZIONE DEL GIORNO + SALVA -->
+            <div class="editor-barra">
+                <span id="editor-testo-disposizione" class="chip-disposizione"></span>
+                <button type="button" id="btn-torna-standard" class="btn-torna-standard" style="display:none;" title="Torna alla disposizione standard" onclick="window.tornaAllaStandard()">
+                    <i class="fa fa-rotate-left"></i> Standard
                 </button>
-            </div>
-
-            <!-- BOX AGGIUNTA TAVOLI E STRUTTURA -->
-            <div class="panel-box">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <h4 class="panel-title" style="margin:0;"><i class="fa fa-plus-circle"></i> Aggiungi Tavoli & Struttura</h4>
-                    <button onclick="window.salvaPlanimetriaSuFirebase()" style="background:#10b981; color:#000; border:none; padding:6px 12px; border-radius:6px; font-weight:900; font-size:0.8em; cursor:pointer;">
-                        <i class="fa fa-floppy-disk"></i> SALVA MAPPA
-                    </button>
-                </div>
-
-                <!-- TAVOLI -->
-                <div class="shape-btns-grid">
-                    <button class="btn-add-shape" onclick="window.aggiungiTavoloMappa('rotondo')">
-                        <i class="fa-regular fa-circle" style="font-size:1.4em; color:#38bdf8;"></i> Rotondo
-                    </button>
-                    <button class="btn-add-shape" onclick="window.aggiungiTavoloMappa('quadrato')">
-                        <i class="fa-regular fa-square" style="font-size:1.4em; color:#4ade80;"></i> Quadrato
-                    </button>
-                    <button class="btn-add-shape" onclick="window.aggiungiTavoloMappa('rettangolare')">
-                        <i class="fa-solid fa-vector-square" style="font-size:1.4em; color:#f472b6;"></i> Rettang.
-                    </button>
-                </div>
-
-                <!-- ELEMENTI STRUTTURALI (BANCONE, MURO, INGRESSO, FORNO, CASSA) -->
-                <div class="struct-btns-grid">
-                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('bancone')">
-                        <i class="fa-solid fa-martini-glass-citrus" style="font-size:1.2em; color:#f59e0b;"></i> Bancone
-                    </button>
-                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('muro')">
-                        <i class="fa-solid fa-grip-lines" style="font-size:1.2em; color:#94a3b8;"></i> Muro
-                    </button>
-                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('ingresso')">
-                        <i class="fa-solid fa-door-open" style="font-size:1.2em; color:#22d3ee;"></i> Ingresso
-                    </button>
-                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('forno')">
-                        <i class="fa-solid fa-fire-burner" style="font-size:1.2em; color:#fb923c;"></i> Forno
-                    </button>
-                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('cassa')">
-                        <i class="fa-solid fa-cash-register" style="font-size:1.2em; color:#818cf8;"></i> Cassa
-                    </button>
-                </div>
-            </div>
-
-            <!-- BOX REGOLAZIONE PERIMETRO SALA CORRENTE -->
-            <div class="panel-box">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    <h4 class="panel-title" style="margin:0;"><i class="fa fa-expand"></i> Perimetro Sala Corrente</h4>
-                    <button onclick="window.espandiRapidoPerimetro()" style="background:#334155; color:#fbbf24; border:1px solid #f59e0b; padding:3px 8px; border-radius:6px; font-size:0.72em; font-weight:bold; cursor:pointer;">
-                        +200px Spazio
-                    </button>
-                </div>
-
-                <div style="margin-bottom:6px;">
-                    <div style="display:flex; justify-content:space-between; font-size:0.76em; color:#94a3b8; font-weight:bold;">
-                        <span>↔️ Larghezza Sala</span>
-                        <span id="lbl-room-w">1200 px</span>
-                    </div>
-                    <input type="range" id="inp-room-w" min="600" max="3000" step="50" value="1200" style="width:100%; accent-color:#10b981; cursor:pointer;" oninput="window.modificaPerimetroSala('w', this.value)">
-                </div>
-
-                <div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.76em; color:#94a3b8; font-weight:bold;">
-                        <span>↕️ Altezza Sala</span>
-                        <span id="lbl-room-h">800 px</span>
-                    </div>
-                    <input type="range" id="inp-room-h" min="500" max="2500" step="50" value="800" style="width:100%; accent-color:#10b981; cursor:pointer;" oninput="window.modificaPerimetroSala('h', this.value)">
-                </div>
-                <small style="color:#64748b; font-size:0.7em; display:block; margin-top:2px;">Puoi anche trascinare l'angolo giallo ↘️ in basso a destra sulla mappa.</small>
+                <button type="button" class="btn-salva-mappa" onclick="window.salvaPlanimetriaSuFirebase()">
+                    <i class="fa fa-floppy-disk"></i> SALVA
+                </button>
             </div>
 
             <!-- 1. PROPRIETÀ DEL TAVOLO SELEZIONATO -->
@@ -544,14 +494,14 @@
                     <input type="range" id="inp-t-scale" min="70" max="220" step="10" value="100" style="width:100%; accent-color:var(--gold); cursor:pointer;" oninput="window.ridimensionaTavoloConSedie(this.value)">
                 </div>
 
-                <div style="display:flex; gap:6px; margin-top:10px;">
-                    <button onclick="window.ruotaSelezionato()" style="flex:1; background:#334155; color:#fff; border:none; padding:9px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                <div style="display:flex; gap:6px; margin-top:8px;">
+                    <button onclick="window.ruotaSelezionato()" style="flex:1; background:#334155; color:#fff; border:none; padding:7px; border-radius:8px; font-weight:bold; font-size:0.8em; cursor:pointer;">
                         <i class="fa fa-rotate-right"></i> Ruota 90°
                     </button>
-                    <button onclick="window.duplicaSelezionato()" style="flex:1; background:#0284c7; color:#fff; border:none; padding:9px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                    <button onclick="window.duplicaSelezionato()" style="flex:1; background:#0284c7; color:#fff; border:none; padding:7px; border-radius:8px; font-weight:bold; font-size:0.8em; cursor:pointer;">
                         <i class="fa fa-copy"></i> Duplica
                     </button>
-                    <button onclick="window.eliminaSelezionato()" style="background:#dc2626; color:#fff; border:none; padding:9px 12px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                    <button onclick="window.eliminaSelezionato()" style="background:#dc2626; color:#fff; border:none; padding:7px 12px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
                         <i class="fa fa-trash"></i>
                     </button>
                 </div>
@@ -582,18 +532,62 @@
                     <input type="range" id="inp-f-h" min="14" max="900" step="6" value="50" style="width:100%; accent-color:#38bdf8; cursor:pointer;" oninput="window.aggiornaPropStruttura('h', this.value)">
                 </div>
 
-                <div style="display:flex; gap:6px; margin-top:10px;">
-                    <button onclick="window.ruotaSelezionato()" style="flex:1; background:#334155; color:#fff; border:none; padding:9px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                <div style="display:flex; gap:6px; margin-top:8px;">
+                    <button onclick="window.ruotaSelezionato()" style="flex:1; background:#334155; color:#fff; border:none; padding:7px; border-radius:8px; font-weight:bold; font-size:0.8em; cursor:pointer;">
                         <i class="fa fa-rotate-right"></i> Ruota 90°
                     </button>
-                    <button onclick="window.duplicaSelezionato()" style="flex:1; background:#0284c7; color:#fff; border:none; padding:9px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                    <button onclick="window.duplicaSelezionato()" style="flex:1; background:#0284c7; color:#fff; border:none; padding:7px; border-radius:8px; font-weight:bold; font-size:0.8em; cursor:pointer;">
                         <i class="fa fa-copy"></i> Duplica
                     </button>
-                    <button onclick="window.eliminaSelezionato()" style="background:#dc2626; color:#fff; border:none; padding:9px 12px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
+                    <button onclick="window.eliminaSelezionato()" style="background:#dc2626; color:#fff; border:none; padding:7px 12px; border-radius:8px; font-weight:bold; font-size:0.82em; cursor:pointer;">
                         <i class="fa fa-trash"></i>
                     </button>
                 </div>
             </div>
+
+            <!-- AGGIUNGI TAVOLI E STRUTTURA (una griglia sola) -->
+            <div class="panel-box">
+                <h4 class="panel-title" style="margin:0 0 6px 0;"><i class="fa fa-plus-circle"></i> Aggiungi</h4>
+                <div class="add-grid">
+                    <button class="btn-add-shape" onclick="window.aggiungiTavoloMappa('rotondo')"><i class="fa-regular fa-circle" style="color:#38bdf8;"></i> Rotondo</button>
+                    <button class="btn-add-shape" onclick="window.aggiungiTavoloMappa('quadrato')"><i class="fa-regular fa-square" style="color:#4ade80;"></i> Quadrato</button>
+                    <button class="btn-add-shape" onclick="window.aggiungiTavoloMappa('rettangolare')"><i class="fa-solid fa-vector-square" style="color:#f472b6;"></i> Rettang.</button>
+                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('bancone')"><i class="fa-solid fa-martini-glass-citrus" style="color:#f59e0b;"></i> Bancone</button>
+                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('muro')"><i class="fa-solid fa-grip-lines" style="color:#94a3b8;"></i> Muro</button>
+                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('ingresso')"><i class="fa-solid fa-door-open" style="color:#22d3ee;"></i> Ingresso</button>
+                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('forno')"><i class="fa-solid fa-fire-burner" style="color:#fb923c;"></i> Forno</button>
+                    <button class="btn-add-shape" onclick="window.aggiungiElementoStrutturale('cassa')"><i class="fa-solid fa-cash-register" style="color:#818cf8;"></i> Cassa</button>
+                </div>
+            </div>
+
+            <!-- PERIMETRO DELLA SALA: chiuso, si apre solo quando serve -->
+            <details class="panel-box box-perimetro" id="box-perimetro">
+                <summary>
+                    <span><i class="fa fa-expand"></i> Perimetro sala <span id="lbl-perimetro-breve" class="perimetro-breve">1200 × 800</span></span>
+                    <i class="fa fa-chevron-down freccia"></i>
+                </summary>
+                <div style="display:flex; justify-content:flex-end; margin:6px 0;">
+                    <button onclick="window.espandiRapidoPerimetro()" style="background:#334155; color:#fbbf24; border:1px solid #f59e0b; padding:3px 8px; border-radius:6px; font-size:0.72em; font-weight:bold; cursor:pointer;">
+                        +200px Spazio
+                    </button>
+                </div>
+                <div style="margin-bottom:6px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.76em; color:#94a3b8; font-weight:bold;">
+                        <span>↔️ Larghezza Sala</span>
+                        <span id="lbl-room-w">1200 px</span>
+                    </div>
+                    <input type="range" id="inp-room-w" min="600" max="3000" step="50" value="1200" style="width:100%; accent-color:#10b981; cursor:pointer;" oninput="window.modificaPerimetroSala('w', this.value)">
+                </div>
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.76em; color:#94a3b8; font-weight:bold;">
+                        <span>↕️ Altezza Sala</span>
+                        <span id="lbl-room-h">800 px</span>
+                    </div>
+                    <input type="range" id="inp-room-h" min="500" max="2500" step="50" value="800" style="width:100%; accent-color:#10b981; cursor:pointer;" oninput="window.modificaPerimetroSala('h', this.value)">
+                </div>
+                <small style="color:#64748b; font-size:0.7em; display:block; margin-top:2px;">Puoi anche trascinare l'angolo giallo ↘️ in basso a destra sulla mappa.</small>
+            </details>
         </div>
     </div>
 
@@ -739,9 +733,10 @@
             const chip = document.getElementById('etichetta-disposizione');
             chip.classList.toggle('speciale', speciale);
             chip.textContent = speciale ? `📅 Disposizione speciale del ${data}` : '⭐ Disposizione standard';
-            document.getElementById('editor-testo-disposizione').innerHTML = speciale
-                ? `📅 <b style="color:#fbbf24;">${data}</b>: questo giorno ha una <b style="color:#fbbf24;">disposizione speciale</b>.`
-                : `📅 <b>${data}</b>: usa la <b>disposizione standard</b>, uguale per tutti i giorni.`;
+            const testoEditor = document.getElementById('editor-testo-disposizione');
+            testoEditor.classList.toggle('speciale', speciale);
+            testoEditor.textContent = speciale ? `📅 ${data} · speciale` : `⭐ ${data} · standard`;
+            testoEditor.title = speciale ? `Il ${data} ha una disposizione speciale` : `Il ${data} usa la disposizione standard, uguale per tutti i giorni`;
             document.getElementById('btn-torna-standard').style.display = speciale ? '' : 'none';
         }
 
@@ -784,6 +779,8 @@
 
             const badge = document.getElementById('room-size-badge-el');
             if (badge) badge.innerText = `📐 ${w} × ${h} px`;
+            const breve = document.getElementById('lbl-perimetro-breve');
+            if (breve) breve.innerText = `${w} × ${h}`;
         }
 
         window.modificaPerimetroSala = (dim, valore) => {
@@ -824,6 +821,14 @@
             if (!riduci) sidebar.classList.remove('minimized');
             document.getElementById('btn-editor-icona').classList.toggle('visibile', riduci && isEditorMode);
         };
+
+        // Altezza vera del pannello dell'editor (telefono): la usano lo spazio sotto la mappa e i pulsanti dello zoom
+        (() => {
+            const pannello = document.getElementById('editor-sidebar');
+            const aggiorna = () => document.documentElement.style.setProperty('--h-pannello', `${Math.round(pannello.getBoundingClientRect().height)}px`);
+            if (window.ResizeObserver) new ResizeObserver(aggiorna).observe(pannello);
+            aggiorna();
+        })();
 
         // --- GESTIONE ZOOM E AUTO-FIT BASATO SUL PERIMETRO DELLA SALA ---
         function applicaZoom(z) {
