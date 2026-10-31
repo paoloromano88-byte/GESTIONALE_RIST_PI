@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="sanitize.js"></script>
+    <script src="protezione.js"></script>
     <style>
         :root { --primary: #2962ff; --occupied: #d32f2f; --free: #2e7d32; --reserved: #ffb300; --bg: #050505; --card-bg: #1e1e1e; --text: #ffffff; --gold: #ffea00; --header-bg: #111111; --border: #444; --add-color: #00e676; --rem-color: #ff5252; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -29,6 +30,9 @@
         @media(min-width: 400px) { .app-title { display: block; } }
         .search-container { display: flex; background: #222; padding: 6px 10px; border-radius: 20px; border: 1px solid var(--border); flex: 1; align-items: center; }
         .search-container input { border: none; background: transparent; flex: 1; font-size: 14px; outline: none; color: white; margin-left: 5px; }
+        /* Sul telefono la ricerca si restringe e i pulsanti restano interi (prima il «+» usciva dallo schermo) */
+        .search-container, .search-container input { min-width: 0; }
+        header > button { flex-shrink: 0; }
         .btn-add-table { background: var(--free); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         #view-map { height: 100%; width: 100%; display: flex; flex-direction: column; }
         .grid { margin-top: 60px; display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; padding: 10px; padding-bottom: 80px; overflow-y: auto; flex: 1; }

@@ -34,6 +34,7 @@ dall'hosting in `firebase.json`.
 File condivisi:
 - `login-dispositivo.js`: accesso del dispositivo con l'account del locale e controllo della scheda `utenti`.
 - `sanitize.js`: protezione da HTML iniettato (`escapeHtml`, `sanitizeHtml`, `safeId`).
+- `protezione.js` (PR #54): blocca tasto destro (fuori dai campi di testo), F12, Ctrl+U/S, Ctrl+Shift+I/J/C/K e trascinamento immagini in tutte le app. È solo un deterrente: il codice resta leggibile a chi sa come fare. La sicurezza vera è nelle regole e nel server, e nel codice non ci sono segreti.
 - `licenza-locale.js`: blocca la pagina se l'abbonamento è sospeso o il suo modulo è spento (Telecomando, App Rider, Mappa Sale).
 - `zone-consegna.js`: zone di consegna per CAP. È usato da App Clienti, Cassa e server, così il calcolo è identico ovunque.
 - `comande-escpos.js`: testo ESC/POS di comande, conto/preconto, chiamata turni, aggiornamenti, blocco domicilio e QR. È lo stesso per Cassa e server (`functions/comande.js`): le comande escono identiche.
@@ -417,6 +418,22 @@ Controllo automatico di tutto il codice più prove a mano; tutto corretto nella 
 - `caricaProdotti()` apriva un nuovo ascolto dei prodotti a ogni apertura della scheda Menu: liste ridisegnate più volte e letture in più. Ora l'ascolto è uno solo e le volte dopo si ridisegna soltanto (`disegnaProdottiGestionale()`).
 - Tolto da `cassa.html` il vecchio riquadro «ACCESSO LOCALE / Collega Database»: non si apriva mai e chiamava `window.loginAzienda()`, che non esiste.
 - Controllo automatico su tutte le pagine: nessun'altra chiamata `window.X()` verso funzioni inesistenti.
+
+### Collaudo completo (31/10/2026, PR #54)
+- **Server e database**: 7 gruppi di prove con gli emulatori, **257 controlli, tutti superati**:
+  - regole 189;
+  - agente 7 e programma Windows 9;
+  - ordini 27, comande 13, avviso rider 10;
+  - trigger.
+- **Pagine**: tutte le app aperte su PC e telefono, ogni scheda del Gestionale, PIN di Sala, Agenda e Rider, e clic sui pulsanti. Controllato che ogni pulsante chiami una funzione esistente: l'unico errore era la vecchia finestra «Prenotazioni Tavoli» della Cassa (`aggiungiPrenotazione` inesistente, finestra mai aperta), ora tolta.
+- **Flussi provati**:
+  - Cassa (30/30): incasso, modifica, nuovo ordine al tavolo, storico, statistiche, chiusura Z, salvataggi di dati locale, prodotto, sconto e dipendente;
+  - Palmare Sala (12/12): PIN, tavolo, pizze, invio;
+  - scanner QR dell'App Rider (12/12).
+- **Corretti**:
+  - Palmare Sala su telefono: il «+» (nuovo tavolo) usciva dallo schermo;
+  - Monitor Cucina su telefono: la barra in alto usciva di lato.
+- **Prove vecchie nello scratchpad**: alcune falliscono anche sulla versione di 4 giorni prima, perché simulano Firebase in modo superato (funzioni mancanti nei finti moduli, login prima dell'accesso del dispositivo). Non sono difetti del gestionale. Quelle importanti sono state rifatte (`collaudo/`).
 
 ## 8. Come riprendere in una nuova sessione
 

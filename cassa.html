@@ -30,6 +30,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="sanitize.js"></script>
+    <script src="protezione.js"></script>
     <!-- QR delle consegne a domicilio stampato sugli scontrini (vedi datiQrConsegnaESC) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1408,24 +1409,6 @@
             <div style="display:flex; gap:10px; margin-top:15px;">
                 <button class="btn-cancel" style="display:block; flex:1;" onclick="document.getElementById('modal-new-client').style.display='none'">ANNULLA</button>
                 <button class="btn-save" style="flex:1; background:#4caf50;" onclick="salvaNuovoCliente()">SALVA CLIENTE</button>
-            </div>
-        </div>
-    </div>
-    
-    <div id="modal-bookings" class="modal-overlay">
-        <div class="modal-box" style="max-width: 600px;">
-            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="document.getElementById('modal-bookings').style.display='none'">&times;</div>
-            <h2 style="color:#9c27b0; margin-top:0;">📅 Prenotazioni Tavoli</h2>
-            
-            <div class="form-row" style="background:#f3e5f5; border:1px solid #e1bee7;">
-                <input type="time" id="book-time" class="input-std">
-                <input type="text" id="book-name" class="input-std" placeholder="Cognome Cliente" style="flex:2;">
-                <input type="number" id="book-pax" class="input-std" placeholder="Pax" style="width:60px;">
-                <input type="text" id="book-table" class="input-std" placeholder="Tav" style="width:60px;">
-                <button class="btn-save" style="background:#9c27b0;" onclick="aggiungiPrenotazione()">+</button>
-            </div>
-    
-            <div id="booking-list-container" style="max-height: 400px; overflow-y: auto; margin-top:15px; background:#f9f9f9; padding:10px;">
             </div>
         </div>
     </div>
