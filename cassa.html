@@ -1413,24 +1413,6 @@
         </div>
     </div>
     
-    <div id="modal-bookings" class="modal-overlay">
-        <div class="modal-box" style="max-width: 600px;">
-            <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer;" onclick="document.getElementById('modal-bookings').style.display='none'">&times;</div>
-            <h2 style="color:#9c27b0; margin-top:0;">📅 Prenotazioni Tavoli</h2>
-            
-            <div class="form-row" style="background:#f3e5f5; border:1px solid #e1bee7;">
-                <input type="time" id="book-time" class="input-std">
-                <input type="text" id="book-name" class="input-std" placeholder="Cognome Cliente" style="flex:2;">
-                <input type="number" id="book-pax" class="input-std" placeholder="Pax" style="width:60px;">
-                <input type="text" id="book-table" class="input-std" placeholder="Tav" style="width:60px;">
-                <button class="btn-save" style="background:#9c27b0;" onclick="aggiungiPrenotazione()">+</button>
-            </div>
-    
-            <div id="booking-list-container" style="max-height: 400px; overflow-y: auto; margin-top:15px; background:#f9f9f9; padding:10px;">
-            </div>
-        </div>
-    </div>
-    
     <div id="modal-storico" class="modal-overlay" style="z-index: 3500; display:none;">
         <div class="modal-box" style="max-width: 700px; width: 95%; max-height: 85vh; display: flex; flex-direction: column;">
             <div style="position:absolute; right:20px; top:10px; font-size:2em; cursor:pointer; color:#666;" onclick="document.getElementById('modal-storico').style.display='none'">&times;</div>
