@@ -165,6 +165,13 @@
             cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
         .btn-zoom:active { background: var(--primary); }
+        /* Editor: «mano» per scorrere la mappa con un dito anche sopra tavoli e strutture (restano fermi) */
+        .btn-zoom.btn-scorri { display: none; font-size: 1.05em; }
+        .btn-zoom.btn-scorri.visibile { display: flex; }
+        .btn-zoom.btn-scorri.attivo { background: var(--gold); color: #000; border-color: var(--gold); }
+        .floor-canvas.editor-grid.scorri-mappa .map-table-wrapper,
+        .floor-canvas.editor-grid.scorri-mappa .map-fixture-el,
+        .floor-canvas.editor-grid.scorri-mappa .room-resize-handle { pointer-events: none; }
 
         /* ELEMENTI STRUTTURALI (BANCONE, MURO, INGRESSO, FORNO, CASSA) */
         .map-fixture-el {
@@ -344,7 +351,12 @@
             .btn-editor-icona.visibile { display: flex; }
             .drawer-handle { display: block; }
             .zoom-controls { bottom: 45px; right: 10px; }
-            .editor-sidebar.open ~ .zoom-controls { bottom: 60dvh; }
+            /* Pannello aperto: zoom e mano in riga, appena sopra il pannello (prima finivano sotto) */
+            .workspace:has(.editor-sidebar.open:not(.a-icona):not(.minimized)) .zoom-controls { bottom: calc(58dvh + 8px); flex-direction: row; }
+            .workspace:has(.editor-sidebar.open.minimized:not(.a-icona)) .zoom-controls { bottom: 56px; }
+            /* Con il pannello aperto si può far salire anche il fondo della sala sopra il pannello */
+            .workspace:has(.editor-sidebar.open:not(.a-icona):not(.minimized)) .floor-Wrapper { padding-bottom: calc(58dvh + 20px); }
+            .workspace:has(.editor-sidebar.open.minimized:not(.a-icona)) .floor-Wrapper { padding-bottom: 70px; }
         }
     </style>
 </head>
@@ -392,6 +404,7 @@
             <button class="btn-zoom" onclick="window.cambiaZoom(0.12)" title="Ingrandisci"><i class="fa fa-plus"></i></button>
             <button class="btn-zoom" onclick="window.adattaMappaAlloSchermo()" title="Adatta allo schermo" style="font-size:0.75em; color:var(--gold);">FIT</button>
             <button class="btn-zoom" onclick="window.cambiaZoom(-0.12)" title="Rimpicciolisci"><i class="fa fa-minus"></i></button>
+            <button type="button" id="btn-scorri-mappa" class="btn-zoom btn-scorri" onclick="window.scorriMappa()" title="Scorri la mappa: i tavoli restano fermi"><i class="fa-solid fa-hand"></i></button>
         </div>
 
         <!-- Editor ridotto a icona (telefono): tocca per riaprire il pannello -->
@@ -1143,6 +1156,18 @@
             };
         }
 
+        // Editor: con la «mano» attiva il dito fa scorrere la mappa in ogni direzione, anche sopra
+        // tavoli e strutture, che restano fermi; ritoccandola si torna a spostarli
+        window.scorriMappa = (attiva) => {
+            const canvas = document.getElementById('floor-canvas');
+            const on = typeof attiva === 'boolean' ? attiva : !canvas.classList.contains('scorri-mappa');
+            canvas.classList.toggle('scorri-mappa', on && isEditorMode);
+            const btn = document.getElementById('btn-scorri-mappa');
+            btn.classList.toggle('attivo', on && isEditorMode);
+            btn.classList.toggle('visibile', isEditorMode);
+            btn.title = on ? 'Sposta i tavoli (ora la mappa scorre)' : 'Scorri la mappa: i tavoli restano fermi';
+        };
+
         window.toggleEditorMode = () => {
             isEditorMode = !isEditorMode;
             const btn = document.getElementById('btn-toggle-editor');
@@ -1157,6 +1182,7 @@
             sidebar.classList.remove('minimized');
             window.riduciEditorAIcona(false);
             canvas.classList.toggle('editor-grid', isEditorMode);
+            window.scorriMappa(false);
             roomAdmin.style.display = isEditorMode ? 'flex' : 'none';
 
             if (!isEditorMode) {
