@@ -202,7 +202,8 @@
         <div class="main-layout">
             <div class="menu-side">
                 <div style="background: #1a1a1a; padding: 8px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <!-- Coperti e pulsanti rapidi: sul telefono vanno a capo (prima SFORNA e STIRATA finivano sotto il conto) -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-between; align-items: center;">
                         <div class="coperti-selector">
                             <button class="btn-round" onclick="changeCoperti(-1)">-</button>
                             <input type="number" id="num-coperti" value="2" min="1" onchange="setCopertiManuale(this.value)" style="width: 45px; background: transparent; border: none; color: white; font-weight: bold; font-size: 18px; text-align: center; outline: none; padding: 0;"> 
