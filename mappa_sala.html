@@ -277,6 +277,17 @@
             border-bottom: 1px solid #334155; margin-bottom: 4px;
         }
         .drawer-pill { width: 42px; height: 5px; background: #64748b; border-radius: 5px; margin: 0 auto 4px auto; }
+        .drawer-handle { position: relative; }
+        .btn-riduci-icona {
+            position: absolute; right: 0; top: 0; width: 38px; height: 38px; border-radius: 10px;
+            border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 1em; cursor: pointer;
+        }
+        .btn-editor-icona {
+            display: none; position: fixed; left: 14px; bottom: 56px; z-index: 95;
+            width: 58px; height: 58px; border-radius: 50%; border: 2px solid #0b1120;
+            background: var(--gold); color: #000; font-size: 1.5em; cursor: pointer;
+            align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(0,0,0,0.7);
+        }
 
         .panel-box { background: #0f172a; border: 1px solid var(--border-col); padding: 12px; border-radius: 10px; }
         .panel-title { font-size: 0.78em; font-weight: 800; color: var(--gold); text-transform: uppercase; margin: 0 0 8px 0; }
@@ -328,6 +339,9 @@
                 transition: max-height 0.25s ease;
             }
             .editor-sidebar.minimized { max-height: 46px; overflow: hidden; }
+            /* Pannello ridotto a icona: la mappa resta tutta libera per spostare i tavoli */
+            .editor-sidebar.a-icona { display: none !important; }
+            .btn-editor-icona.visibile { display: flex; }
             .drawer-handle { display: block; }
             .zoom-controls { bottom: 45px; right: 10px; }
             .editor-sidebar.open ~ .zoom-controls { bottom: 60dvh; }
@@ -380,11 +394,15 @@
             <button class="btn-zoom" onclick="window.cambiaZoom(-0.12)" title="Rimpicciolisci"><i class="fa fa-minus"></i></button>
         </div>
 
+        <!-- Editor ridotto a icona (telefono): tocca per riaprire il pannello -->
+        <button type="button" id="btn-editor-icona" class="btn-editor-icona" title="Apri il pannello dell'editor" onclick="window.riduciEditorAIcona(false)"><i class="fa-solid fa-pen-ruler"></i></button>
+
         <!-- SIDEBAR / BOTTOM-SHEET EDITOR -->
         <div id="editor-sidebar" class="editor-sidebar">
             <div class="drawer-handle" onclick="window.toggleMinimizeDrawer()">
                 <div class="drawer-pill"></div>
                 <span style="font-size:0.72em; color:#94a3b8; font-weight:bold;">Tocca qui per abbassare / alzare il pannello</span>
+                <button type="button" class="btn-riduci-icona" title="Riduci a icona per spostare i tavoli" onclick="event.stopPropagation(); window.riduciEditorAIcona(true)"><i class="fa-solid fa-down-left-and-up-right-to-center"></i></button>
             </div>
 
             <!-- BOX AGGIUNTA TAVOLI E STRUTTURA -->
@@ -693,6 +711,15 @@
 
         window.toggleMinimizeDrawer = () => {
             document.getElementById('editor-sidebar').classList.toggle('minimized');
+        };
+
+        // Telefono: il pannello dell'editor si riduce a un'icona tonda e la mappa resta libera per
+        // spostare i tavoli; toccando l'icona il pannello torna (con il tavolo selezionato)
+        window.riduciEditorAIcona = (riduci) => {
+            const sidebar = document.getElementById('editor-sidebar');
+            sidebar.classList.toggle('a-icona', riduci);
+            if (!riduci) sidebar.classList.remove('minimized');
+            document.getElementById('btn-editor-icona').classList.toggle('visibile', riduci && isEditorMode);
         };
 
         // --- GESTIONE ZOOM E AUTO-FIT BASATO SUL PERIMETRO DELLA SALA ---
@@ -1083,7 +1110,9 @@
                 e.stopPropagation();
                 selectedItemId = itemObj.id;
                 selectedItemCategory = category;
-                document.getElementById('editor-sidebar').classList.remove('minimized');
+                // Ridotto a icona resta chiuso mentre si spostano i tavoli
+                const sidebarEditor = document.getElementById('editor-sidebar');
+                if (!sidebarEditor.classList.contains('a-icona')) sidebarEditor.classList.remove('minimized');
                 aggiornaPannelloIspettore();
 
                 document.querySelectorAll('.map-table-wrapper, .map-fixture-el').forEach(w => w.classList.remove('selected-edit'));
@@ -1126,6 +1155,7 @@
             if (spanTxt) spanTxt.innerText = isEditorMode ? 'FINE DISEGNO' : 'DISEGNA SALA';
             sidebar.classList.toggle('open', isEditorMode);
             sidebar.classList.remove('minimized');
+            window.riduciEditorAIcona(false);
             canvas.classList.toggle('editor-grid', isEditorMode);
             roomAdmin.style.display = isEditorMode ? 'flex' : 'none';
 
