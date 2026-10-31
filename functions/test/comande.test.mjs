@@ -24,7 +24,9 @@ const STAMPANTI = {
     pizzeria: { ip: '192.168.1.50', cats: ['pizza'] }, cucina: { ip: '192.168.1.51:9101', cats: ['primo'] },
     bar: { ip: '192.168.1.52', cats: ['birra', 'bibita_lattina'] }, conto: { ip: '192.168.1.53' },
 };
-const oggi = new Date().toISOString().split('T')[0];
+// Giorno italiano, come il server: con l'UTC tra mezzanotte e l'una/le due italiane sarebbe ancora "ieri"
+// e la comanda di prova risulterebbe per un altro giorno (PER IL: invece di RITIRO:)
+const oggi = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date());
 const ordine = (extra = {}) => ({
     nome: 'Mario', cognome: 'Rossi', telefono: '3331234567', tipo: 'ASPORTO', orario: '20:30', data_ritiro: oggi, stato: 'In attesa', totale: 19,
     prodotti: [{ nome: 'Margherita', prezzo: 6, qta: 2, cat: 'pizza', dettagli: 'Normale' }, { nome: 'Birra Moretti 66cl', prezzo: 3.5, qta: 2, cat: 'birra' }],
