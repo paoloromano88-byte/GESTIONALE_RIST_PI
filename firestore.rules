@@ -142,6 +142,8 @@ service cloud.firestore {
     }
 
     // ---------- Profilo del proprio account (serve per aprire il locale giusto) ----------
+    // Le sottoraccolte di utenti (es. utenti/{uid}/cambio_password, con la password nuova chiesta dal
+    // Super Admin per functions/account.js) non hanno altre regole: solo il Super Admin le legge e scrive.
     match /utenti/{uid} {
       allow get: if request.auth != null && request.auth.uid == uid;
     }

@@ -4,12 +4,14 @@
 // ============================================================================
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentCreated, onDocumentUpdated, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
 import { elaboraOrdineApp, isOrdineApp } from './ordini.js';
 import { comandeDaEvento } from './comande.js';
 import { avvisoDaEvento } from './avvisi-rider.js';
+import { eseguiCambioPassword } from './account.js';
 
 initializeApp();
 setGlobalOptions({ region: 'europe-west12', maxInstances: 10 });
@@ -49,3 +51,8 @@ export const avvisoRiderPrincipale = onDocumentUpdated('ordini/{ordineId}', (eve
 
 export const avvisoRiderLocali = onDocumentUpdated('ristoranti/{locale}/ordini/{ordineId}',
     (event) => avvisoDaEvento(db.collection('ristoranti').doc(event.params.locale), event.params.locale, event, opzioniAvviso));
+
+// Cambio password di un account del locale chiesto dal Super Admin (solo lui può scrivere qui:
+// vedi firestore.rules). La password viene tolta dalla richiesta appena usata.
+export const cambioPasswordAccount = onDocumentCreated('utenti/{uid}/cambio_password/{richiestaId}',
+    (event) => eseguiCambioPassword(db, getAuth(), event.params.uid, event.data.ref));
