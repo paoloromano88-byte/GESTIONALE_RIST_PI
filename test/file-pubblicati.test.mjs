@@ -37,7 +37,7 @@ t('nessun file privato pubblicato', trapelati.length === 0,
     `${trapelati.length}: ${trapelati.slice(0, 8).join(', ')}${trapelati.length > 8 ? ', …' : ''}`);
 
 for (const f of ['index.html', 'cassa.html', 'cassa.js', 'cassa.css', 'delivery.html', 'superadmin.html',
-                 'comande-escpos.js', 'zone-consegna.js', 'firebase-messaging-sw.js', 'logo.png']) {
+                 'comande-escpos.js', 'zone-consegna.js', 'firebase-messaging-sw.js', 'logo.png', '404.html']) {
     t(`${f} pubblicato`, pubblicati.includes(f));
 }
 
