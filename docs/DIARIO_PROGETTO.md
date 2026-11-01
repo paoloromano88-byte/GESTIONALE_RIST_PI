@@ -290,6 +290,7 @@ npx firebase-tools@13.29.1 emulators:exec --only auth,firestore --project demo-g
 npx firebase-tools@13.29.1 emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/comande.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only firestore --project demo-gestionale "node functions/test/ordini.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project demo-gestionale "node functions/test/trigger.test.mjs"
+node test/file-pubblicati.test.mjs
 ```
 
 ## 5. Cronologia delle PR
@@ -443,6 +444,14 @@ Controllo automatico di tutto il codice più prove a mano; tutto corretto nella 
   - Palmare Sala su telefono: il «+» (nuovo tavolo) usciva dallo schermo;
   - Monitor Cucina su telefono: la barra in alto usciva di lato.
 - **Prove vecchie nello scratchpad**: alcune falliscono anche sulla versione di 4 giorni prima, perché simulano Firebase in modo superato (funzioni mancanti nei finti moduli, login prima dell'accesso del dispositivo). Non sono difetti del gestionale. Quelle importanti sono state rifatte (`collaudo/`).
+
+### File privati pubblicati sul sito (01/11/2026)
+- La radice del repository è la cartella dell'Hosting. La regola `**/.*` di `firebase.json` escludeva le cartelle nascoste ma **non i file al loro interno**: a ogni pubblicazione finivano online anche `.git/` (la copia del repository fatta da GitHub, con codice e diario) e `.github/`, più i registri degli emulatori (`firestore-debug.log`) se presenti.
+- Scoperto simulando la scelta dei file con la stessa funzione di `firebase-tools` usata da GitHub (versione 15.34.2): nella prova 139 file invece di 26 (il numero esatto dipende dalla copia di `.git`). Il sito vero non era raggiungibile dalla sessione: per controllare basta aprire `/.git/HEAD` sul sito (con la correzione deve dare «pagina non trovata»).
+- Corretto aggiungendo `**/.*/**` e `**/*.log` a `hosting.ignore`.
+- Nuovo test `test/file-pubblicati.test.mjs`, eseguito dalla CI dopo gli emulatori: fallisce se viene pubblicato un file privato (cartelle e file nascosti, `docs/`, `functions/`, `test/`, `agente-stampa/`, `CLAUDE.md`, `firebase.json`, `firestore.rules`, registri). Un file privato nuovo va aggiunto sia a `hosting.ignore` sia al test.
+- Dopo il merge, la nuova versione del sito contiene solo i file elencati dal test: quelli di `.git/` e `.github/` smettono di essere serviti (restano solo nella cronologia delle versioni dell'Hosting, non visibile al pubblico).
+- Durante il deploy `.git/config` contiene il token temporaneo di GitHub Actions (`GITHUB_TOKEN`, lo toglie la pulizia a fine job): se è stato pubblicato era già scaduto alla fine del job, quindi non utilizzabile.
 
 ## 8. Come riprendere in una nuova sessione
 

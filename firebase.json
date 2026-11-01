@@ -27,6 +27,8 @@
       "agente-stampa/**",
       "**/agente-stampa.json",
       "**/.*",
+      "**/.*/**",
+      "**/*.log",
       "**/node_modules/**"
     ],
     "headers": [
