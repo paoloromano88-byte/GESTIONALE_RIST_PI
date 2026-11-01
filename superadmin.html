@@ -54,6 +54,17 @@
             </div>
         </h1>
 
+        <!-- RICHIESTE DI DEMO DAL SITO VETRINA (gesti/) -->
+        <div class="section-box" style="margin-top:0; margin-bottom:20px;">
+            <h3 style="color:#58a6ff; margin:0 0 6px 0; font-size:1.05em; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span><i class="fa-solid fa-inbox"></i> Richieste di demo dal sito</span>
+                <span id="badge-richieste" style="display:none; background:#da3633; color:#fff; border-radius:20px; padding:2px 10px; font-size:0.8em;"></span>
+                <button id="btn-mostra-richieste" onclick="mostraRichiesteDemo()" style="margin-left:auto; background:#21262d; color:#c9d1d9; border:1px solid #30363d; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.8em;">Mostra</button>
+            </h3>
+            <p style="color:#8b949e; font-size:0.85em; margin:0;">Chi compila «Richiedi una demo» su <a href="gesti/" target="_blank" style="color:#58a6ff;">gesti/</a> compare qui.</p>
+            <div id="lista-richieste" style="display:none; flex-direction:column; gap:10px; margin-top:12px;"></div>
+        </div>
+
         <!-- SELETTORE RISTORANTE -->
         <div class="tenant-bar">
             <i class="fa-solid fa-store" style="color:#58a6ff; font-size:1.3em;"></i>
@@ -165,7 +176,7 @@
 
     <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc, collection, getDocs, onSnapshot, writeBatch, query, where, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc, collection, getDocs, onSnapshot, writeBatch, query, where, limit, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
 
@@ -218,9 +229,70 @@
 
         async function avviaConsole() {
             document.getElementById('main-console').style.display = 'block';
+            ascoltaRichiesteDemo();
             await caricaListaRistoranti();
             window.cambiaTenant('default');
         }
+
+        // --- RICHIESTE DI DEMO (richieste_demo, scritte dal sito vetrina gesti/) ---
+        // I dati li scrive chiunque dal sito: si mostrano sempre protetti con escapeHtml.
+        let richiesteDemo = [];
+        function ascoltaRichiesteDemo() {
+            onSnapshot(query(collection(db, "richieste_demo"), orderBy("creato", "desc"), limit(200)), (snap) => {
+                richiesteDemo = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const nuove = richiesteDemo.filter(r => !r.contattato).length;
+                const badge = document.getElementById('badge-richieste');
+                badge.style.display = nuove ? 'inline-block' : 'none';
+                badge.textContent = `${nuove} da richiamare`;
+                renderRichiesteDemo();
+            }, (err) => console.error("Richieste demo:", err));
+        }
+
+        window.mostraRichiesteDemo = () => {
+            const box = document.getElementById('lista-richieste');
+            const aperta = box.style.display !== 'none';
+            box.style.display = aperta ? 'none' : 'flex';
+            document.getElementById('btn-mostra-richieste').textContent = aperta ? 'Mostra' : 'Nascondi';
+        };
+
+        function renderRichiesteDemo() {
+            const box = document.getElementById('lista-richieste');
+            const esc = window.escapeHtml;
+            if (!richiesteDemo.length) { box.innerHTML = "<div style='color:#8b949e; font-size:0.85em;'>Nessuna richiesta per ora.</div>"; return; }
+            box.innerHTML = richiesteDemo.map(r => {
+                const quando = r.creato?.toDate ? r.creato.toDate().toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '';
+                // Numero per WhatsApp con il prefisso internazionale (italiano se non indicato)
+                const tel = String(r.telefono || '').trim(), cifre = tel.replace(/\D/g, '');
+                const whatsapp = tel.startsWith('+') ? cifre : cifre.startsWith('00') ? cifre.slice(2) : (cifre.length >= 11 && cifre.startsWith('39')) ? cifre : '39' + cifre;
+                return `
+                <div style="background:#0d1117; border:1px solid ${r.contattato ? '#30363d' : '#da3633'}; border-radius:8px; padding:12px; ${r.contattato ? 'opacity:0.65;' : ''}">
+                    <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                        <b>${esc(r.nome)} · ${esc(r.locale)}</b>
+                        <small style="color:#8b949e;">${esc(quando)}</small>
+                    </div>
+                    <div style="color:#c9d1d9; font-size:0.9em; margin:4px 0;">${esc(r.tipo)} · ${esc(r.citta)}</div>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; font-size:0.9em;">
+                        <a href="tel:${esc(String(r.telefono || '').replace(/[^0-9+]/g, ''))}" style="color:#58a6ff;"><i class="fa fa-phone"></i> ${esc(r.telefono)}</a>
+                        <a href="https://wa.me/${esc(whatsapp)}" target="_blank" rel="noopener" style="color:#3fb950;"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
+                        ${r.email ? `<a href="mailto:${esc(r.email)}" style="color:#58a6ff;"><i class="fa fa-envelope"></i> ${esc(r.email)}</a>` : ''}
+                    </div>
+                    ${r.messaggio ? `<div style="margin-top:6px; color:#c9d1d9; font-size:0.9em; white-space:pre-wrap;">«${esc(r.messaggio)}»</div>` : ''}
+                    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+                        <button onclick="segnaRichiestaDemo(${window.argJs(r.id)}, ${r.contattato ? 'false' : 'true'})" style="background:${r.contattato ? '#30363d' : '#238636'}; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.8em;">${r.contattato ? 'Segna da richiamare' : '✔ Richiamato'}</button>
+                        <button onclick="eliminaRichiestaDemo(${window.argJs(r.id)})" style="background:#30363d; color:#f85149; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.8em;"><i class="fa fa-trash"></i> Elimina</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        window.segnaRichiestaDemo = async (id, contattato) => {
+            await setDoc(doc(db, "richieste_demo", id), { contattato, contattato_il: contattato ? serverTimestamp() : null }, { merge: true });
+        };
+
+        window.eliminaRichiestaDemo = async (id) => {
+            const res = await Swal.fire({ title: 'Eliminare questa richiesta?', text: 'I dati della persona vengono cancellati.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#da3633', confirmButtonText: 'Elimina', cancelButtonText: 'Annulla', ...SWAL_SCURO });
+            if (res.isConfirmed) await deleteDoc(doc(db, "richieste_demo", id));
+        };
 
         const SWAL_SCURO = { background: '#161b22', color: '#fff' };
 

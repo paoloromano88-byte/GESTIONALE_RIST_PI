@@ -44,6 +44,8 @@ node test/file-pubblicati.test.mjs    # file che l'Hosting pubblica (senza emula
 ## Architettura
 
 ### Pagine
+`gesti/index.html` è il **sito vetrina** del prodotto (nome commerciale **Gestì**, prezzi 39/69 €/mese): pagina statica con calcolatore delle commissioni e modulo «Richiedi una demo». Decisioni di marketing e cose da fare prima di pubblicizzarla nel diario («Marketing: Gestì»).
+
 Ogni app è una pagina HTML alla radice con dentro il suo `<script type="module">` (configurazione Firebase compresa). Fa eccezione la Cassa, divisa in `cassa.html` (markup e alcuni script inline, per esempio `preparaDatiStampaTermica()` e il QR raster), `cassa.js` (modulo, circa 5.000 righe) e `cassa.css`. Poiché i moduli non espongono nulla, le funzioni chiamate dagli `onclick` inline devono essere assegnate a `window.*`: chiamare una funzione non esposta è già stato causa di bug. Le regole per smartphone della Cassa sono nei blocchi `@media (max-width: 768px)` di `cassa.css` e in fondo al primo `<style>` di `cassa.html`.
 
 La radice del repository **è** la cartella pubblicata dall'Hosting: ciò che non deve finire online va aggiunto a `hosting.ignore` in `firebase.json` (oggi `test/`, `functions/`, `docs/`, `agente-stampa/`, `CLAUDE.md`, `*.log`, file e cartelle nascosti…). Attenzione: `**/.*` esclude una cartella nascosta ma non i file al suo interno, per questo c'è anche `**/.*/**`. `test/file-pubblicati.test.mjs` elenca i file con la stessa funzione di `firebase-tools` e fallisce se ne pubblica uno privato: un file privato nuovo va aggiunto sia a `hosting.ignore` sia al test. Il `Cache-Control: no-cache` su tutto serve a non lasciare versioni vecchie sui dispositivi.
@@ -61,6 +63,7 @@ La radice del repository **è** la cartella pubblicata dall'Hosting: ciò che no
 - Scorte, rubrica `clienti/{tel}` e `occupazione_forno` per gli ordini dell'App Clienti li aggiorna solo il server (Admin SDK).
 - Licenza: `impostazioni/licenza` (`attiva`, `moduli.<nome> === false`). Ogni pagina chiama `mostraBloccoLicenza()` di `licenza-locale.js` con il proprio modulo; un modulo assente dalla licenza vale acceso. Un'app nuova va aggiunta a `APP_LOCALE` in `superadmin.html` e deve controllare il suo modulo.
 - Firebase Storage non è attivo: le immagini (logo, foto) sono compresse e salvate dentro Firestore.
+- `richieste_demo` (dal sito vetrina `gesti/`): il pubblico può solo crearle, con campi e lunghezze controllati e consenso obbligatorio; le legge, segna e cancella solo il Super Admin (sezione «Richieste di demo dal sito»).
 
 ### Moduli condivisi browser/server
 - `zone-consegna.js` (zone e supplementi per CAP) e `comande-escpos.js` (testo ESC/POS di comande, conti, turni, QR) sono usati sia dalle pagine sia da `functions/`, così i risultati sono identici. Non devono toccare il DOM: ciò che dipende dall'ambiente (ora, fuso `Europe/Rome`, QR…) arriva nel parametro `ctx`.
@@ -90,4 +93,4 @@ La radice del repository **è** la cartella pubblicata dall'Hosting: ciò che no
 ## Modo di lavorare e pubblicazione
 - Si lavora su un ramo con una PR in italiano (cosa cambia e quali test sono stati fatti). La PR avvia i test e un'anteprima Firebase di 7 giorni, il cui link compare nei commenti della PR. **Si unisce solo dopo che il titolare scrive «unisci».**
 - Il merge su `main` (`firebase-hosting-merge.yml`) esegue i test, poi Functions e regole Firestore, poi il sito insieme al firmware ESP32 e all'installatore Windows compilati. Le regole non si incollano mai a mano nella console.
-- Prove nel browser: Playwright/Chromium a misura di telefono (390×664) e di computer, salvate in `test/browser/` (fuori dalla CI). `test/browser/superadmin-password.cjs` è il modello: pagina vera servita dall'emulatore Hosting, moduli Firebase veri del pacchetto `firebase` collegati agli emulatori al posto del CDN, SweetAlert2 dal pacchetto locale (i CDN nelle sessioni cloud sono bloccati).
+- Prove nel browser: Playwright/Chromium a misura di telefono (390×664) e di computer, salvate in `test/browser/` (fuori dalla CI). `test/browser/ambiente.cjs` prepara tutto: pagina vera servita dall'emulatore Hosting, moduli Firebase veri del pacchetto `firebase` collegati agli emulatori al posto del CDN, SweetAlert2 dal pacchetto locale (i CDN nelle sessioni cloud sono bloccati), Admin SDK per preparare e controllare i dati. Esempi: `superadmin-password.cjs` (con Functions) e `gesti.cjs` (`emulators:exec --only auth,firestore,hosting`).
