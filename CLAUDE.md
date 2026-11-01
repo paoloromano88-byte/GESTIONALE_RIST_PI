@@ -31,6 +31,7 @@ npx firebase emulators:exec --only functions,firestore  --project demo-gestional
 npx firebase emulators:exec --only functions,firestore  --project demo-gestionale "node functions/test/trigger.test.mjs"
 npx firebase emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/cambio-password.test.mjs"
 node test/file-pubblicati.test.mjs    # file che l'Hosting pubblica (senza emulatori)
+node test/categorie-menu.test.mjs     # sezioni del menu aggiunte dal locale (senza emulatori)
 ```
 
 - Non c'è un framework di test: ogni file è uno script Node autonomo (helper `t()` + `assert`). Per una sola suite si lancia solo il suo comando; non si filtrano i singoli casi.
@@ -68,6 +69,7 @@ La radice del repository **è** la cartella pubblicata dall'Hosting: ciò che no
 ### Moduli condivisi browser/server
 - `zone-consegna.js` (zone e supplementi per CAP) e `comande-escpos.js` (testo ESC/POS di comande, conti, turni, QR) sono usati sia dalle pagine sia da `functions/`, così i risultati sono identici. Non devono toccare il DOM: ciò che dipende dall'ambiente (ora, fuso `Europe/Rome`, QR…) arriva nel parametro `ctx`.
 - Il testo per le termiche è solo ASCII (`pulisciTestoESC`).
+- `categorie-menu.js` (solo browser): sezioni del menu aggiunte dal locale in `impostazioni/categorie` (id `sez_…`). Le pagine aggiungono le sezioni ai loro elenchi fissi di categorie con `applicaSezioni()`. Il reparto di una sezione è quello in cui è spuntata nelle stampanti: `comande-escpos.js` lo legge da `ctx.stampanti` con una copia della stessa regola, perché gira anche sul server.
 - `sanitize.js`: ogni testo che viene dai clienti va protetto con `escapeHtml`/`sanitizeHtml`, `argJs` per gli argomenti degli `onclick`, `immagineSicura` per le foto. In SweetAlert2 `title` e `html` sono HTML, `text` no.
 
 ### Stampa
