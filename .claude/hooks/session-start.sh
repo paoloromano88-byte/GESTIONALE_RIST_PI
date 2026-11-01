@@ -11,13 +11,14 @@ fi
 
 cd "${CLAUDE_PROJECT_DIR:-.}"
 
-# 1. Strumenti dei test alla radice (senza package.json: --no-save non crea file nel repository).
+# 1. Strumenti dei test alla radice (senza package.json: --no-save non crea file nel repository);
+#    sweetalert2 serve alle prove nel browser (test/browser), al posto di quella da CDN.
 #    Le versioni sono scritte qui sotto, quindi basta l'impronta di questo script.
 impronta=node_modules/.session-start.sha256
 if ! sha256sum --check --status "$impronta" 2>/dev/null; then
   rm -f "$impronta"
   npm install --no-save --no-audit --no-fund \
-    firebase-tools@13.29.1 @firebase/rules-unit-testing@3.0.4 firebase@10.7.1
+    firebase-tools@13.29.1 @firebase/rules-unit-testing@3.0.4 firebase@10.7.1 sweetalert2@11.26.25
   sha256sum .claude/hooks/session-start.sh > "$impronta"
 fi
 

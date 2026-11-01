@@ -37,6 +37,8 @@ jobs:
         run: npx firebase emulators:exec --only functions,firestore --project demo-gestionale "node functions/test/avvisi-rider.test.mjs"
       - name: Trigger Cloud Functions end-to-end
         run: npx firebase emulators:exec --only functions,firestore --project demo-gestionale "node functions/test/trigger.test.mjs"
+      - name: Cambio password degli account dei locali dal Super Admin
+        run: npx firebase emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/cambio-password.test.mjs"
       # Dopo gli emulatori, così controlla anche che i loro registri (*.log) non finiscano sul sito
       - name: File pubblicati sul sito (niente .git, docs, functions, registri…)
         run: node test/file-pubblicati.test.mjs

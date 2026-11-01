@@ -29,6 +29,7 @@ npx firebase emulators:exec --only firestore            --project demo-gestional
 npx firebase emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/comande.test.mjs"
 npx firebase emulators:exec --only functions,firestore  --project demo-gestionale "node functions/test/avvisi-rider.test.mjs"
 npx firebase emulators:exec --only functions,firestore  --project demo-gestionale "node functions/test/trigger.test.mjs"
+npx firebase emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/cambio-password.test.mjs"
 node test/file-pubblicati.test.mjs    # file che l'Hosting pubblica (senza emulatori)
 ```
 
@@ -84,8 +85,9 @@ La radice del repository **è** la cartella pubblicata dall'Hosting: ciò che no
 - `ordini.js`: gli ordini dell'App Clienti, riconosciuti dal campo `user_agent`, aggiornano in transazione scorte, rubrica e forno. La transazione è idempotente grazie a `elaborato_server`. I prezzi vengono ricontrollati: se non tornano si scrive `anomalia_prezzo`, senza bloccare l'ordine.
 - `comande.js`: comande per l'Agente di stampa.
 - `avvisi-rider.js`: notifica push (FCM, solo dati) quando un ordine a domicilio diventa «Pronto». La notifica la compone `firebase-messaging-sw.js`. Nell'emulatore le notifiche finiscono in `_push_emulatore`.
+- `account.js`: cambio password degli account dei locali dal Super Admin. La pagina scrive `utenti/{uid}/cambio_password/{id}` (solo il Super Admin può: nessuna regola copre le sottoraccolte di `utenti`), il trigger prende la richiesta in una transazione togliendo subito la password, chiama `updateUser` (solo `ruolo: 'locale'`) e scrive `stato: 'fatto' | 'errore'`. Niente funzioni chiamabili dal browser (`onCall`): richiederebbero un ruolo IAM in più all'account del deploy.
 
 ## Modo di lavorare e pubblicazione
 - Si lavora su un ramo con una PR in italiano (cosa cambia e quali test sono stati fatti). La PR avvia i test e un'anteprima Firebase di 7 giorni, il cui link compare nei commenti della PR. **Si unisce solo dopo che il titolare scrive «unisci».**
 - Il merge su `main` (`firebase-hosting-merge.yml`) esegue i test, poi Functions e regole Firestore, poi il sito insieme al firmware ESP32 e all'installatore Windows compilati. Le regole non si incollano mai a mano nella console.
-- Prove nel browser: Playwright/Chromium a misura di telefono (390×664) e di computer. Gli script usati finora non sono nel repository: se servono di nuovo, conviene salvarli in `test/browser/`.
+- Prove nel browser: Playwright/Chromium a misura di telefono (390×664) e di computer, salvate in `test/browser/` (fuori dalla CI). `test/browser/superadmin-password.cjs` è il modello: pagina vera servita dall'emulatore Hosting, moduli Firebase veri del pacchetto `firebase` collegati agli emulatori al posto del CDN, SweetAlert2 dal pacchetto locale (i CDN nelle sessioni cloud sono bloccati).

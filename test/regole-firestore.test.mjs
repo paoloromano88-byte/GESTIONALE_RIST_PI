@@ -202,6 +202,18 @@ await t('super admin gestisce saas_clienti', true, () => setDoc(doc(superAdmin, 
 await t('super admin elenca gli account di un locale', true, () => getDocs(query(collection(superAdmin, 'utenti'), where('locale', '==', 'pizzeria-test'))));
 await t('super admin crea account per un locale', true, () => setDoc(doc(superAdmin, 'utenti/nuovo'), { email: 'n@x.it', ruolo: 'locale', locale: 'pizzeria-test' }));
 
+// Cambio password dal Super Admin (functions/account.js): la richiesta contiene la password
+// nuova, quindi la può scrivere e leggere SOLO il Super Admin
+const richiestaPwd = () => ({ password: 'nuova123', creato: serverTimestamp() });
+await t('super admin chiede il cambio password di un account', true, () => addDoc(collection(superAdmin, 'utenti/staffTest/cambio_password'), richiestaPwd()));
+await t('personale NON cambia la password del proprio account', false, () => addDoc(collection(staffTest, 'utenti/staffTest/cambio_password'), richiestaPwd()));
+await t('personale NON cambia la password di un altro locale', false, () => addDoc(collection(staffDefault, 'utenti/staffTest/cambio_password'), richiestaPwd()));
+await t('personale NON cambia la password del Super Admin', false, () => addDoc(collection(staffDefault, 'utenti/super1/cambio_password'), richiestaPwd()));
+await t('account abusivo NON cambia password', false, () => addDoc(collection(abusivo, 'utenti/staffTest/cambio_password'), richiestaPwd()));
+await t('anonimo NON cambia password', false, () => addDoc(collection(anon, 'utenti/staffTest/cambio_password'), richiestaPwd()));
+await t('personale NON legge le richieste di cambio password', false, () => getDocs(collection(staffTest, 'utenti/staffTest/cambio_password')));
+await t('anonimo NON legge le richieste di cambio password', false, () => getDocs(collection(anon, 'utenti/staffTest/cambio_password')));
+
 console.log(`\nRISULTATO: ${ok} ok, ${ko} falliti`);
 await env.cleanup();
 process.exit(ko ? 1 : 0);

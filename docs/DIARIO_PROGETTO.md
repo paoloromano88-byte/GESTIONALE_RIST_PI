@@ -290,6 +290,7 @@ npx firebase-tools@13.29.1 emulators:exec --only auth,firestore --project demo-g
 npx firebase-tools@13.29.1 emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/comande.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only firestore --project demo-gestionale "node functions/test/ordini.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project demo-gestionale "node functions/test/trigger.test.mjs"
+npx firebase-tools@13.29.1 emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/cambio-password.test.mjs"
 node test/file-pubblicati.test.mjs
 ```
 
@@ -452,6 +453,17 @@ Controllo automatico di tutto il codice più prove a mano; tutto corretto nella 
 - Nuovo test `test/file-pubblicati.test.mjs`, eseguito dalla CI dopo gli emulatori: fallisce se viene pubblicato un file privato (cartelle e file nascosti, `docs/`, `functions/`, `test/`, `agente-stampa/`, `CLAUDE.md`, `firebase.json`, `firestore.rules`, registri). Un file privato nuovo va aggiunto sia a `hosting.ignore` sia al test.
 - Dopo il merge, la nuova versione del sito contiene solo i file elencati dal test: quelli di `.git/` e `.github/` smettono di essere serviti (restano solo nella cronologia delle versioni dell'Hosting, non visibile al pubblico).
 - Durante il deploy `.git/config` contiene il token temporaneo di GitHub Actions (`GITHUB_TOKEN`, lo toglie la pulizia a fine job): se è stato pubblicato era già scaduto alla fine del job, quindi non utilizzabile.
+
+### Cambio password degli account dei locali dal Super Admin (01/11/2026)
+- In Super Admin → Account del Locale ogni account ha il pulsante **🔑 Password**: propone una password di 10 caratteri facili da dettare (modificabile, minimo 6), la cambia e la mostra per comunicarla al locale.
+- Cambiare la password chiude le sessioni aperte: cassa, telefoni e Agente di stampa chiedono di rifare l'accesso.
+- Come funziona: dal browser non si può cambiare la password di un altro account. La pagina scrive una richiesta in `utenti/{uid}/cambio_password/{id}`, che può scrivere e leggere **solo il Super Admin** (verificato con 8 casi nuovi nel test delle regole). La Cloud Function `cambioPasswordAccount` (`functions/account.js`):
+  - prende la richiesta in una transazione e toglie subito la password dal database;
+  - cambia la password solo agli account con `ruolo: 'locale'`, mai al Super Admin;
+  - scrive l'esito. La pagina lo aspetta fino a 45 secondi e poi cancella la richiesta.
+- Scelto un trigger su Firestore e non una funzione chiamabile dal browser (`onCall`), che richiederebbe il ruolo «Amministratore Cloud Run» all'account del deploy (vedi la sezione sulla firma di QZ Tray).
+- Da verificare dopo la prima pubblicazione: che l'account con cui girano le funzioni abbia il permesso di modificare gli utenti di Authentication. Se manca, il pulsante risponde «Password non cambiata» con il messaggio di Google.
+- Test: `functions/test/cambio-password.test.mjs` (in CI) e la prova nel browser `test/browser/superadmin-password.cjs` (primo script salvato in `test/browser/`).
 
 ## 8. Come riprendere in una nuova sessione
 

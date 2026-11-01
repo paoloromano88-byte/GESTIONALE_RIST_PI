@@ -165,7 +165,7 @@
 
     <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot, writeBatch, query, where, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc, collection, getDocs, onSnapshot, writeBatch, query, where, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
 
@@ -282,6 +282,7 @@
         };
 
         // --- ACCOUNT DEI LOCALI (utenti/{uid} = { email, locale, ruolo: 'locale' }) ---
+        const emailAccount = {};   // uid -> email degli account mostrati (per i messaggi)
         async function caricaAccountLocale() {
             const box = document.getElementById('lista-account');
             if (!box) return;
@@ -292,10 +293,14 @@
                     box.innerHTML = "<div style='color:#d29922; font-size:0.85em;'>⚠️ Nessun account: i dispositivi di questo locale non possono accedere.</div>";
                     return;
                 }
+                snap.docs.forEach(d => { emailAccount[d.id] = d.data().email || ''; });
                 box.innerHTML = snap.docs.map(d => `
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:10px 12px; gap:10px;">
-                        <span style="overflow:hidden; text-overflow:ellipsis;"><i class="fa fa-user" style="color:#58a6ff;"></i> <b>${window.escapeHtml(d.data().email || '')}</b> <small style="color:#8b949e;">(${window.escapeHtml(d.id.slice(0, 8))}…)</small></span>
-                        <button onclick="scollegaAccount('${window.safeId(d.id)}')" style="background:#da3633; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.8em; white-space:nowrap;"><i class="fa fa-unlink"></i> Scollega</button>
+                    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:10px 12px; gap:10px;">
+                        <span style="flex:1 1 200px; min-width:0; overflow-wrap:anywhere;"><i class="fa fa-user" style="color:#58a6ff;"></i> <b>${window.escapeHtml(d.data().email || '')}</b> <small style="color:#8b949e;">(${window.escapeHtml(d.id.slice(0, 8))}…)</small></span>
+                        <span style="display:flex; gap:6px; flex-shrink:0; margin-left:auto;">
+                            <button onclick="cambiaPasswordAccount('${window.safeId(d.id)}')" style="background:#1f6feb; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.8em; white-space:nowrap;"><i class="fa fa-key"></i> Password</button>
+                            <button onclick="scollegaAccount('${window.safeId(d.id)}')" style="background:#da3633; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.8em; white-space:nowrap;"><i class="fa fa-unlink"></i> Scollega</button>
+                        </span>
                     </div>`).join('');
             } catch (e) {
                 box.innerHTML = `<div style='color:#f85149; font-size:0.85em;'>Errore: ${window.escapeHtml(e.message)}</div>`;
@@ -338,6 +343,61 @@
             document.getElementById('acc-uid-email').value = '';
             await caricaAccountLocale();
             Swal.fire({ icon: 'success', title: 'Account collegato!', timer: 1300, showConfirmButton: false, ...SWAL_SCURO });
+        };
+
+        // Password proposta: 10 caratteri facili da dettare (niente 0/O, 1/l/I)
+        function propostaPassword() {
+            const caratteri = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const casuali = crypto.getRandomValues(new Uint32Array(10));
+            return Array.from(casuali, n => caratteri[n % caratteri.length]).join('');
+        }
+
+        // Cambio password di un account del locale. Dal browser non si può: la richiesta va in
+        // utenti/{uid}/cambio_password (la scrive solo il Super Admin) e la esegue il server
+        // (functions/account.js), che toglie subito la password dal database e scrive l'esito.
+        window.cambiaPasswordAccount = async (uid) => {
+            const email = emailAccount[uid] || uid;
+            const scelta = await Swal.fire({
+                title: 'Nuova password',
+                html: `Account <b>${window.escapeHtml(email)}</b><br><small style="color:#8b949e;">Tutti i dispositivi collegati con questo account (cassa, telefoni, Agente di stampa) dovranno rifare l'accesso con la password nuova.</small>`,
+                input: 'text', inputValue: propostaPassword(),
+                inputAttributes: { autocomplete: 'new-password', autocapitalize: 'off', spellcheck: 'false' },
+                inputValidator: (v) => (!v || v.length < 6) ? 'Almeno 6 caratteri' : (v.length > 128 ? 'Al massimo 128 caratteri' : undefined),
+                showCancelButton: true, confirmButtonText: 'Cambia password', cancelButtonText: 'Annulla', confirmButtonColor: '#1f6feb', ...SWAL_SCURO
+            });
+            if (!scelta.isConfirmed) return;
+            const password = scelta.value;
+
+            Swal.fire({ title: 'Cambio password in corso...', allowOutsideClick: false, didOpen: () => Swal.showLoading(), ...SWAL_SCURO });
+            let ref;
+            try {
+                ref = await addDoc(collection(db, 'utenti', uid, 'cambio_password'), { password, creato: serverTimestamp() });
+            } catch (e) {
+                return Swal.fire({ icon: 'error', title: 'Richiesta non inviata', text: e.message, ...SWAL_SCURO });
+            }
+            // Esito scritto dal server; la prima volta la funzione può metterci qualche secondo ad avviarsi
+            const esito = await new Promise((risolvi) => {
+                let stop = () => {};
+                const scadenza = setTimeout(() => { stop(); risolvi(null); }, 45000);
+                stop = onSnapshot(ref, (snap) => {
+                    const r = snap.data();
+                    if (r && (r.stato === 'fatto' || r.stato === 'errore')) { clearTimeout(scadenza); stop(); risolvi(r); }
+                }, () => { clearTimeout(scadenza); stop(); risolvi(null); });
+            });
+            // La richiesta non serve più: se il server non ha risposto, cancellandola la password non resta nel database
+            await deleteDoc(ref).catch(() => {});
+
+            if (!esito) {
+                return Swal.fire({ icon: 'warning', title: 'Il server non ha risposto', text: "Non è sicuro che la password sia cambiata: prova ad accedere con quella nuova e, se non funziona, riprova tra qualche minuto.", ...SWAL_SCURO });
+            }
+            if (esito.stato === 'errore') {
+                return Swal.fire({ icon: 'error', title: 'Password non cambiata', text: esito.errore || 'Errore sconosciuto', ...SWAL_SCURO });
+            }
+            Swal.fire({
+                icon: 'success', title: 'Password cambiata!',
+                html: `Account <b>${window.escapeHtml(email)}</b><br>Nuova password: <b style="font-family:monospace; font-size:1.2em; user-select:all;">${window.escapeHtml(password)}</b><br><br><small style="color:#8b949e;">Comunicala al locale: cassa, telefoni e Agente di stampa chiederanno di rifare l'accesso.</small>`,
+                ...SWAL_SCURO
+            });
         };
 
         window.scollegaAccount = async (uid) => {
