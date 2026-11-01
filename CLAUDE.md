@@ -44,7 +44,7 @@ npx firebase emulators:exec --only functions,firestore  --project demo-gestional
 ### Pagine
 Ogni app è una pagina HTML alla radice con dentro il suo `<script type="module">` (configurazione Firebase compresa). Fa eccezione la Cassa, divisa in `cassa.html` (markup e alcuni script inline, per esempio `preparaDatiStampaTermica()` e il QR raster), `cassa.js` (modulo, circa 5.000 righe) e `cassa.css`. Poiché i moduli non espongono nulla, le funzioni chiamate dagli `onclick` inline devono essere assegnate a `window.*`: chiamare una funzione non esposta è già stato causa di bug. Le regole per smartphone della Cassa sono nei blocchi `@media (max-width: 768px)` di `cassa.css` e in fondo al primo `<style>` di `cassa.html`.
 
-La radice del repository **è** la cartella pubblicata dall'Hosting: ciò che non deve finire online va aggiunto a `hosting.ignore` in `firebase.json` (oggi `test/`, `functions/`, `docs/`, `agente-stampa/`, file nascosti…). Il `Cache-Control: no-cache` su tutto serve a non lasciare versioni vecchie sui dispositivi.
+La radice del repository **è** la cartella pubblicata dall'Hosting: ciò che non deve finire online va aggiunto a `hosting.ignore` in `firebase.json` (oggi `test/`, `functions/`, `docs/`, `agente-stampa/`, `CLAUDE.md`, file nascosti…). Il `Cache-Control: no-cache` su tutto serve a non lasciare versioni vecchie sui dispositivi.
 
 ### Multi-locale
 - Locale principale `default`: raccolte alla radice (`ordini`, `prodotti`, `impostazioni`…). Altri locali: `ristoranti/{locale}/…`. Le raccolte di piattaforma (`utenti`, `saas_clienti`, `ristoranti`) restano sempre alla radice.

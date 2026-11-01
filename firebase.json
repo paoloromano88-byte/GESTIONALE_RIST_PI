@@ -23,6 +23,7 @@
       "test/**",
       "functions/**",
       "docs/**",
+      "CLAUDE.md",
       "agente-stampa/**",
       "**/agente-stampa.json",
       "**/.*",
