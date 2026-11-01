@@ -55,6 +55,14 @@ File condivisi:
   - locale principale (Da Mimmo, id `default`): raccolte alla radice (`ordini`, `prodotti`, …);
   - altri locali: `ristoranti/{id-locale}/...`;
   - ogni pagina sceglie il locale da `?locale=` o dal valore ricordato sul dispositivo.
+- **Sezioni del menu aggiunte dal locale** (oltre a pizze, stirate, bibite, primi…):
+  - si creano in Cassa → Gestionale → Menu → «📂 Sezioni del menu». Si possono rinominare, spostare ▲▼ ed eliminare, ma solo se non hanno prodotti;
+  - stanno in `impostazioni/categorie` → `sezioni: [{ id, nome, reparto, aggiunte, app_clienti }]`. L'id è `sez_…` e viene dal nome (es. «Fritti misti» → `sez_fritti_misti`): non cambia se si rinomina la sezione. Il documento è leggibile da tutti (App Clienti e Menu QR), ma lo scrive solo il personale;
+  - le funzioni comuni sono in `categorie-menu.js`: nome→id, pulizia dei dati, ordine ed etichette delle pagine, ingredienti sì/no, reparto. Le prove sono in `test/categorie-menu.test.mjs` e girano senza emulatore;
+  - **reparto** (Pizzeria/Cucina/Bar): alla creazione la sezione viene spuntata nelle stampanti di quel reparto (`impostazioni/stampanti`). Viene spuntata anche nel Monitor Cucina (`impostazioni/kds`), ma solo se è già configurato; altrimenti il KDS la mette da solo nel suo reparto. Le comande dell'ordine seguono le spunte delle stampanti, come per tutte le categorie. Anche i messaggi alla cucina (aggiunte, storni, VIA TURNO) seguono le spunte, ma solo per le sezioni: le categorie di sempre seguono le regole fisse di `comande-escpos.js`, invariate. Per questo cassa e server passano `stampanti` nel contesto di stampa;
+  - **aggiunte**: se si possono aggiungere o togliere ingredienti (Cassa, Sala, App Clienti). **app_clienti**: se la sezione si ordina dall'App Clienti. Il Menu QR le mostra tutte;
+  - compaiono in Cassa (menu, Back Office, statistiche, spunte di stampanti e KDS), Sala, Telecomando (solo se hanno prodotti), App Clienti, Menu QR e Monitor Cucina;
+  - limite: il carico del forno conta solo pizze, stirate, speciali e senza glutine, non le sezioni.
 - **Disposizione dei tavoli (Mappa Sale)**:
   - quella **standard**, uguale per tutti i giorni, è in `impostazioni/mappa_sala` (sale, tavoli, elementi);
   - un giorno può averne una **speciale** in `mappe_giorno/{AAAA-MM-GG}`, con gli stessi campi: vale solo per quella data. I giorni senza disposizione speciale usano la standard;
@@ -331,6 +339,7 @@ node test/file-pubblicati.test.mjs
 | #45 | **Pulsanti della scheda ordine in Cassa**: PIZZA/CUCINA/BAR e PRECONTO dicono sempre com'è andata la stampa; preconto sulla stampante CASSA se manca la sua; scritte intere |
 | #47 | **Agente di stampa come programma per Windows**: si scarica dal gestionale, si collega dal browser, parte con il PC, cerca e prova le stampanti, si aggiorna da solo. Al posto dell'ESP32 per i clienti lontani. **Super Admin**: link e moduli per tutte le app (App Rider, Mappa Sale, programma di stampa; moduli App Clienti e App Rider); Telecomando e Menu QR ora si spengono davvero (#48) |
 | #65 | **Mappa Sale, disposizione per giorno**: oltre alla disposizione standard, ogni giorno può avere la sua (es. una cena di gruppo), salvata solo per quella data |
+| #77 | **Sezioni del menu aggiunte dal locale**: oltre alle categorie di sempre, il locale crea le sue (es. Panini, Fritti, Gelati) con reparto di stampa, ingredienti sì/no e visibilità nell'App Clienti |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue

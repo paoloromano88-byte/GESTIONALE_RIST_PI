@@ -300,6 +300,15 @@ export function raggruppaProdotti(prodotti) {
 }
 
 // Descrizione breve per la coda di stampa e la cassa (es. "Tavolo 5", "Rossi 20:30")
+// Sezioni del menu aggiunte dal locale (id "sez_...", vedi categorie-menu.js): il loro reparto è quello
+// in cui sono spuntate nelle stampanti (ctx.stampanti = impostazioni/stampanti). Le categorie di sempre
+// seguono le regole fisse qui sotto e non cambiano. Stessa regola di repartoSezione in categorie-menu.js
+// (copiata qui perché questo file gira anche sul server da solo).
+function repartoSezione(cat, stampanti) {
+    if (typeof cat !== 'string' || !/^sez_[a-z0-9_]{1,40}$/.test(cat) || !stampanti) return null;
+    return ['pizzeria', 'cucina', 'bar'].find(r => Array.isArray(stampanti[r]?.cats) && stampanti[r].cats.includes(cat)) || null;
+}
+
 export const descrizioneStampa = (o) => o ? (o.tavolo ? `Tavolo ${o.tavolo}` : `${o.cognome || o.nome || ''} ${o.orario || ''}`.trim()) : '';
 
 // Data di oggi (AAAA-MM-GG) nel fuso del locale (o del dispositivo): con toISOString sarebbe in UTC,
@@ -513,12 +522,15 @@ export function datiChiamataTurno(o, rep, ctx = {}) {
     const tuttiProdottiTurno = (o.prodotti || []).filter(p => parseInt(p.turno || 1) === targetTurn);
     if(tuttiProdottiTurno.length === 0) return null;
 
+    const sezione = (p) => repartoSezione(p.cat, ctx.stampanti);
     const hasPizza = tuttiProdottiTurno.some(p => {
+        if (sezione(p)) return sezione(p) === 'pizzeria';
         let c = (p.cat||'').toLowerCase();
         return c === 'pizza' || c === 'stirata' || c === 'gf' || c === 'speciale' || c === 'calzone' || c.includes('focac');
     });
 
     const hasCucina = tuttiProdottiTurno.some(p => {
+        if (sezione(p)) return sezione(p) === 'cucina';
         let c = (p.cat||'').toLowerCase();
         return c === 'primo' || c === 'secondo' || c === 'contorno' || c === 'ant_ristorante' || c.includes('cuc') || c.includes('frit');
     });
@@ -530,8 +542,8 @@ export function datiChiamataTurno(o, rep, ctx = {}) {
     const itemsToPrint = tuttiProdottiTurno.filter(p => {
         let cat = (p.cat || 'varie').toLowerCase();
         let gruppo = 'altro';
-
-        if (cat === 'pizza' || cat.includes('piz') || cat==='stirata' || cat==='gf' || cat==='speciale' || cat.includes('ant_pizz') || cat.includes('calz') || cat.includes('foc')) {
+        if (sezione(p)) gruppo = sezione(p);
+        else if (cat === 'pizza' || cat.includes('piz') || cat==='stirata' || cat==='gf' || cat==='speciale' || cat.includes('ant_pizz') || cat.includes('calz') || cat.includes('foc')) {
             gruppo = 'pizzeria';
         }
         else if (cat === 'primo' || cat.includes('prim') || cat.includes('sec') || cat.includes('cont') || cat.includes('dolc') || cat.includes('cuc') || cat.includes('ant_rist')) {
@@ -608,6 +620,8 @@ export function datiAggiornamento(o, repKey, ctx = {}) {
     const spostamenti = o.ultimi_spostamenti_real || [];
 
     const getGruppo = (cat) => {
+        const rs = repartoSezione(cat, ctx.stampanti);
+        if (rs) return rs.toUpperCase();
         cat = (cat || '').toLowerCase().trim();
         const catBar = ['bibita', 'birra', 'vino', 'caffe', 'amaro', 'liquore', 'bibita_lattina', 'bibita_bottiglia', 'acqua', 'bar'];
         if (catBar.includes(cat) || cat.includes('bar') || cat.includes('bib')) return 'BAR';

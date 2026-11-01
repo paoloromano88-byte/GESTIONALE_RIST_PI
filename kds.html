@@ -138,6 +138,7 @@
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { verificaAccountLocale } from "./login-dispositivo.js";
         import { applicaLogoLocale } from "./logo-locale.js";
+        import { sezioniValide } from "./categorie-menu.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU",
@@ -349,16 +350,33 @@
                 }
             });
 
-            // 3. Configurazione Reparti KDS
+            // 3. Configurazione Reparti KDS (+ sezioni del menu aggiunte dal locale, nel loro reparto)
+            let repartiBase = REPARTI_MAP, sezioniMenu = [];
+            const aggiornaReparti = () => {
+                const m = {};
+                Object.keys(repartiBase).forEach(k => { m[k] = Array.isArray(repartiBase[k]) ? [...repartiBase[k]] : repartiBase[k]; });
+                // Una sezione che non è in nessun reparto va in quello scelto quando è stata creata
+                sezioniMenu.forEach(sz => {
+                    const giaInReparto = ['pizzeria', 'cucina', 'dolci', 'bar'].some(k => Array.isArray(m[k]) && m[k].includes(sz.id));
+                    if (!giaInReparto) m[sz.reparto] = [...(Array.isArray(m[sz.reparto]) ? m[sz.reparto] : []), sz.id];
+                });
+                REPARTI_MAP = m;
+            };
             onSnapshot(doc(db, "impostazioni", "kds"), (docSnap) => {
                 if(docSnap.exists()) {
                     const d = docSnap.data();
                     if ((d.pizzeria && d.pizzeria.length) || (d.cucina && d.cucina.length)) {
-                        REPARTI_MAP = d;
+                        repartiBase = d;
                     }
+                    aggiornaReparti();
                     renderGrid(); 
                 }
             });
+            onSnapshot(doc(db, "impostazioni", "categorie"), (snap) => {
+                sezioniMenu = sezioniValide(snap.exists() ? snap.data() : null);
+                aggiornaReparti();
+                renderGrid();
+            }, (err) => console.warn("Sezioni del menu:", err));
 
             // 4. Ascolto Ordini di Oggi
             const now = new Date();

@@ -448,6 +448,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, onSnapshot, doc as _doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { applicaLogoLocale, logoValido } from "./logo-locale.js";
+        import { sezioniValide, applicaSezioni, isSezione, etichettaDaId } from "./categorie-menu.js";
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -576,8 +577,19 @@
             'vino': 'I Vini', 'amaro': 'Amari e Caffè'
         };
 
+        const testoSicuro = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        // Sezioni del menu aggiunte dal locale (impostazioni/categorie): in fondo, con il loro nome
+        let ultimiProdotti = null;
+        onSnapshot(doc(db, "impostazioni", "categorie"), (d) => {
+            applicaSezioni(sezioniValide(d.exists() ? d.data() : null), CAT_ORDER, CAT_LABELS);
+            if (ultimiProdotti) disegnaMenuQR(ultimiProdotti);
+        }, (err) => console.warn("Sezioni del menu:", err));
+
         // --- 3. CARICAMENTO PRODOTTI IN TEMPO REALE CON FILTRO VISIBILITÀ MENU QR ---
-        onSnapshot(collection(db, "prodotti"), (snapshot) => {
+        onSnapshot(collection(db, "prodotti"), (snapshot) => { ultimiProdotti = snapshot; disegnaMenuQR(snapshot); });
+
+        function disegnaMenuQR(snapshot) {
             const prodotti = [];
             snapshot.forEach(docSnap => {
                 const p = docSnap.data();
@@ -630,10 +642,10 @@
                 grouped[cat].sort((a, b) => parseFloat(a.prezzo) - parseFloat(b.prezzo));
 
                 const isCurrentActive = (cat === activeCategoryMemory);
-                const catTitle = CAT_LABELS[cat] || cat.toUpperCase();
+                const catTitle = testoSicuro(CAT_LABELS[cat] || (isSezione(cat) ? etichettaDaId(cat) : cat.toUpperCase()));
                 const btn = document.createElement('div');
                 btn.className = 'cat-btn' + (isCurrentActive ? ' active' : '');
-                btn.innerText = catTitle;
+                btn.innerText = CAT_LABELS[cat] || (isSezione(cat) ? etichettaDaId(cat) : cat.toUpperCase());
                 
                 btn.onclick = () => {
                     activeCategoryMemory = cat;
@@ -683,7 +695,7 @@
                 htmlSezione += `</div>`;
                 menuContainer.innerHTML += htmlSezione;
             });
-        });
+        }
 
         window.ingrandisciFoto = (url) => {
             document.getElementById('lightbox-img').src = url;

@@ -351,6 +351,7 @@
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
         import { applicaLogoLocale } from "./logo-locale.js";
+        import { sezioniValide, applicaSezioni, senzaAggiunte } from "./categorie-menu.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU", 
@@ -545,6 +546,7 @@
         };
         window.modificationContext = 'CART'; 
 
+        let SEZIONI_MENU = [];
         const CATEGORY_ORDER = ['ant_pizzeria', 'ant_ristorante', 'pizza', 'speciale', 'stirata', 'gf', 'primo', 'secondo', 'contorno', 'pescato', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro'];
         const CATEGORY_LABELS = { 'pizza': 'Pizze', 'stirata': 'Stirate', 'gf': 'Gluten Free', 'speciale': 'Speciali', 'ant_pizzeria': 'Ant. Pizzeria', 'ant_ristorante': 'Ant. Ristorante', 'primo': 'Primi', 'secondo': 'Secondi', 'contorno': 'Contorni', 'pescato': 'Pescato del Giorno', 'dolce': 'Dolci', 'bibita': 'Bibite', 'bibita_lattina': 'Lattine', 'bibita_bottiglia': 'Bottiglie', 'birra': 'Birre', 'vino': 'Vini', 'amaro': 'Amari/Caffè' };
         
@@ -708,6 +710,13 @@
                 }
                 isFirstLoad = false; renderTables();
             });
+
+            // Sezioni del menu aggiunte dal locale: in fondo alle categorie, con il loro nome
+            onSnapshot(doc(db, "impostazioni", "categorie"), (snap) => {
+                SEZIONI_MENU = sezioniValide(snap.exists() ? snap.data() : null);
+                applicaSezioni(SEZIONI_MENU, CATEGORY_ORDER, CATEGORY_LABELS);
+                if (MENU.length > 0) renderCats();
+            }, (err) => console.warn("Sezioni del menu:", err));
 
             onSnapshot(collection(db, "prodotti"), (s) => {
                 MENU = s.docs.map(d => ({...d.data(), id: d.id})).filter(p => p.disponibile_palmare !== false);
@@ -1191,8 +1200,7 @@
             const p = MENU.find(x => x.id === id) || { id:'MANUAL_TEMP', nome:'Manuale', cat:'stirata', prezzo:0 }; 
             window.tempItem = { ...p }; window.modificationContext = 'CART'; window.editingCartIndex = null;
             window.tempAdds.clear(); window.tempRems.clear();
-            const noIngCats = ['bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro', 'dolce', 'caffe'];
-            const hide = noIngCats.includes(p.cat);
+            const hide = senzaAggiunte(p.cat, SEZIONI_MENU);
             document.getElementById('ing-search').parentElement.style.display = hide ? 'none' : 'block';
             document.getElementById('m-ings-add').style.display = hide ? 'none' : 'grid';
             document.getElementById('m-ings-add').previousElementSibling.style.display = hide ? 'none' : 'block';
@@ -1269,8 +1277,7 @@
                 window.tempItem = originalProd ? { ...originalProd } : { ...item };
                 window.modificationContext = 'CART_EDIT';
                 
-                const noIngCats = ['bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro', 'dolce', 'caffe'];
-                const hide = noIngCats.includes(window.tempItem.cat);
+                const hide = senzaAggiunte(window.tempItem.cat, SEZIONI_MENU);
                 document.getElementById('ing-search').parentElement.style.display = hide ? 'none' : 'block';
                 document.getElementById('m-ings-add').style.display = hide ? 'none' : 'grid';
                 document.getElementById('m-ings-add').previousElementSibling.style.display = hide ? 'none' : 'block';

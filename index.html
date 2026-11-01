@@ -484,6 +484,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc as _doc, getDoc, query, where, orderBy, limit, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { calcolaConsegna } from "./zone-consegna.js";
+        import { sezioniValide, applicaSezioni, senzaAggiunte, isSezione, etichettaDaId } from "./categorie-menu.js";
         import { applicaLogoLocale, logoValido, LOGO_BASE } from "./logo-locale.js";
         import { getAuth, signInWithPhoneNumber, RecaptchaVerifier, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -640,6 +641,16 @@
 
         const CATEGORY_ORDER = ['ant_pizzeria', 'ant_ristorante', 'pizza', 'speciale', 'stirata', 'gf', 'primo', 'secondo', 'contorno', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra'];
         const EXCLUDED_CATS = ['ant_ristorante', 'primo', 'secondo', 'contorno', 'vino', 'amaro', 'pescato'];
+        // Sezioni del menu aggiunte dal locale (impostazioni/categorie): solo quelle «ordinabili dall'App Clienti»
+        let SEZIONI_MENU = [];
+        let PRODOTTI_TUTTI = null; // null finché i prodotti non sono arrivati
+        const sezioneNascosta = (cat) => isSezione(cat) && !SEZIONI_MENU.some(s => s.id === cat && s.app_clienti !== false);
+        function aggiornaMenuVisibile() {
+            if (!PRODOTTI_TUTTI) return;
+            MENU = PRODOTTI_TUTTI.filter(p => !EXCLUDED_CATS.includes(p.cat) && !sezioneNascosta(p.cat));
+            renderCategoryPills();
+            renderMenu();
+        }
         const CATEGORY_LABELS = { 'pizza': 'PIZZE', 'stirata': 'STIRATE', 'gf': 'GLUTEN FREE', 'speciale': '✨ SPECIALI', 'ant_pizzeria': 'ANT. PIZZERIA', 'dolce': 'DOLCI', 'bibita': 'BIBITE', 'bibita_lattina': 'LATTINE', 'bibita_bottiglia': 'BOTTIGLIE', 'birra': 'BIRRE', 'amaro': 'AMARI/CAFFÈ' };
 
         window.confirmationResult = null;
@@ -1205,16 +1216,15 @@
             onSnapshot(doc(db, "impostazioni", "app_cliente"), (d) => { if(d.exists() && d.data().cross_sell_bibite !== undefined) crossSellAttivo = d.data().cross_sell_bibite; });
             onSnapshot(doc(db, "impostazioni", "fidelity"), (d) => { if(d.exists()) FIDELITY_CONFIG = d.data(); });
             
+            onSnapshot(doc(db, "impostazioni", "categorie"), (d) => {
+                SEZIONI_MENU = sezioniValide(d.exists() ? d.data() : null);
+                applicaSezioni(SEZIONI_MENU, CATEGORY_ORDER, CATEGORY_LABELS, { maiuscolo: true, filtro: s => s.app_clienti !== false });
+                aggiornaMenuVisibile();
+            }, (err) => console.warn("Sezioni del menu:", err));
+
             onSnapshot(collection(db, "prodotti"), (snap) => { 
-                MENU = [];
-                snap.forEach(d => {
-                    const data = d.data();
-                    if (!EXCLUDED_CATS.includes(data.cat)) {
-                        MENU.push({...data, id: d.id});
-                    }
-                }); 
-                renderCategoryPills();
-                renderMenu(); 
+                PRODOTTI_TUTTI = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                aggiornaMenuVisibile();
             });
 
             onSnapshot(collection(db, "ingredienti"), (snap) => {
@@ -1246,8 +1256,8 @@
             const container = document.getElementById('cat-scroll-container');
             container.innerHTML = `<div class="cat-pill ${curCat==='tutti'?'active':''}" onclick="filtra('tutti',this)">TUTTI</div>`;
             const availableCats = new Set(MENU.map(p => p.cat));
-            CATEGORY_ORDER.forEach(cat => { if (availableCats.has(cat)) { const label = CATEGORY_LABELS[cat] || cat.toUpperCase(); const activeClass = curCat === cat ? 'active' : ''; container.innerHTML += `<div class="cat-pill ${activeClass}" onclick="filtra('${cat}',this)">${label}</div>`; } });
-            availableCats.forEach(cat => { if (!CATEGORY_ORDER.includes(cat) && !EXCLUDED_CATS.includes(cat)) { const activeClass = curCat === cat ? 'active' : ''; container.innerHTML += `<div class="cat-pill ${activeClass}" onclick="filtra('${cat}',this)">${cat.toUpperCase()}</div>`; } });
+            CATEGORY_ORDER.forEach(cat => { if (availableCats.has(cat)) { const label = window.escapeHtml(CATEGORY_LABELS[cat] || cat.toUpperCase()); const activeClass = curCat === cat ? 'active' : ''; container.innerHTML += `<div class="cat-pill ${activeClass}" onclick="filtra('${cat}',this)">${label}</div>`; } });
+            availableCats.forEach(cat => { if (!CATEGORY_ORDER.includes(cat) && !EXCLUDED_CATS.includes(cat)) { const activeClass = curCat === cat ? 'active' : ''; container.innerHTML += `<div class="cat-pill ${activeClass}" onclick="filtra('${cat}',this)">${window.escapeHtml(isSezione(cat) ? etichettaDaId(cat).toUpperCase() : String(cat).toUpperCase())}</div>`; } });
         }
 
         function renderMenu(searchVal = "") {
@@ -1310,7 +1320,7 @@
 
         function renderIngredientiModal(filterText) {
             const divAgg = document.getElementById('lista-aggiunte'); divAgg.innerHTML=""; const divRem = document.getElementById('lista-rimozioni'); divRem.innerHTML=""; const filter = filterText ? filterText.toLowerCase() : "";
-            if(['pizza','stirata','speciale','gf'].includes(tempProd.cat) || (tempProd.cat || '').includes('ant_')) {
+            if(['pizza','stirata','speciale','gf'].includes(tempProd.cat) || (tempProd.cat || '').includes('ant_') || (isSezione(tempProd.cat) && !senzaAggiunte(tempProd.cat, SEZIONI_MENU))) {
                 const filteredIngs = INGREDIENTI.filter(i => i.attivo!==false && (i.nome || '').toLowerCase().includes(filter));
                 filteredIngs.forEach(i => { 
                     const el=document.createElement('div'); el.className='ing-chip'; const isSelected = tempAgg.some(x => x.nome === i.nome); if(isSelected) el.classList.add('selected');

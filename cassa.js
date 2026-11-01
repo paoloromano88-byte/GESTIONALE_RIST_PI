@@ -1,8 +1,9 @@
-import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, increment, writeBatch, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, arrayRemove, increment, writeBatch, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { verificaAccountLocale } from "./login-dispositivo.js";
 import { calcolaConsegna } from "./zone-consegna.js";
 import { applicaLogoLocale, logoValido, LOGO_BASE } from "./logo-locale.js";
+import { sezioniValide, applicaSezioni, nuovoIdSezione, senzaAggiunte, etichettaDaId, isSezione, REPARTI_SEZIONE, NOMI_REPARTI, MAX_SEZIONI } from "./categorie-menu.js";
 import { datiOrdine, datiMessaggioCucina, raggruppaProdotti, descrizioneStampa, byteDatiStampa, base64Byte, righeServizioCucina } from "./comande-escpos.js";
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
@@ -606,6 +607,11 @@ async function init() {
         }, (err) => { console.error("Impostazioni stampanti:", err); if (primo) { primo = false; resolve(); } });
     });
     avviaMonitorStampa();
+    // Sezioni del menu aggiunte dal locale (impostazioni/categorie)
+    onSnapshot(doc(db, "impostazioni", "categorie"), (snap) => {
+        window.SEZIONI_MENU = sezioniValide(snap.exists() ? snap.data() : null);
+        aggiornaSezioniMenuUI();
+    }, (err) => console.warn("Sezioni del menu:", err));
     // Copia pubblica dei codici sconto per l'App Clienti (anche per quelli creati prima di questa versione)
     window.caricaSconti().catch(e => console.warn("Codici sconto:", e));
     
@@ -1966,8 +1972,7 @@ function prepareModalForEdit(item) {
     window.INGS.forEach(i => { if(currentDetails.includes(`+${i.nome}`)) tempAddList.add(i.nome); });
     window.RIMS.forEach(r => { if(currentDetails.includes(`-${r.nome}`)) tempRemList.add(r.nome); });
     
-    const noIngCats = ['bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro', 'dolce', 'caffe'];
-    const hide = noIngCats.includes(item.cat);
+    const hide = senzaAggiunte(item.cat, window.SEZIONI_MENU);
 
     document.getElementById('ing-search').style.display = hide ? 'none' : 'block';
     document.getElementById('m-ings-add').style.display = hide ? 'none' : 'grid';
@@ -2473,6 +2478,7 @@ const contestoStampa = (extra = {}) => ({
     righeServizio: (o) => window.getRigheStampaCucinaFiltrate(o),
     qrDati: (o) => (typeof window.datiQrConsegnaESC === 'function' ? window.datiQrConsegnaESC(o) : []),
     prezzoCoperto: window.prezzoCopertoLocale || 2.50,
+    stampanti: PRINTER_CONFIG, // le sezioni aggiunte dal locale vanno nel reparto in cui sono spuntate
     ...extra
 });
 
@@ -2675,8 +2681,7 @@ window.openItemModal = (id) => {
     window.modificationContext = 'CART'; 
     window.editingCartIndex = null;
     
-    const noIngCats = ['bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro', 'dolce', 'caffe'];
-    const hide = noIngCats.includes(p.cat);
+    const hide = senzaAggiunte(p.cat, window.SEZIONI_MENU);
     
     document.getElementById('ing-search').style.display = hide ? 'none' : 'block';
     document.getElementById('m-ings-add').style.display = hide ? 'none' : 'grid';
@@ -3175,11 +3180,13 @@ function renderCats() {
             container.innerHTML += `<div class="cat-pill ${activeClass}" onclick="setCat('${cat}')">${label}</div>`;
         }
     });
-    availableCats.forEach(cat => {
-        if (!CATEGORY_ORDER.includes(cat)) {
-            const activeClass = window.currentCat === cat ? 'active' : '';
-            container.innerHTML += `<div class="cat-pill ${activeClass}" onclick="setCat('${cat}')">${cat.toUpperCase()}</div>`;
-        }
+    // Le altre categorie come arrivano, poi le sezioni aggiunte dal locale nel loro ordine
+    const sezioni = (window.SEZIONI_MENU || []).map(x => x.id);
+    const altre = [...availableCats].filter(cat => !CATEGORY_ORDER.includes(cat) && !sezioni.includes(cat));
+    [...altre, ...sezioni.filter(id => availableCats.has(id))].forEach(cat => {
+        const activeClass = window.currentCat === cat ? 'active' : '';
+        const label = window.escapeHtml(CATEGORY_LABELS[cat] || (isSezione(cat) ? etichettaDaId(cat) : String(cat).toUpperCase()));
+        container.innerHTML += `<div class="cat-pill ${activeClass}" onclick="setCat('${cat}')">${label}</div>`;
     });
 }
 
@@ -3476,6 +3483,167 @@ window.cambiaTab = (tab) => {
 
 // Prodotti del Gestionale → Menu: un solo ascolto del database, aperto la prima volta che si apre la
 // scheda (prima se ne aggiungeva uno a ogni apertura); le volte dopo si ridisegna soltanto.
+// ============================================================================
+// SEZIONI DEL MENU AGGIUNTE DAL LOCALE (impostazioni/categorie, vedi categorie-menu.js)
+// ============================================================================
+window.SEZIONI_MENU = [];
+
+function aggiornaSezioniMenuUI() {
+    applicaSezioni(window.SEZIONI_MENU, ALL_CATS, CATEGORY_LABELS);
+    // Scelta della sezione nel modulo del prodotto
+    const sel = document.getElementById('new-cat');
+    if (sel) {
+        const valore = sel.value;
+        sel.querySelector('#optgroup-sezioni')?.remove();
+        if (window.SEZIONI_MENU.length) {
+            const g = document.createElement('optgroup');
+            g.id = 'optgroup-sezioni';
+            g.label = 'Sezioni aggiunte';
+            window.SEZIONI_MENU.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.nome; g.appendChild(o); });
+            sel.appendChild(g);
+        }
+        if ([...sel.options].some(o => o.value === valore)) sel.value = valore;
+    }
+    disegnaSezioniMenu();
+    if (ascoltoProdottiGestionale) disegnaProdottiGestionale();
+    if (Array.isArray(window.MENU) && document.getElementById('cat-list')) renderCats();
+}
+
+function disegnaSezioniMenu() {
+    const box = document.getElementById('lista-sezioni-menu');
+    if (!box) return;
+    const sez = window.SEZIONI_MENU;
+    if (!sez.length) {
+        box.innerHTML = `<div class="sezioni-vuoto">Nessuna sezione aggiunta. Con «＋ Nuova sezione» puoi crearne una (es. Panini, Fritti, Gelati).</div>`;
+        return;
+    }
+    const conta = (id) => (prodottiPerCategoria[id] || (window.MENU || []).filter(p => p.cat === id)).length;
+    box.innerHTML = sez.map((x, i) => `
+        <div class="sezione-riga" data-sezione="${x.id}">
+            <div class="sezione-info">
+                <b>${window.escapeHtml(x.nome)}</b>
+                <span class="sezione-chip">🖨️ ${NOMI_REPARTI[x.reparto]}</span>
+                <span class="sezione-chip">${x.aggiunte ? '➕ Ingredienti sì' : 'Ingredienti no'}</span>
+                <span class="sezione-chip">${x.app_clienti ? '📱 App Clienti sì' : 'App Clienti no'}</span>
+                <span class="sezione-chip">${conta(x.id)} ${conta(x.id) === 1 ? 'prodotto' : 'prodotti'}</span>
+            </div>
+            <div class="sezione-azioni">
+                <button type="button" title="Sposta su" ${i === 0 ? 'disabled' : ''} onclick="window.spostaSezioneMenu('${x.id}', -1)">▲</button>
+                <button type="button" title="Sposta giù" ${i === sez.length - 1 ? 'disabled' : ''} onclick="window.spostaSezioneMenu('${x.id}', 1)">▼</button>
+                <button type="button" title="Modifica" onclick="window.modificaSezioneMenu('${x.id}')">✏️</button>
+                <button type="button" title="Elimina" class="sezione-elimina" onclick="window.eliminaSezioneMenu('${x.id}')">🗑️</button>
+            </div>
+        </div>`).join('');
+}
+
+async function salvaSezioniMenu(sezioni) {
+    await setDoc(doc(db, "impostazioni", "categorie"), { sezioni, aggiornato: serverTimestamp() });
+    window.SEZIONI_MENU = sezioniValide({ sezioni });
+    aggiornaSezioniMenuUI();
+}
+
+// La sezione va nel reparto scelto: stampante (impostazioni/stampanti) e Monitor Cucina (impostazioni/kds)
+async function impostaRepartoSezione(id, reparto, repartoPrima = null) {
+    const stampanti = {}, kds = {};
+    if (repartoPrima && repartoPrima !== reparto) {
+        stampanti[repartoPrima] = { cats: arrayRemove(id) };
+        kds[repartoPrima] = arrayRemove(id);
+    }
+    if (reparto) {
+        stampanti[reparto] = { cats: arrayUnion(id) };
+        kds[reparto] = arrayUnion(id);
+    }
+    await setDoc(doc(db, "impostazioni", "stampanti"), stampanti, { merge: true });
+    // Il Monitor Cucina si aggiorna solo se è già configurato: altrimenti usa i suoi reparti di base
+    // (e mette da solo le sezioni nel loro reparto). Scrivere solo la sezione gli farebbe perdere il resto.
+    const kdsConfigurato = (KDS_CONFIG.pizzeria || []).length > 0 || (KDS_CONFIG.cucina || []).length > 0;
+    if (!kdsConfigurato) return;
+    await setDoc(doc(db, "impostazioni", "kds"), kds, { merge: true });
+    if (repartoPrima && Array.isArray(KDS_CONFIG[repartoPrima])) KDS_CONFIG[repartoPrima] = KDS_CONFIG[repartoPrima].filter(c => c !== id);
+    if (reparto) KDS_CONFIG[reparto] = [...new Set([...(KDS_CONFIG[reparto] || []), id])];
+}
+
+async function formSezioneMenu(titolo, x = {}) {
+    const r = await Swal.fire({
+        title: titolo,
+        html: `
+            <div class="form-sezione">
+                <label>Nome della sezione<input id="sez-nome" class="swal2-input" maxlength="40" placeholder="Es. Panini, Fritti, Gelati" value="${window.escapeHtml(x.nome || '')}"></label>
+                <label>Reparto (stampante e Monitor Cucina)
+                    <select id="sez-reparto" class="swal2-select">
+                        ${REPARTI_SEZIONE.map(rp => `<option value="${rp}" ${(x.reparto || 'cucina') === rp ? 'selected' : ''}>${NOMI_REPARTI[rp]}</option>`).join('')}
+                    </select>
+                </label>
+                <label class="form-sezione-check"><input type="checkbox" id="sez-aggiunte" ${x.aggiunte ? 'checked' : ''}> Si possono aggiungere o togliere ingredienti</label>
+                <label class="form-sezione-check"><input type="checkbox" id="sez-app" ${x.app_clienti !== false ? 'checked' : ''}> Si ordina anche dall'App Clienti</label>
+            </div>`,
+        showCancelButton: true, confirmButtonText: 'Salva', cancelButtonText: 'Annulla',
+        focusConfirm: false,
+        didOpen: () => document.getElementById('sez-nome').focus(),
+        preConfirm: () => {
+            const nome = document.getElementById('sez-nome').value.trim().replace(/\s+/g, ' ');
+            if (!nome) { Swal.showValidationMessage('Scrivi il nome della sezione'); return false; }
+            const doppione = window.SEZIONI_MENU.find(s => s.id !== x.id && s.nome.toLowerCase() === nome.toLowerCase())
+                || Object.entries(CATEGORY_LABELS).find(([k, v]) => !isSezione(k) && String(v).toLowerCase() === nome.toLowerCase());
+            if (doppione) { Swal.showValidationMessage('Esiste già una sezione con questo nome'); return false; }
+            return {
+                nome: nome.slice(0, 40),
+                reparto: document.getElementById('sez-reparto').value,
+                aggiunte: document.getElementById('sez-aggiunte').checked,
+                app_clienti: document.getElementById('sez-app').checked,
+            };
+        }
+    });
+    return r.isConfirmed ? r.value : null;
+}
+
+window.nuovaSezioneMenu = async () => {
+    if (window.SEZIONI_MENU.length >= MAX_SEZIONI) return Swal.fire('Troppe sezioni', `Puoi aggiungere al massimo ${MAX_SEZIONI} sezioni.`, 'warning');
+    const v = await formSezioneMenu('Nuova sezione del menu');
+    if (!v) return;
+    const id = nuovoIdSezione(v.nome, [...ALL_CATS, ...window.SEZIONI_MENU.map(s => s.id)]);
+    try {
+        await salvaSezioniMenu([...window.SEZIONI_MENU, { id, ...v }]);
+        await impostaRepartoSezione(id, v.reparto);
+        Swal.fire({ icon: 'success', title: `Sezione «${v.nome}» creata`, text: 'Ora puoi aggiungere i prodotti scegliendola nel modulo qui sotto.', timer: 2200, showConfirmButton: false });
+    } catch (e) { Swal.fire('Errore', e.message, 'error'); }
+};
+
+window.modificaSezioneMenu = async (id) => {
+    const x = window.SEZIONI_MENU.find(s => s.id === id);
+    if (!x) return;
+    const v = await formSezioneMenu('Modifica sezione', x);
+    if (!v) return;
+    try {
+        await salvaSezioniMenu(window.SEZIONI_MENU.map(s => s.id === id ? { ...s, ...v } : s));
+        if (v.reparto !== x.reparto) await impostaRepartoSezione(id, v.reparto, x.reparto);
+    } catch (e) { Swal.fire('Errore', e.message, 'error'); }
+};
+
+window.spostaSezioneMenu = async (id, verso) => {
+    const lista = [...window.SEZIONI_MENU];
+    const i = lista.findIndex(s => s.id === id);
+    const j = i + verso;
+    if (i < 0 || j < 0 || j >= lista.length) return;
+    [lista[i], lista[j]] = [lista[j], lista[i]];
+    try { await salvaSezioniMenu(lista); } catch (e) { Swal.fire('Errore', e.message, 'error'); }
+};
+
+window.eliminaSezioneMenu = async (id) => {
+    const x = window.SEZIONI_MENU.find(s => s.id === id);
+    if (!x) return;
+    try {
+        const prodotti = await getDocs(query(collection(db, "prodotti"), where("cat", "==", id)));
+        if (prodotti.size > 0) {
+            return Swal.fire('Sezione non vuota', `In «${x.nome}» ci sono ${prodotti.size} prodotti. Spostali in un'altra sezione (✏️ sul prodotto) o eliminali, poi elimina la sezione.`, 'warning');
+        }
+        const r = await Swal.fire({ title: `Eliminare la sezione «${x.nome}»?`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Elimina', cancelButtonText: 'Annulla', confirmButtonColor: '#d32f2f' });
+        if (!r.isConfirmed) return;
+        await salvaSezioniMenu(window.SEZIONI_MENU.filter(s => s.id !== id));
+        await impostaRepartoSezione(id, null, x.reparto);
+    } catch (e) { Swal.fire('Errore', e.message, 'error'); }
+};
+
 let ascoltoProdottiGestionale = null;
 function caricaProdotti() {
     if (!document.getElementById('cat-filters-container')) return;
@@ -3491,6 +3659,7 @@ function caricaProdotti() {
             prodottiPerCategoria[p.cat].push(p);
         });
         disegnaProdottiGestionale();
+        disegnaSezioniMenu();
     });
 }
 
@@ -3498,10 +3667,11 @@ function disegnaProdottiGestionale() {
     const f = document.getElementById('cat-filters-container');
     if (!f) return;
     f.innerHTML = "";
-    const oc = ['ant_pizzeria', 'ant_ristorante', 'pizza', 'speciale', 'stirata', 'gf', 'primo', 'secondo', 'contorno', 'pescato', 'dolce', 'bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro'];
+    // Categorie di sempre, sezioni aggiunte dal locale, poi eventuali categorie sconosciute (così nessun prodotto sparisce)
+    const oc = [...ALL_CATS, ...Object.keys(prodottiPerCategoria).filter(c => !ALL_CATS.includes(c))];
     oc.forEach(cat => {
         if (prodottiPerCategoria[cat]) {
-            const lb = CATEGORY_LABELS[cat] || cat.toUpperCase();
+            const lb = window.escapeHtml(CATEGORY_LABELS[cat] || (isSezione(cat) ? etichettaDaId(cat) : String(cat).toUpperCase()));
             f.innerHTML += `<button class="cat-filter-btn ${currentBackOfficeCat === cat ? 'active' : ''}" onclick="window.mostraCat('${cat}')">${lb}</button>`;
         }
     });
@@ -3911,7 +4081,7 @@ window.calcolaStats = async () => {
         } else {
             foundCats.forEach(cat => {
                 let products = Object.entries(statsPerCat[cat]).sort((a,b) => b[1] - a[1]);
-                let catLabel = CATEGORY_LABELS[cat] || cat.toUpperCase();
+                let catLabel = CATEGORY_LABELS[cat] || (isSezione(cat) ? etichettaDaId(cat) : cat.toUpperCase());
                 let html = `<div class="cat-rank-title">${window.escapeHtml(catLabel)}</div><table class="ranking-table"><tbody>`;
                 products.forEach((prod, index) => {
                     let qtyDisplay = prod[1] % 1 === 0 ? prod[1] : prod[1].toFixed(3);

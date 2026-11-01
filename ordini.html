@@ -348,6 +348,7 @@
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
         import { applicaLogoLocale } from "./logo-locale.js";
         import { mostraBloccoLicenza } from "./licenza-locale.js";
+        import { sezioniValide, applicaSezioni, isSezione } from "./categorie-menu.js";
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -508,6 +509,12 @@
             const dataOggi = getTodayStr();
             document.getElementById('cli-data').value = dataOggi;
             
+            // Sezioni del menu aggiunte dal locale: in fondo alle categorie, con il loro nome
+            onSnapshot(doc(db, "impostazioni", "categorie"), (snap) => {
+                applicaSezioni(sezioniValide(snap.exists() ? snap.data() : null), CATS, LABELS);
+                if (MENU.length > 0) renderCats();
+            }, (err) => console.warn("Sezioni del menu:", err));
+
             onSnapshot(collection(db, "prodotti"), (s) => {
                 MENU = s.docs
                     .map(d => ({...d.data(), id: d.id}))
@@ -725,7 +732,9 @@
 
         window.renderCats = () => {
             const div = document.getElementById('cat-list');
-            div.innerHTML = CATS.map(c => `<button class="cat-btn ${c === currentCat ? 'active' : ''}" onclick="setCat('${c}')">${LABELS[c] || c.toUpperCase()}</button>`).join('');
+            // Le sezioni aggiunte dal locale compaiono solo se hanno prodotti
+            const cats = CATS.filter(c => !isSezione(c) || MENU.some(p => p.cat === c));
+            div.innerHTML = cats.map(c => `<button class="cat-btn ${c === currentCat ? 'active' : ''}" onclick="setCat('${c}')">${window.escapeHtml(LABELS[c] || c.toUpperCase())}</button>`).join('');
         };
 
         window.setCat = (c) => { currentCat = c; renderCats(); renderMenu(); };

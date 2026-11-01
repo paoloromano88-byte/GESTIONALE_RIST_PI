@@ -62,7 +62,7 @@ service cloud.firestore {
     // scritto dal cliente leggendo codici_sconto/{CODICE}, che non si può elencare.
     function letturaPubblica(coll, id) {
       return coll in ['prodotti', 'ingredienti', 'rimozioni', 'codici_sconto', 'occupazione_forno']
-        || (coll == 'impostazioni' && id in ['negozio', 'licenza', 'forno', 'app_cliente', 'fidelity']);
+        || (coll == 'impostazioni' && id in ['negozio', 'licenza', 'forno', 'app_cliente', 'fidelity', 'categorie']);
     }
 
     function testo(v, max) {
