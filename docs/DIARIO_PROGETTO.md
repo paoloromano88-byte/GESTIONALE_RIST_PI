@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con la PR #43 (sito vetrina **Gestì** e decisioni di marketing: sezione 2, «Marketing: Gestì»).
+**Ultimo aggiornamento:** 01/11/2026: marketing ripreso, sito vetrina **Gestì** riportato sull'ultima versione (sezione 2, «Marketing: Gestì»), cambio password dal Super Admin, file privati non più pubblicati (sezione 7).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -370,7 +370,13 @@ Altre strade valutate: stampa dal browser (una sola stampante, finestra «Stampa
 Da verificare sul posto:
 - **QR sugli scontrini**: al primo ordine a domicilio, controllare che il QR esca nitido dalla stampante vera e che il rider lo scansioni. Non è stato provato con una stampante reale. Se esce male, servono il modello della stampante e una foto dello scontrino. Alternative: comando QR nativo `GS ( k`, oppure moduli più grandi in `rasterQrBase64`.
 
-**Sito vetrina Gestì e marketing: in pausa** (deciso il 27/10/2026). Il lavoro (pagina `gesti/`, modulo «Richiedi una demo» con `richieste_demo` e sezione nel Super Admin, decisioni su nome, prezzi 39/69 € e canali di vendita) è nella PR #43, chiusa senza unire, issue #42 aperta. Per riprenderlo: partire dall'ultima `main`, poi `git fetch origin pull/43/head && git cherry-pick 0fb3666^..1be15a0`. Logo scelto: la «G» arancione con la stellina gialla.
+**Sito vetrina Gestì e marketing: ripreso il 01/11/2026** (era in pausa dal 27/10).
+- I 4 commit della PR #43 (chiusa senza unire) sono stati riportati sull'ultima `main` in una PR nuova, che chiude l'issue #42. Logo scelto: la «G» arancione con la stellina gialla.
+- Aggiunti rispetto alla PR #43:
+  - anteprima nei social con indirizzi completi (`og:image`, `og:url`), da cambiare quando c'è il dominio;
+  - `gesti/` nel test dei file pubblicati;
+  - la prova nel browser salvata in `test/browser/gesti.cjs` (sito su telefono e PC, calcolatore, modulo con le regole vere, richieste nel Super Admin con testo «trappola», «Richiamato», «Elimina»).
+- **Prima di pubblicizzare la pagina restano:** nome e P.IVA del titolare in `TITOLARE` (`gesti/index.html`, informativa privacy) e il dominio.
 
 Idee per dopo (non richieste):
 - ~~Togliere "Prendi a mano" dall'App Rider~~: **deciso di lasciarlo** (27/10/2026), serve se il QR non si legge.
@@ -472,7 +478,7 @@ Controllo automatico di tutto il codice più prove a mano; tutto corretto nella 
   - cambia la password solo agli account con `ruolo: 'locale'`, mai al Super Admin;
   - scrive l'esito. La pagina lo aspetta fino a 45 secondi e poi cancella la richiesta.
 - Scelto un trigger su Firestore e non una funzione chiamabile dal browser (`onCall`), che richiederebbe il ruolo «Amministratore Cloud Run» all'account del deploy (vedi la sezione sulla firma di QZ Tray).
-- Da verificare dopo la prima pubblicazione: che l'account con cui girano le funzioni abbia il permesso di modificare gli utenti di Authentication. Se manca, il pulsante risponde «Password non cambiata» con il messaggio di Google.
+- ✅ Provato in produzione il 01/11/2026 dal titolare su un account di prova: la funzione ha il permesso di modificare gli utenti di Authentication e la password cambia. Se in futuro comparisse «Password non cambiata», il messaggio di Google dice quale permesso manca.
 - Test: `functions/test/cambio-password.test.mjs` (in CI) e la prova nel browser `test/browser/superadmin-password.cjs` (primo script salvato in `test/browser/`).
 
 ## 8. Come riprendere in una nuova sessione
