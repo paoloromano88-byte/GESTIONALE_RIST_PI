@@ -15,7 +15,7 @@ Gestionale per ristoranti venduto a più locali (multi-tenant), su Firebase (pro
 
 Niente build, bundler o linter: le pagine HTML si pubblicano così come sono. Il frontend importa Firebase JS SDK **10.7.1** dal CDN gstatic (`<script type="module">`); le altre librerie (SweetAlert2, QZ Tray, jsrsasign, qrcode-generator, Chart.js, jsQR) arrivano anch'esse da CDN.
 
-Test con gli emulatori Firebase (dalla radice; servono Node 22 e Java):
+Test con gli emulatori Firebase (dalla radice; servono Node 22 e Java). Nelle sessioni cloud le prime tre righe qui sotto le esegue già `.claude/hooks/session-start.sh` all'avvio (scarica anche l'emulatore Firestore e reinstalla solo se cambiano lo script o `functions/package*.json`): i test si lanciano direttamente.
 
 ```
 npm install --no-save --no-audit --no-fund firebase-tools@13.29.1 @firebase/rules-unit-testing@3.0.4 firebase@10.7.1
@@ -35,7 +35,7 @@ node test/file-pubblicati.test.mjs    # file che l'Hosting pubblica (senza emula
 - Non c'è un framework di test: ogni file è uno script Node autonomo (helper `t()` + `assert`). Per una sola suite si lancia solo il suo comando; non si filtrano i singoli casi.
 - Nel test delle regole i log `PERMISSION_DENIED` sono normali (sono le scritture che devono fallire): conta la riga finale `RISULTATO: N ok, 0 falliti` e il codice di uscita.
 - Le porte degli emulatori sono fisse in `firebase.json` (Firestore 8085, Auth 9099, Functions 5011) e i test le danno per scontate.
-- `functions/zone-consegna.js` e `functions/comande-escpos.js` sono **copie** (ignorate da git) degli originali alla radice: dopo averli modificati vanno ricopiati prima dei test. Al deploy le copia il `predeploy` di `firebase.json`.
+- `functions/zone-consegna.js` e `functions/comande-escpos.js` sono **copie** (ignorate da git) degli originali alla radice: l'hook di avvio le rifà, ma dopo aver modificato gli originali durante la sessione vanno ricopiate prima dei test. Al deploy le copia il `predeploy` di `firebase.json`.
 - La CI (`.github/workflows/test-emulatori.yml`) esegue esattamente questi comandi.
 - Agente di stampa senza Windows: `node agente-stampa/programma.mjs` (pagina su `http://127.0.0.1:17917`, dati in `~/.agente-stampa`). Riga di comando: `node agente-stampa/agente.mjs`.
 - Il firmware ESP32 lo compila solo GitHub (`firmware-esp32.yml`, arduino-cli, core esp32 3.0.7): nelle sessioni cloud i siti degli strumenti ESP32 sono bloccati.
