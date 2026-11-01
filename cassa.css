@@ -761,3 +761,16 @@ body {
 .form-sezione .swal2-input, .form-sezione .swal2-select { margin: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
 .form-sezione .form-sezione-check { flex-direction: row; align-items: center; gap: 8px; font-weight: normal; }
 .form-sezione .form-sezione-check input { width: 20px; height: 20px; }
+
+/* ===== STAMPANTI: NOMI E STAMPANTI AGGIUNTE (Gestionale > Stampanti) ===== */
+.input-nome-stampante { max-width: 220px; }
+.box-stampanti-aggiunte { background: #fff8e1; border: 1px solid #ffcc80; border-radius: 10px; padding: 10px 12px; margin: 10px 0 15px; }
+.box-stampanti-aggiunte-testa { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.box-stampanti-aggiunte-testa b { display: block; color: #e65100; }
+.box-stampanti-aggiunte-testa small { color: #555; }
+.box-stampanti-aggiunte-testa .btn-save { margin: 0; flex-shrink: 0; }
+.stampante-aggiunta { margin-top: 8px; background: #fff; }
+.stampante-aggiunta-testa { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.stampante-aggiunta-testa .input-std { flex: 1 1 160px; min-width: 0; }
+.stampante-aggiunta-testa .btn-elimina-stampante { flex-shrink: 0; min-width: 42px; height: 40px; border-radius: 6px; border: 1px solid #ef9a9a; background: #fff; cursor: pointer; }
+.stampanti-aggiunte-vuoto { color: #666; font-size: 0.9em; margin-top: 6px; }

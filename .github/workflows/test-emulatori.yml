@@ -25,6 +25,8 @@ jobs:
           cp comande-escpos.js functions/comande-escpos.js
       - name: Sezioni del menu (categorie-menu.js e stampa delle sezioni)
         run: node test/categorie-menu.test.mjs
+      - name: Stampanti con nome e stampanti aggiunte dal locale
+        run: node test/stampanti.test.mjs
       - name: Regole Firestore
         run: npx firebase emulators:exec --only firestore --project demo-gestionale "node test/regole-firestore.test.mjs"
       - name: Agente di stampa (coda, stampanti finte)

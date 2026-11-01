@@ -9,11 +9,11 @@
 // ============================================================================
 import qrcode from 'qrcode-generator';
 import { FieldValue } from 'firebase-admin/firestore';
-import { datiOrdine, datiMessaggioCucina, applicaBloccoDomicilio, pulisciDatiStampa, isDomicilio, byteDatiStampa, base64Byte, descrizioneStampa } from './comande-escpos.js';
+import { datiOrdine, datiMessaggioCucina, repartiComande, nomeStampante, applicaBloccoDomicilio, pulisciDatiStampa, isDomicilio, byteDatiStampa, base64Byte, descrizioneStampa } from './comande-escpos.js';
 
 // Indirizzo del sito per il QR della consegna (apre l'App Rider)
 export const URL_SITO = 'https://gestionale-ristoranti-96c5b.web.app/';
-export const REPARTI = ['pizzeria', 'cucina', 'bar'];
+export const REPARTI = ['pizzeria', 'cucina', 'bar']; // più le stampanti aggiunte dal locale (stm_...): repartiComande()
 // Come la cassa: si stampano solo gli ordini appena arrivati (non quelli ripristinati da un backup)
 const MS_ORDINE_NUOVO = 2 * 60 * 1000;
 
@@ -40,7 +40,7 @@ const ipReparto = (config, reparto) => String(config?.[reparto]?.ip || '').trim(
 // Comande di un ordine nuovo: una per ogni reparto che ha qualcosa da preparare
 export function comandePerOrdine(ordine, config, ctx) {
     const voci = [];
-    for (const reparto of REPARTI) {
+    for (const reparto of repartiComande(config)) {
         const ip = ipReparto(config, reparto);
         if (!ip) continue;
         const stampa = datiOrdine(ordine, reparto.toUpperCase(), config, ctx);
@@ -52,12 +52,12 @@ export function comandePerOrdine(ordine, config, ctx) {
 // Comande per un messaggio alla cucina (chiamata del turno, aggiunte, storni)
 export function comandePerMessaggio(ordine, config, ctx) {
     const voci = [];
-    for (const reparto of REPARTI) {
+    for (const reparto of repartiComande(config)) {
         const ip = ipReparto(config, reparto);
         if (!ip) continue;
         // stampanti: le sezioni aggiunte dal locale vanno nel reparto in cui sono spuntate
         const stampa = datiMessaggioCucina(ordine, reparto, { ...ctx, stampanti: config });
-        if (stampa) voci.push(voceCoda(ordine, reparto, ip, stampa.data, `${reparto.toUpperCase()} · ${descrizioneStampa(ordine)}`));
+        if (stampa) voci.push(voceCoda(ordine, reparto, ip, stampa.data, `${nomeStampante(config, reparto).toUpperCase()} · ${descrizioneStampa(ordine)}`));
     }
     return voci;
 }

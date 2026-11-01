@@ -159,7 +159,8 @@ await prova('stampanti della cassa, avviso QZ, stampa di prova e ricerca in rete
   const cassa = await creaAccount('cassa2@programma.it', 'pizzeria-test');
   const st = await stampanteFinta(), st2 = await stampanteFinta();
   await scriviAdmin('ristoranti/pizzeria-test/impostazioni/negozio', { nome: 'Pizzeria Bella' });
-  await scriviAdmin('ristoranti/pizzeria-test/impostazioni/stampanti', { metodo: 'qz', conto: { ip: `127.0.0.1:${st.porta}` }, preconto: { ip: '' }, pizzeria: { ip: '192.168.1.50' }, cucina: { ip: '' }, bar: { ip: '' } });
+  // pizzeria rinominata «Forno» e una stampante aggiunta dal locale (Friggitoria)
+  await scriviAdmin('ristoranti/pizzeria-test/impostazioni/stampanti', { metodo: 'qz', conto: { ip: `127.0.0.1:${st.porta}` }, preconto: { ip: '' }, pizzeria: { ip: '192.168.1.50', nome: 'Forno' }, cucina: { ip: '' }, bar: { ip: '' }, stm_friggitoria: { nome: 'Friggitoria', ip: '192.168.1.60', cats: ['ant_pizzeria'] } });
   const p = await nuovoProgramma({ ricerca: { indirizzi: ['127.0.0.1', '127.0.0.2'], porta: st2.porta, timeoutMs: 400 } });
   await p.avvia();
   const { chiama } = await pagina(p);
@@ -169,7 +170,7 @@ await prova('stampanti della cassa, avviso QZ, stampa di prova e ricerca in rete
   assert.ok(await attendi(async () => (s = await chiama('/stato')).stampanti));
   assert.strictEqual(s.locale, 'Pizzeria Bella');
   assert.strictEqual(s.stampanti.metodo, 'qz', 'la pagina avvisa di scegliere «Agente di stampa» in cassa');
-  assert.deepStrictEqual(s.stampanti.elenco.map(x => [x.nome, x.ip]), [['CASSA', `127.0.0.1:${st.porta}`], ['PRECONTO', ''], ['PIZZERIA', '192.168.1.50'], ['CUCINA', ''], ['BAR', '']]);
+  assert.deepStrictEqual(s.stampanti.elenco.map(x => [x.nome, x.ip]), [['CASSA', `127.0.0.1:${st.porta}`], ['PRECONTO', ''], ['Forno', '192.168.1.50'], ['CUCINA', ''], ['BAR', ''], ['Friggitoria', '192.168.1.60']], 'nomi scelti dal locale e stampanti aggiunte');
 
   let r = await chiama('/prova', { indirizzo: `127.0.0.1:${st.porta}`, nome: 'CASSA' });
   assert.strictEqual(r.codice, 200, JSON.stringify(r));

@@ -4,7 +4,7 @@ import { verificaAccountLocale } from "./login-dispositivo.js";
 import { calcolaConsegna } from "./zone-consegna.js";
 import { applicaLogoLocale, logoValido, LOGO_BASE } from "./logo-locale.js";
 import { sezioniValide, applicaSezioni, nuovoIdSezione, senzaAggiunte, etichettaDaId, isSezione, REPARTI_SEZIONE, NOMI_REPARTI, MAX_SEZIONI } from "./categorie-menu.js";
-import { datiOrdine, datiMessaggioCucina, raggruppaProdotti, descrizioneStampa, byteDatiStampa, base64Byte, righeServizioCucina } from "./comande-escpos.js";
+import { datiOrdine, datiMessaggioCucina, repartiComande, nomeStampante, stampantiAggiunte, nuovoIdStampante, isStampanteAggiunta, MAX_STAMPANTI_AGGIUNTE, STAMPANTI_FISSE, raggruppaProdotti, descrizioneStampa, byteDatiStampa, base64Byte, righeServizioCucina } from "./comande-escpos.js";
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
 // --- CONFIGURAZIONE PROGETTO FIREBASE ---
@@ -745,9 +745,7 @@ async function init() {
                             setTimeout(() => {
                                 if(typeof playSound === 'function') playSound();
                                 if(typeof showToast === 'function') showToast("🖨️ Stampa ordine del: " + data.data_ritiro);
-                                enquePrint(oid, 'PIZZERIA', 'ORDER'); 
-                                enquePrint(oid, 'CUCINA', 'ORDER'); 
-                                enquePrint(oid, 'BAR', 'ORDER'); 
+                                repartiComande(PRINTER_CONFIG).forEach(r => enquePrint(oid, r.toUpperCase(), 'ORDER'));
                             }, 1000);
                         }
                     }
@@ -1235,9 +1233,7 @@ function caricaOrdiniPerData(dateObj) {
 
                     if (stampaAutomaticaDaQuestaCassa()) {
                         if (!data.messaggio_cucina.includes("RICHIESTA CONTO")) {
-                            enquePrint(oid, 'PIZZERIA', 'VIA'); 
-                            enquePrint(oid, 'CUCINA', 'VIA'); 
-                            enquePrint(oid, 'BAR', 'VIA');
+                            repartiComande(PRINTER_CONFIG).forEach(r => enquePrint(oid, r.toUpperCase(), 'VIA'));
                         }
                     }
                 } 
@@ -1268,9 +1264,7 @@ function caricaOrdiniPerData(dateObj) {
                     }
 
                     if(stampaAutomaticaDaQuestaCassa()) {
-                        enquePrint(oid, 'PIZZERIA', 'ORDER'); 
-                        enquePrint(oid, 'CUCINA', 'ORDER'); 
-                        enquePrint(oid, 'BAR', 'ORDER'); 
+                        repartiComande(PRINTER_CONFIG).forEach(r => enquePrint(oid, r.toUpperCase(), 'ORDER'));
                     }
                 } 
             }
@@ -1429,7 +1423,7 @@ function renderOrdine(o, container) {
             ${agendaBadgesHtml}
             <div class="card-body">${alertViaHtml}${anomaliaHtml}${itemsHtml}${orarioPrenotazioneHtml}${noteHtml}<div class="card-total-box"><span>TOTALE</span><span>€ ${totaleStr}</span></div>
             <div class="status-row"><button class="status-btn ${o.stato.includes('Pronto')?'active-pronto':''}" onclick="cambiaStato('${window.safeId(o.id)}','Pronto')">PRONTO</button><button class="status-btn" style="background:#333; color:white;" onclick="apriPagamento('${window.safeId(o.id)}')">PAGA & CHIUDI</button></div>
-            <div class="card-actions"><button class="action-btn" style="border-left:3px solid #2962ff; background:#e3f2fd; color:#1565c0;" onclick="apriModifica('${window.safeId(o.id)}')">✏️ MODIFICA</button><button class="action-btn" style="border-left:3px solid black;" onclick="chiediDivisioneEStampa('${window.safeId(o.id)}')">PRECONTO</button><button class="action-btn" style="border-left:3px solid #d32f2f;" onclick="stampa('${window.safeId(o.id)}', 'PIZZERIA')">PIZZA</button><button class="action-btn" style="border-left:3px solid #f57c00;" onclick="stampa('${window.safeId(o.id)}', 'CUCINA')">CUCINA</button><button class="action-btn" style="border-left:3px solid #1976d2;" onclick="stampa('${window.safeId(o.id)}', 'BAR')">BAR</button></div></div>`;
+            <div class="card-actions"><button class="action-btn" style="border-left:3px solid #2962ff; background:#e3f2fd; color:#1565c0;" onclick="apriModifica('${window.safeId(o.id)}')">✏️ MODIFICA</button><button class="action-btn" style="border-left:3px solid black;" onclick="chiediDivisioneEStampa('${window.safeId(o.id)}')">PRECONTO</button>${pulsantiStampaReparti(o.id)}</div></div>`;
         container.appendChild(div);
     } catch(e) {
         console.error("Errore rendering ordine " + o.id, e);
@@ -2495,7 +2489,7 @@ window.stampaVia = (id, _u1, _u2, reparto) => {
 
     const stampaReparto = datiMessaggioCucina(o, repKey, contestoStampa());
     if (!stampaReparto) return;
-    inviaStampaTermica(printerIp, stampaReparto.data, { ...(stampaReparto.encoding ? { encoding: stampaReparto.encoding } : {}), stampante: repKey, descrizione: `${repKey.toUpperCase()} · ${descrizioneStampa(o)}`, ordine: o }).catch(e => console.error("Errore stampa:", e));
+    inviaStampaTermica(printerIp, stampaReparto.data, { ...(stampaReparto.encoding ? { encoding: stampaReparto.encoding } : {}), stampante: repKey, descrizione: `${nomeStampante(PRINTER_CONFIG, repKey).toUpperCase()} · ${descrizioneStampa(o)}`, ordine: o }).catch(e => console.error("Errore stampa:", e));
 };
 
 window.chiudiTavolo = async (id) => {
@@ -3227,7 +3221,18 @@ window.chiediDivisioneEStampa = async (id) => {
     stampa(id, 'PRECONTO');
 };
 
-const NOMI_STAMPANTI = { pizzeria: 'PIZZERIA', cucina: 'CUCINA', bar: 'BAR', conto: 'CASSA', preconto: 'PRECONTO' };
+// Pulsanti della scheda ordine per ristampare la comanda di un reparto: i tre di sempre (con il nome
+// scelto, se c'è) e le stampanti aggiunte dal locale
+const ETICHETTE_PULSANTI = { pizzeria: 'PIZZA', cucina: 'CUCINA', bar: 'BAR' };
+const COLORI_PULSANTI = { pizzeria: '#d32f2f', cucina: '#f57c00', bar: '#1976d2' };
+function pulsantiStampaReparti(id) {
+    const sid = window.safeId(id);
+    return repartiComande(PRINTER_CONFIG).map(r => {
+        const scelto = String(PRINTER_CONFIG[r]?.nome || '').trim();
+        const etichetta = window.escapeHtml((scelto || ETICHETTE_PULSANTI[r] || nomeStampante(PRINTER_CONFIG, r)).toUpperCase());
+        return `<button class="action-btn" style="border-left:3px solid ${COLORI_PULSANTI[r] || '#6d4c41'};" onclick="stampa('${sid}', '${r.toUpperCase()}')">${etichetta}</button>`;
+    }).join('');
+}
 const avvisoStampa = (icona, titolo, tempo = 2500) => Swal.fire({ toast: true, position: 'top-end', icon: icona, title: titolo, showConfirmButton: false, timer: tempo });
 
 // Stampa un ordine per un reparto (comanda) o come conto/preconto.
@@ -3246,7 +3251,7 @@ function stampaOrdine(id, reparto, manuale, ordineFornito) {
 
     const repKey = reparto.toLowerCase().trim();
     const isConto = (repKey === 'conto' || repKey === 'preconto');
-    const nome = NOMI_STAMPANTI[repKey] || reparto.toUpperCase();
+    const nome = nomeStampante(PRINTER_CONFIG, repKey).toUpperCase();
 
     // Il preconto, se non ha una stampante sua, esce sulla stampante della CASSA
     const printerIp = String(PRINTER_CONFIG[repKey]?.ip || (repKey === 'preconto' ? PRINTER_CONFIG.conto?.ip : '') || '').trim();
@@ -3522,7 +3527,7 @@ function disegnaSezioniMenu() {
         <div class="sezione-riga" data-sezione="${x.id}">
             <div class="sezione-info">
                 <b>${window.escapeHtml(x.nome)}</b>
-                <span class="sezione-chip">🖨️ ${NOMI_REPARTI[x.reparto]}</span>
+                <span class="sezione-chip">🖨️ ${window.escapeHtml(NOMI_REPARTI[x.reparto] || nomeStampante(PRINTER_CONFIG, x.reparto))}</span>
                 <span class="sezione-chip">${x.aggiunte ? '➕ Ingredienti sì' : 'Ingredienti no'}</span>
                 <span class="sezione-chip">${x.app_clienti ? '📱 App Clienti sì' : 'App Clienti no'}</span>
                 <span class="sezione-chip">${conta(x.id)} ${conta(x.id) === 1 ? 'prodotto' : 'prodotti'}</span>
@@ -3558,6 +3563,9 @@ async function impostaRepartoSezione(id, reparto, repartoPrima = null) {
     // (e mette da solo le sezioni nel loro reparto). Scrivere solo la sezione gli farebbe perdere il resto.
     const kdsConfigurato = (KDS_CONFIG.pizzeria || []).length > 0 || (KDS_CONFIG.cucina || []).length > 0;
     if (!kdsConfigurato) return;
+    // Il Monitor Cucina ha solo i reparti di sempre: una stampante aggiunta non ha uno schermo suo
+    Object.keys(kds).forEach(k => { if (isStampanteAggiunta(k)) delete kds[k]; });
+    if (!Object.keys(kds).length) return;
     await setDoc(doc(db, "impostazioni", "kds"), kds, { merge: true });
     if (repartoPrima && Array.isArray(KDS_CONFIG[repartoPrima])) KDS_CONFIG[repartoPrima] = KDS_CONFIG[repartoPrima].filter(c => c !== id);
     if (reparto) KDS_CONFIG[reparto] = [...new Set([...(KDS_CONFIG[reparto] || []), id])];
@@ -3571,7 +3579,7 @@ async function formSezioneMenu(titolo, x = {}) {
                 <label>Nome della sezione<input id="sez-nome" class="swal2-input" maxlength="40" placeholder="Es. Panini, Fritti, Gelati" value="${window.escapeHtml(x.nome || '')}"></label>
                 <label>Reparto (stampante e Monitor Cucina)
                     <select id="sez-reparto" class="swal2-select">
-                        ${REPARTI_SEZIONE.map(rp => `<option value="${rp}" ${(x.reparto || 'cucina') === rp ? 'selected' : ''}>${NOMI_REPARTI[rp]}</option>`).join('')}
+                        ${[...REPARTI_SEZIONE, ...stampantiAggiunte(PRINTER_CONFIG).map(st => st.id)].map(rp => `<option value="${rp}" ${(x.reparto || 'cucina') === rp ? 'selected' : ''}>${window.escapeHtml(NOMI_REPARTI[rp] || nomeStampante(PRINTER_CONFIG, rp))}</option>`).join('')}
                     </select>
                 </label>
                 <label class="form-sezione-check"><input type="checkbox" id="sez-aggiunte" ${x.aggiunte ? 'checked' : ''}> Si possono aggiungere o togliere ingredienti</label>
@@ -4360,6 +4368,9 @@ window.generarimozioniAuto = async () => {
 };
 
 window.renderizzaConfigStampanti = () => {
+    ['conto', 'preconto', 'pizzeria', 'cucina', 'bar'].forEach(k => { const el = document.getElementById('nome-' + k); if (el) el.value = PRINTER_CONFIG[k]?.nome || ''; });
+    STAMPANTI_AGGIUNTE_MODULO = stampantiAggiunte(PRINTER_CONFIG).map(x => ({ id: x.id, nome: PRINTER_CONFIG[x.id].nome || x.nome, ip: PRINTER_CONFIG[x.id].ip || '', cats: [...(PRINTER_CONFIG[x.id].cats || [])] }));
+    disegnaStampantiAggiunte();
     document.getElementById('ip-conto').value = PRINTER_CONFIG.conto?.ip || '';
     document.getElementById('ip-pizzeria').value = PRINTER_CONFIG.pizzeria?.ip || '';
     document.getElementById('ip-cucina').value = PRINTER_CONFIG.cucina?.ip || '';
@@ -4461,6 +4472,67 @@ window.aggiornaVistaFiscale = () => {
     if (box) box.style.display = document.getElementById('fiscale-modo').value === 'olivetti' ? 'block' : 'none';
 };
 
+// Stampanti aggiunte nella scheda (si salvano con «SALVA CONFIGURAZIONE»)
+let STAMPANTI_AGGIUNTE_MODULO = [];
+function leggiStampantiAggiunteDalModulo() {
+    document.querySelectorAll('#stampanti-aggiunte .stampante-aggiunta').forEach(box => {
+        const x = STAMPANTI_AGGIUNTE_MODULO.find(s => s.id === box.dataset.id);
+        if (!x) return;
+        x.nome = box.querySelector('.nome-stampante-aggiunta').value.trim().replace(/\s+/g, ' ').slice(0, 30);
+        x.ip = box.querySelector('.ip-stampante-aggiunta').value.trim();
+        x.cats = [...box.querySelectorAll('.cat-checkboxes input:checked')].map(c => c.value);
+    });
+}
+function disegnaStampantiAggiunte() {
+    const box = document.getElementById('stampanti-aggiunte');
+    if (!box) return;
+    if (!STAMPANTI_AGGIUNTE_MODULO.length) {
+        box.innerHTML = '<div class="stampanti-aggiunte-vuoto">Nessuna stampante aggiunta.</div>';
+        return;
+    }
+    box.innerHTML = STAMPANTI_AGGIUNTE_MODULO.map(x => `
+        <div class="printer-config-box stampante-aggiunta" data-id="${x.id}">
+            <div class="stampante-aggiunta-testa">
+                <input type="text" class="input-std nome-stampante-aggiunta" maxlength="30" placeholder="Nome (es. Friggitoria)" value="${window.escapeHtml(x.nome)}">
+                <input type="text" class="input-std ip-stampante-aggiunta" placeholder="Indirizzo IP" value="${window.escapeHtml(x.ip)}">
+                <button type="button" class="btn-elimina-stampante" title="Togli questa stampante" onclick="togliStampanteLocale('${x.id}')">🗑️</button>
+            </div>
+            <div class="cat-checkboxes">${ALL_CATS.map(cat => `<label class="cat-check"><input type="checkbox" value="${cat}" ${x.cats.includes(cat) ? 'checked' : ''}> ${window.escapeHtml(CATEGORY_LABELS[cat] || cat)}</label>`).join('')}</div>
+        </div>`).join('');
+}
+window.aggiungiStampanteLocale = async () => {
+    leggiStampantiAggiunteDalModulo();
+    if (STAMPANTI_AGGIUNTE_MODULO.length >= MAX_STAMPANTI_AGGIUNTE) return Swal.fire('Troppe stampanti', `Puoi aggiungere al massimo ${MAX_STAMPANTI_AGGIUNTE} stampanti.`, 'warning');
+    const nomiUsati = [...['conto', 'preconto', ...STAMPANTI_FISSE].map(k => nomeStampante({ [k]: { nome: document.getElementById('nome-' + k)?.value } }, k)), ...STAMPANTI_AGGIUNTE_MODULO.map(x => x.nome)].map(n => n.toLowerCase());
+    const r = await Swal.fire({
+        title: 'Nuova stampante', input: 'text', inputLabel: 'Nome della stampante', inputPlaceholder: 'Es. Friggitoria, Pasticceria, Bar 2',
+        inputAttributes: { maxlength: 30 }, showCancelButton: true, confirmButtonText: 'Aggiungi', cancelButtonText: 'Annulla',
+        inputValidator: (v) => {
+            const nome = String(v || '').trim();
+            if (!nome) return 'Scrivi il nome della stampante';
+            if (nomiUsati.includes(nome.toLowerCase())) return 'Esiste già una stampante con questo nome';
+        }
+    });
+    if (!r.isConfirmed) return;
+    const nome = String(r.value).trim().replace(/\s+/g, ' ').slice(0, 30);
+    const id = nuovoIdStampante(nome, [...Object.keys(PRINTER_CONFIG), ...STAMPANTI_AGGIUNTE_MODULO.map(x => x.id)]);
+    STAMPANTI_AGGIUNTE_MODULO.push({ id, nome, ip: '', cats: [] });
+    disegnaStampantiAggiunte();
+    document.querySelector(`#stampanti-aggiunte [data-id="${id}"] .ip-stampante-aggiunta`)?.focus();
+    Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: `Scrivi l'IP, spunta le categorie e premi SALVA CONFIGURAZIONE`, showConfirmButton: false, timer: 3500 });
+};
+window.togliStampanteLocale = async (id) => {
+    leggiStampantiAggiunteDalModulo();
+    const x = STAMPANTI_AGGIUNTE_MODULO.find(s => s.id === id);
+    if (!x) return;
+    const sezioni = (window.SEZIONI_MENU || []).filter(sz => sz.reparto === id);
+    if (sezioni.length) return Swal.fire('Stampante in uso', `Le sezioni ${sezioni.map(sz => `«${sz.nome}»`).join(', ')} hanno questa stampante come reparto: cambiale prima (Gestionale → Menu → ✏️).`, 'warning');
+    const r = await Swal.fire({ title: `Togliere la stampante «${x.nome || 'senza nome'}»?`, text: 'Diventa definitivo quando premi SALVA CONFIGURAZIONE.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Togli', cancelButtonText: 'Annulla', confirmButtonColor: '#d32f2f' });
+    if (!r.isConfirmed) return;
+    STAMPANTI_AGGIUNTE_MODULO = STAMPANTI_AGGIUNTE_MODULO.filter(s => s.id !== id);
+    disegnaStampantiAggiunte();
+};
+
 window.salvaConfigStampanti = async () => {
     const getCats = (containerId) => {
         const arr = [];
@@ -4472,15 +4544,21 @@ window.salvaConfigStampanti = async () => {
         cartella: (document.getElementById('fiscale-cartella')?.value || '').trim()
     };
     if (fiscale.modo === 'olivetti' && !fiscale.cartella) return Swal.fire("Manca la cartella", "Per collegare l'Olivetti scrivi la cartella IN di ElaExecute.", "warning");
+    const nomeDi = (k) => (document.getElementById('nome-' + k)?.value || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+    leggiStampantiAggiunteDalModulo();
+    if (STAMPANTI_AGGIUNTE_MODULO.some(x => !x.nome)) return Swal.fire("Manca un nome", "Ogni stampante aggiunta deve avere un nome.", "warning");
+    const nomi = STAMPANTI_AGGIUNTE_MODULO.map(x => x.nome.toLowerCase());
+    if (new Set(nomi).size !== nomi.length) return Swal.fire("Nomi doppi", "Due stampanti aggiunte hanno lo stesso nome.", "warning");
     const newConfig = {
-        conto: { ip: document.getElementById('ip-conto').value.trim() },
-        preconto: { ip: document.getElementById('ip-preconto') ? document.getElementById('ip-preconto').value.trim() : '' },
-        pizzeria: { ip: document.getElementById('ip-pizzeria').value.trim(), cats: getCats('cats-pizzeria') },
-        cucina: { ip: document.getElementById('ip-cucina').value.trim(), cats: getCats('cats-cucina') },
-        bar: { ip: document.getElementById('ip-bar').value.trim(), cats: getCats('cats-bar') },
+        conto: { ip: document.getElementById('ip-conto').value.trim(), nome: nomeDi('conto') },
+        preconto: { ip: document.getElementById('ip-preconto') ? document.getElementById('ip-preconto').value.trim() : '', nome: nomeDi('preconto') },
+        pizzeria: { ip: document.getElementById('ip-pizzeria').value.trim(), cats: getCats('cats-pizzeria'), nome: nomeDi('pizzeria') },
+        cucina: { ip: document.getElementById('ip-cucina').value.trim(), cats: getCats('cats-cucina'), nome: nomeDi('cucina') },
+        bar: { ip: document.getElementById('ip-bar').value.trim(), cats: getCats('cats-bar'), nome: nomeDi('bar') },
         fiscale,
         metodo: document.getElementById('stampa-metodo')?.value === 'agente' ? 'agente' : 'qz'
     };
+    STAMPANTI_AGGIUNTE_MODULO.forEach(x => { newConfig[x.id] = { nome: x.nome, ip: x.ip, cats: x.cats }; });
     try {
         await setDoc(doc(db, "impostazioni", "stampanti"), newConfig);
         PRINTER_CONFIG = newConfig; 

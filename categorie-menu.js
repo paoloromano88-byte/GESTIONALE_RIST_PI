@@ -1,7 +1,7 @@
 // ============================================================================
 // CATEGORIE-MENU.JS - Sezioni del menu aggiunte dal locale (oltre a pizze, stirate, bibite...)
 // Si creano in Cassa > Gestionale > Menu > «Sezioni del menu» e stanno in impostazioni/categorie:
-//   sezioni: [{ id: 'sez_panini', nome: 'Panini', reparto: 'pizzeria'|'cucina'|'bar',
+//   sezioni: [{ id: 'sez_panini', nome: 'Panini', reparto: 'pizzeria'|'cucina'|'bar'|'stm_...' (stampante aggiunta),
 //               aggiunte: true|false   (si possono aggiungere/togliere ingredienti)
 //               app_clienti: true|false (si ordina dall'App Clienti) }]
 // L'id inizia sempre con "sez_": così non si confonde con le categorie di sempre.
@@ -18,6 +18,8 @@ export const NOMI_REPARTI = { pizzeria: 'Pizzeria', cucina: 'Cucina', bar: 'Bar'
 export const CATEGORIE_SENZA_AGGIUNTE = ['bibita', 'bibita_lattina', 'bibita_bottiglia', 'birra', 'vino', 'amaro', 'dolce', 'caffe'];
 
 const FORMATO_ID = /^sez_[a-z0-9_]{1,40}$/;
+// Reparto valido: uno dei tre di sempre o una stampante aggiunta dal locale (stm_..., vedi comande-escpos.js)
+const repartoValido = (r) => REPARTI_SEZIONE.includes(r) || (typeof r === 'string' && /^stm_[a-z0-9_]{1,40}$/.test(r));
 export const isSezione = (id) => typeof id === 'string' && FORMATO_ID.test(id);
 
 // "Caffè & Gelati!" -> "sez_caffe_gelati" (unico rispetto agli id già usati)
@@ -45,7 +47,7 @@ export function sezioniValide(dati) {
         out.push({
             id: v.id,
             nome,
-            reparto: REPARTI_SEZIONE.includes(v.reparto) ? v.reparto : 'cucina',
+            reparto: repartoValido(v.reparto) ? v.reparto : 'cucina',
             aggiunte: v.aggiunte === true,
             app_clienti: v.app_clienti !== false,
         });

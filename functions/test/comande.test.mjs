@@ -151,6 +151,33 @@ await t('evento: creazione -> ordine nuovo, modifica -> messaggio, cancellazione
     assert.deepStrictEqual([creato, modificato, cancellato], [2, 1, 0]);
 });
 
+await t('stampante aggiunta (Pasticceria) e pizzeria rinominata: comande e VIA TURNO anche lì', async () => {
+    await svuota(principale);
+    await principale.collection('impostazioni').doc('stampanti').set({
+        ...STAMPANTI, pizzeria: { ...STAMPANTI.pizzeria, nome: 'Forno' },
+        stm_pasticceria: { nome: 'Pasticceria', ip: '192.168.1.60', cats: ['dolce'] },
+    });
+    try {
+        const conDolce = (extra = {}) => tavolo({ prodotti: [{ nome: 'Margherita', prezzo: 6, qta: 1, cat: 'pizza', turno: 1 }, { nome: 'Tiramisu', prezzo: 4, qta: 1, cat: 'dolce', turno: 2 }], ...extra });
+        await comandeOrdineCreato(db, principale, 'default', 'pas1', conDolce());
+        let c = await coda(principale);
+        assert.deepStrictEqual(c.map(x => x.stampante).sort(), ['pizzeria', 'stm_pasticceria']);
+        const pas = c.find(x => x.stampante === 'stm_pasticceria');
+        assert.strictEqual(pas.ip, '192.168.1.60');
+        assert.strictEqual(pas.descrizione, 'PASTICCERIA · Tavolo 5');
+        assert.ok(/PASTICCERIA\n/.test(testo(pas)) && /Tiramisu/.test(testo(pas)) && !/Margherita/.test(testo(pas)));
+        assert.ok(/FORNO\n/.test(testo(c.find(x => x.stampante === 'pizzeria'))));
+        await svuota(principale);
+        await comandeMessaggio(db, principale, 'default', 'pas1', conDolce(), conDolce({ messaggio_cucina: 'VIA TURNO 2', timestamp_messaggio: Timestamp.now() }));
+        c = await coda(principale);
+        assert.deepStrictEqual(c.map(x => x.stampante), ['stm_pasticceria']);
+        assert.ok(/PASTICCERIA - CHIAMATA/.test(testo(c[0])) && /Tiramisu/.test(testo(c[0])));
+    } finally {
+        await principale.collection('impostazioni').doc('stampanti').set(STAMPANTI);
+        await svuota(principale);
+    }
+});
+
 // ---------- Parte 2: trigger veri (emulatore Functions) ----------
 if (process.env.FUNCTIONS_EMULATOR_HOST || process.env.FIREBASE_EMULATOR_HUB) {
     const attendi = (ms) => new Promise(r => setTimeout(r, ms));

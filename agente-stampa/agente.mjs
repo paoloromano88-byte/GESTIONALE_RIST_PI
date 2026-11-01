@@ -24,7 +24,7 @@ import crypto from 'node:crypto';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
-export const VERSIONE = '1.1.0';
+export const VERSIONE = '1.1.1';
 
 // Configurazione pubblica del progetto Firebase (la stessa delle pagine web)
 const FIREBASE = { apiKey: 'AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU', projectId: 'gestionale-ristoranti-96c5b' };
