@@ -55,7 +55,8 @@ export function comandePerMessaggio(ordine, config, ctx) {
     for (const reparto of REPARTI) {
         const ip = ipReparto(config, reparto);
         if (!ip) continue;
-        const stampa = datiMessaggioCucina(ordine, reparto, ctx);
+        // stampanti: le sezioni aggiunte dal locale vanno nel reparto in cui sono spuntate
+        const stampa = datiMessaggioCucina(ordine, reparto, { ...ctx, stampanti: config });
         if (stampa) voci.push(voceCoda(ordine, reparto, ip, stampa.data, `${reparto.toUpperCase()} · ${descrizioneStampa(ordine)}`));
     }
     return voci;

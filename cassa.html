@@ -947,6 +947,18 @@
             </div>
 
             <div id="view-prodotti">
+                <!-- SEZIONI DEL MENU AGGIUNTE DAL LOCALE (oltre a pizze, stirate, bibite...) -->
+                <div id="box-sezioni-menu" class="box-sezioni">
+                    <div class="box-sezioni-testa">
+                        <div>
+                            <b>📂 SEZIONI DEL MENU</b>
+                            <small>Oltre a quelle di sempre (pizze, stirate, bibite, primi...) puoi aggiungerne di tue.</small>
+                        </div>
+                        <button type="button" class="btn-save" onclick="nuovaSezioneMenu()">＋ Nuova sezione</button>
+                    </div>
+                    <div id="lista-sezioni-menu"></div>
+                </div>
+
                 <div class="form-row" style="flex-wrap: wrap;">
                     <select id="new-cat" class="input-std" style="flex:0.5;">
                         <option value="ant_pizzeria">Antipasti Pizzeria</option>
