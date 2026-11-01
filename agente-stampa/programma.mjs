@@ -29,6 +29,18 @@ export const PORTE = [17917, 17918, 17919];
 export const URL_AGGIORNAMENTI = 'https://gestionale-ristoranti-96c5b.web.app/programmi/agente-stampa-windows.json';
 
 const NOMI_STAMPANTI = { conto: 'CASSA', preconto: 'PRECONTO', pizzeria: 'PIZZERIA', cucina: 'CUCINA', bar: 'BAR' };
+// Stampanti della cassa da mostrare nella pagina: quelle di sempre (con il nome scelto dal locale, se c'è)
+// e quelle aggiunte dal locale (stm_..., es. Friggitoria), in ordine di nome. f = campi di impostazioni/stampanti.
+function elencoStampanti(f) {
+  const campi = (k) => f[k]?.mapValue?.fields || {};
+  const nome = (k, base) => String(campi(k).nome?.stringValue || '').trim().slice(0, 30) || base;
+  const ip = (k) => campi(k).ip?.stringValue || '';
+  const fisse = Object.entries(NOMI_STAMPANTI).map(([chiave, base]) => ({ chiave, nome: nome(chiave, base), ip: ip(chiave) }));
+  const aggiunte = Object.keys(f).filter((k) => /^stm_[a-z0-9_]{1,40}$/.test(k) && f[k]?.mapValue)
+    .map((chiave) => ({ chiave, nome: nome(chiave, chiave.slice(4).replace(/_/g, ' ').toUpperCase()), ip: ip(chiave) }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'it')).slice(0, 10);
+  return [...fisse, ...aggiunte];
+}
 
 // Cartella dei dati: %APPDATA%\Agente di stampa su Windows, ~/.agente-stampa altrove
 export function cartellaPredefinita() {
@@ -325,7 +337,7 @@ export class Programma {
       const f = d.fields || {};
       this.stampanti = {
         metodo: f.metodo?.stringValue || 'qz',
-        elenco: Object.entries(NOMI_STAMPANTI).map(([chiave, nome]) => ({ chiave, nome, ip: f[chiave]?.mapValue?.fields?.ip?.stringValue || '' })),
+        elenco: elencoStampanti(f),
       };
     });
   }

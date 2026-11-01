@@ -138,6 +138,12 @@ File condivisi:
 
 ### Stampa: QZ Tray oppure Agente di stampa (dalla PR #29)
 - Si sceglie in Gestionale → Stampanti → «Come arrivano le stampe» (`impostazioni/stampanti.metodo`: `qz` predefinito, oppure `agente`).
+- **Nomi delle stampanti e stampanti aggiunte** (Gestionale → Stampanti):
+  - le stampanti di sempre (cassa, preconto, pizzeria, cucina, bar) hanno un campo `nome` facoltativo: vuoto = il nome di sempre. Il nome compare in cima alla comanda (senza accenti: «à» → «a'»), sui pulsanti della scheda ordine, negli avvisi, nella coda di stampa e nella pagina del programma per Windows;
+  - «＋ Aggiungi stampante» crea `stm_<nome>: { nome, ip, cats }` in `impostazioni/stampanti` (es. `stm_friggitoria`, al massimo 10). Riceve le comande delle categorie spuntate, come pizzeria/cucina/bar, sia dalla cassa (QZ) sia dal server (Agente). Le funzioni sono in `comande-escpos.js`: `repartiComande`, `stampantiAggiunte`, `nomeStampante`, `nuovoIdStampante`; le prove in `test/stampanti.test.mjs`;
+  - **messaggi alla cucina** (VIA TURNO, aggiunte, storni): un prodotto la cui categoria è spuntata in una stampante aggiunta va lì. Va anche a una stampante di sempre solo se la categoria è spuntata anche lì (o in pizzeria per l'asporto, che riceve tutto come prima). Senza stampanti aggiunte non cambia niente;
+  - una stampante aggiunta può essere il reparto di una sezione del menu. Non si può togliere finché una sezione la usa. Il Monitor Cucina non ha schermi per le stampanti aggiunte;
+  - programma per Windows **1.1.1**: la sua pagina mostra i nomi scelti e le stampanti aggiunte.
 - Tutte le stampe termiche passano da `inviaStampaTermica()` in `cassa.js`:
   - comande, VIA/aggiunte, chiamata turni, conto, preconto, riepilogo Z;
   - i ritocchi (blocco domicilio, testo solo ASCII) sono in `preparaDatiStampaTermica()` in `cassa.html`.
@@ -340,6 +346,7 @@ node test/file-pubblicati.test.mjs
 | #47 | **Agente di stampa come programma per Windows**: si scarica dal gestionale, si collega dal browser, parte con il PC, cerca e prova le stampanti, si aggiorna da solo. Al posto dell'ESP32 per i clienti lontani. **Super Admin**: link e moduli per tutte le app (App Rider, Mappa Sale, programma di stampa; moduli App Clienti e App Rider); Telecomando e Menu QR ora si spengono davvero (#48) |
 | #65 | **Mappa Sale, disposizione per giorno**: oltre alla disposizione standard, ogni giorno può avere la sua (es. una cena di gruppo), salvata solo per quella data |
 | #77 | **Sezioni del menu aggiunte dal locale**: oltre alle categorie di sempre, il locale crea le sue (es. Panini, Fritti, Gelati) con reparto di stampa, ingredienti sì/no e visibilità nell'App Clienti |
+| #79 | **Stampanti con il nome scelto e stampanti aggiunte** (es. Friggitoria, Pasticceria) con IP e categorie: comande, VIA TURNO e aggiunte anche lì; programma per Windows 1.1.1 |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue

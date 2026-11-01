@@ -300,6 +300,61 @@ export function raggruppaProdotti(prodotti) {
 }
 
 // Descrizione breve per la coda di stampa e la cassa (es. "Tavolo 5", "Rossi 20:30")
+// ============================================================================
+// STAMPANTI: NOMI E STAMPANTI AGGIUNTE DAL LOCALE (impostazioni/stampanti)
+//   pizzeria, cucina, bar, conto, preconto: { ip, cats, nome? }   (nome vuoto = quello di sempre)
+//   stm_<nome>: { nome, ip, cats }  stampanti aggiunte (es. stm_friggitoria): ricevono le comande
+//   delle categorie spuntate, come pizzeria/cucina/bar.
+// Usato da cassa e server (functions/comande.js).
+// ============================================================================
+export const STAMPANTI_FISSE = ['pizzeria', 'cucina', 'bar'];
+export const MAX_STAMPANTI_AGGIUNTE = 10;
+const NOMI_BASE_STAMPANTI = { pizzeria: 'PIZZERIA', cucina: 'CUCINA', bar: 'BAR', conto: 'CASSA', preconto: 'PRECONTO' };
+export const isStampanteAggiunta = (id) => typeof id === 'string' && /^stm_[a-z0-9_]{1,40}$/.test(id);
+
+// Stampanti aggiunte valide, in ordine di nome: [{ id, nome }]
+export function stampantiAggiunte(config) {
+    if (!config || typeof config !== 'object') return [];
+    return Object.keys(config)
+        .filter(id => isStampanteAggiunta(id) && config[id] && typeof config[id] === 'object')
+        .map(id => ({ id, nome: nomeStampante(config, id) }))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'it'))
+        .slice(0, MAX_STAMPANTI_AGGIUNTE);
+}
+
+// Reparti che ricevono le comande: i tre di sempre più le stampanti aggiunte
+export const repartiComande = (config) => [...STAMPANTI_FISSE, ...stampantiAggiunte(config).map(s => s.id)];
+
+// Nome da mostrare: quello scelto dal locale, altrimenti quello di sempre
+export function nomeStampante(config, id) {
+    const key = String(id || '').toLowerCase().trim();
+    const scelto = String(config?.[key]?.nome ?? '').trim().slice(0, 30);
+    return scelto || NOMI_BASE_STAMPANTI[key] || key.replace(/^stm_/, '').replace(/_/g, ' ').toUpperCase();
+}
+const nomeStampa = (config, id) => pulisciTestoESC(nomeStampante(config, id)).toUpperCase();
+
+// "Bar 2 (giardino)" -> "stm_bar_2_giardino" (unico rispetto agli id già usati)
+export function nuovoIdStampante(nome, esistenti = []) {
+    const base = String(nome ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 34).replace(/_+$/, '') || 'stampante';
+    const usati = new Set(esistenti);
+    let id = `stm_${base}`;
+    for (let n = 2; usati.has(id); n++) id = `stm_${base}_${n}`;
+    return id;
+}
+
+// Messaggi alla cucina (VIA TURNO, aggiunte, storni) di un prodotto la cui categoria è spuntata in una
+// stampante aggiunta: va a quella stampante; a una stampante di sempre solo se è spuntata anche lì
+// (o in pizzeria per l'asporto, che riceve tutto come prima). null = nessuna stampante aggiunta la usa:
+// valgono le regole di sempre (così senza stampanti aggiunte non cambia niente).
+function sceltaStampantiAggiunte(cat, repKey, stampanti, isAsporto) {
+    const conCategoria = stampantiAggiunte(stampanti).map(s => s.id).filter(id => Array.isArray(stampanti[id].cats) && stampanti[id].cats.includes(cat));
+    if (!conCategoria.length) return isStampanteAggiunta(repKey) ? false : null;
+    if (isStampanteAggiunta(repKey)) return conCategoria.includes(repKey);
+    if (repKey === 'pizzeria' && isAsporto) return true;
+    return Array.isArray(stampanti[repKey]?.cats) && stampanti[repKey].cats.includes(cat);
+}
+
 // Sezioni del menu aggiunte dal locale (id "sez_...", vedi categorie-menu.js): il loro reparto è quello
 // in cui sono spuntate nelle stampanti (ctx.stampanti = impostazioni/stampanti). Le categorie di sempre
 // seguono le regole fisse qui sotto e non cambiano. Stessa regola di repartoSezione in categorie-menu.js
@@ -345,7 +400,7 @@ export function datiOrdine(o, reparto, config, ctx = {}) {
 
     var data = [];
     data.push('\x1B\x40\x1B\x61\x01');
-    let headerTitle = repKey === 'preconto' ? "PRECONTO" : (repKey === 'conto' ? "CONTO" : reparto.toUpperCase());
+    let headerTitle = repKey === 'preconto' ? "PRECONTO" : (repKey === 'conto' ? "CONTO" : nomeStampa(PRINTER_CONFIG, repKey));
     data.push('\x1D\x21\x11\x1B\x45\x01' + headerTitle + '\n\x1D\x21\x00\x1B\x45\x00');
     if (isConto) data.push('DOCUMENTO NON FISCALE\n');
     if (!o.tavolo) {
@@ -540,6 +595,8 @@ export function datiChiamataTurno(o, rep, ctx = {}) {
     if (rep === 'cucina' && hasPizza) mixMsg = "*** CON PIZZERIA ***";
 
     const itemsToPrint = tuttiProdottiTurno.filter(p => {
+        const scelta = sceltaStampantiAggiunte(p.cat, rep, ctx.stampanti, !o.tavolo);
+        if (scelta !== null) return scelta;
         let cat = (p.cat || 'varie').toLowerCase();
         let gruppo = 'altro';
         if (sezione(p)) gruppo = sezione(p);
@@ -564,7 +621,7 @@ export function datiChiamataTurno(o, rep, ctx = {}) {
     let d = [];
     d.push('\x1B\x40');
     d.push('\x1B\x61\x01');
-    d.push(rep.toUpperCase() + ' - CHIAMATA\n\n');
+    d.push(nomeStampa(ctx.stampanti, rep) + ' - CHIAMATA\n\n');
 
     d.push('\x1D\x21\x11');
     d.push('VAI COL ' + targetTurn + '\n\n');
@@ -632,8 +689,10 @@ export function datiAggiornamento(o, repKey, ctx = {}) {
     };
 
     const deveStampare = (p) => {
-        const gruppoProdotto = getGruppo(p.cat);
         const isAsporto = !o.tavolo;
+        const scelta = sceltaStampantiAggiunte(p.cat, repKey, ctx.stampanti, isAsporto);
+        if (scelta !== null) return scelta;
+        const gruppoProdotto = getGruppo(p.cat);
         const isGF = (p.cat === 'gf');
 
         if (repKey === 'pizzeria') {

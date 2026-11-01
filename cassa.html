@@ -1184,11 +1184,21 @@
                 <div style="background:#e8f5e9; padding:10px; border-radius:5px; margin-bottom:15px; border:1px solid #a5d6a7; color:#2e7d32;">
                     <i class="fa fa-info-circle"></i> <b>Configurazione Stampanti Termiche di Rete.</b> Inserisci gli indirizzi IP locali delle stampanti (porta 9100). Assicurati che il PC e le stampanti siano sulla stessa rete.
                 </div>
-                <div class="printer-config-box"><strong>🧾 CASSA</strong> <input type="text" id="ip-conto" class="input-std" placeholder="Es. 192.168.1.145"></div>
-                <div class="printer-config-box"><strong>📄 PRECONTO</strong> <input type="text" id="ip-preconto" class="input-std" placeholder="Es. 192.168.1.131"></div>
-                <div class="printer-config-box"><strong>🔥 PIZZERIA</strong> <input type="text" id="ip-pizzeria" class="input-std"><div class="cat-checkboxes" id="cats-pizzeria"></div></div>
-                <div class="printer-config-box"><strong>👨‍🍳 CUCINA</strong> <input type="text" id="ip-cucina" class="input-std"><div class="cat-checkboxes" id="cats-cucina"></div></div>
-                <div class="printer-config-box"><strong>🍺 BAR</strong> <input type="text" id="ip-bar" class="input-std"><div class="cat-checkboxes" id="cats-bar"></div></div>
+                <!-- Stampanti di sempre: il nome si può cambiare (vuoto = quello di sempre); compare in cima alle comande -->
+                <div class="printer-config-box"><strong>🧾 CASSA</strong> <input type="text" id="nome-conto" class="input-std input-nome-stampante" maxlength="30" placeholder="Nome (vuoto = CASSA)" title="Nome della stampante"> <input type="text" id="ip-conto" class="input-std" placeholder="Es. 192.168.1.145"></div>
+                <div class="printer-config-box"><strong>📄 PRECONTO</strong> <input type="text" id="nome-preconto" class="input-std input-nome-stampante" maxlength="30" placeholder="Nome (vuoto = PRECONTO)" title="Nome della stampante"> <input type="text" id="ip-preconto" class="input-std" placeholder="Es. 192.168.1.131"></div>
+                <div class="printer-config-box"><strong>🔥 PIZZERIA</strong> <input type="text" id="nome-pizzeria" class="input-std input-nome-stampante" maxlength="30" placeholder="Nome (vuoto = PIZZERIA)" title="Nome della stampante"> <input type="text" id="ip-pizzeria" class="input-std" placeholder="Indirizzo IP"><div class="cat-checkboxes" id="cats-pizzeria"></div></div>
+                <div class="printer-config-box"><strong>👨‍🍳 CUCINA</strong> <input type="text" id="nome-cucina" class="input-std input-nome-stampante" maxlength="30" placeholder="Nome (vuoto = CUCINA)" title="Nome della stampante"> <input type="text" id="ip-cucina" class="input-std" placeholder="Indirizzo IP"><div class="cat-checkboxes" id="cats-cucina"></div></div>
+                <div class="printer-config-box"><strong>🍺 BAR</strong> <input type="text" id="nome-bar" class="input-std input-nome-stampante" maxlength="30" placeholder="Nome (vuoto = BAR)" title="Nome della stampante"> <input type="text" id="ip-bar" class="input-std" placeholder="Indirizzo IP"><div class="cat-checkboxes" id="cats-bar"></div></div>
+
+                <!-- Stampanti aggiunte dal locale (es. Friggitoria, Pasticceria): ricevono le comande delle categorie spuntate -->
+                <div class="box-stampanti-aggiunte">
+                    <div class="box-stampanti-aggiunte-testa">
+                        <div><b>🖨️ ALTRE STAMPANTI</b><small>Aggiungi una stampante con il nome che vuoi (es. Friggitoria, Pasticceria, Bar 2) e spunta le categorie che deve stampare.</small></div>
+                        <button type="button" class="btn-save" onclick="aggiungiStampanteLocale()">＋ Aggiungi stampante</button>
+                    </div>
+                    <div id="stampanti-aggiunte"></div>
+                </div>
                 <div class="printer-config-box" style="border-color:#90caf9; background:#f5faff;">
                     <strong>🛰️ COME ARRIVANO LE STAMPE</strong>
                     <select id="stampa-metodo" class="input-std" style="width:100%; box-sizing:border-box; margin-top:8px;" onchange="aggiornaVistaMetodoStampa()">

@@ -32,6 +32,7 @@ npx firebase emulators:exec --only functions,firestore  --project demo-gestional
 npx firebase emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/cambio-password.test.mjs"
 node test/file-pubblicati.test.mjs    # file che l'Hosting pubblica (senza emulatori)
 node test/categorie-menu.test.mjs     # sezioni del menu aggiunte dal locale (senza emulatori)
+node test/stampanti.test.mjs          # stampanti con nome e stampanti aggiunte (senza emulatori)
 ```
 
 - Non c'è un framework di test: ogni file è uno script Node autonomo (helper `t()` + `assert`). Per una sola suite si lancia solo il suo comando; non si filtrano i singoli casi.
