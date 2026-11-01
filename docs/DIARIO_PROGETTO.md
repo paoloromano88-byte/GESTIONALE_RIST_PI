@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 27/10/2026, con la PR #41 (controllo generale del codice: sicurezza, stampa, dati; vedi sezione 7).
+**Ultimo aggiornamento:** 01/11/2026: marketing ripreso, sito vetrina **Gestì** riportato sull'ultima versione (sezione 2, «Marketing: Gestì»), cambio password dal Super Admin, file privati non più pubblicati (sezione 7).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -249,9 +249,19 @@ File condivisi:
 - Pubblico (clienti):
   - legge menu, ingredienti, contatori forno/consegne e alcune impostazioni;
   - controlla **un** codice sconto alla volta (`codici_sconto/{CODICE}`, copia tenuta allineata dalla cassa): l'elenco dei codici (`sconti`) lo vede solo il personale;
+  - lascia una richiesta di demo dal sito vetrina (`richieste_demo`, solo creazione; la legge solo il Super Admin);
   - crea ordini validi;
   - segue i propri ordini tramite ID o con il telefono verificato via SMS.
 - Il pubblico **non** può toccare scorte, rubrica o contatori: lo fa solo il server.
+
+### Marketing: Gestì (decisioni del 27/10/2026)
+- **Nome del prodotto: Gestì** (generico: pizzerie, ristoranti, pasticcerie, forni, bar). Da verificare prima di investire: dominio libero (es. gesti.app, gestiapp.it), marchio su UIBM/TMview, nome su Instagram/Facebook.
+- **Vendita:** tutta Italia, la fa il titolare di persona (videochiamate di 20 minuti + prime visite vicino a casa), budget pubblicitario quasi zero: gruppi Facebook di ristoratori, video brevi, passaparola premiato (1 mese gratis a chi porta un cliente e al nuovo), partner pagati solo a vendita fatta (rivenditori di registratori di cassa, commercialisti, fornitori).
+- **Prezzi:** «Ordini Online» 39 €/mese (App Clienti, menu QR, cassa, comande, App Rider); «Locale Completo» 69 €/mese (+ palmare sala e mappa, schermo cucina, agenda). 30 giorni gratis, nessuna commissione, nessun vincolo; primi 10 locali con attivazione gratuita e prezzo bloccato; annuale con 2 mesi in regalo; attivazione 99 € dopo i primi 10. Prezzi IVA esclusa (da confermare col commercialista). I pacchetti corrispondono ai moduli del Super Admin.
+- **Messaggio principale:** «ordini online senza commissioni» (le piattaforme trattengono circa 15-30% per ordine) + «nato in una pizzeria vera».
+- **Sito vetrina** `gesti/index.html` (online su `/gesti/`): funzioni, calcolatore del risparmio, prezzi, domande, modulo «Richiedi una demo». Immagini in `gesti/img/` fatte con dati finti («Pizzeria Demo»). Il modulo scrive in `richieste_demo` (solo creazione, campi controllati dalle regole); le richieste si vedono nel **Super Admin** in alto («Richieste di demo dal sito»).
+- **Prima di pubblicizzare la pagina:** completare `TITOLARE` nell'informativa privacy di `gesti/index.html` (nome e P.IVA del titolare); poi comprare il dominio e collegarlo (meglio un secondo sito di Firebase Hosting solo per la vetrina).
+- **Da preparare dopo:** locale DEMO con dati finti per le videochiamate, presentazione per le visite, contratto di abbonamento e accordo privacy da «responsabile del trattamento» (da far vedere a un avvocato/commercialista), caso Da Mimmo con numeri veri (con il suo permesso), costo per locale (SMS dell'App Clienti).
 
 ## 3. Pubblicazione (GitHub Actions)
 
@@ -298,6 +308,8 @@ npx firebase-tools@13.29.1 emulators:exec --only auth,firestore --project demo-g
 npx firebase-tools@13.29.1 emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/comande.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only firestore --project demo-gestionale "node functions/test/ordini.test.mjs"
 npx firebase-tools@13.29.1 emulators:exec --only functions,firestore --project demo-gestionale "node functions/test/trigger.test.mjs"
+npx firebase-tools@13.29.1 emulators:exec --only auth,functions,firestore --project demo-gestionale "node functions/test/cambio-password.test.mjs"
+node test/file-pubblicati.test.mjs
 ```
 
 ## 5. Cronologia delle PR
@@ -367,7 +379,13 @@ Altre strade valutate: stampa dal browser (una sola stampante, finestra «Stampa
 Da verificare sul posto:
 - **QR sugli scontrini**: al primo ordine a domicilio, controllare che il QR esca nitido dalla stampante vera e che il rider lo scansioni. Non è stato provato con una stampante reale. Se esce male, servono il modello della stampante e una foto dello scontrino. Alternative: comando QR nativo `GS ( k`, oppure moduli più grandi in `rasterQrBase64`.
 
-**Sito vetrina Gestì e marketing: in pausa** (deciso il 27/10/2026). Il lavoro (pagina `gesti/`, modulo «Richiedi una demo» con `richieste_demo` e sezione nel Super Admin, decisioni su nome, prezzi 39/69 € e canali di vendita) è nella PR #43, chiusa senza unire, issue #42 aperta. Per riprenderlo: partire dall'ultima `main`, poi `git fetch origin pull/43/head && git cherry-pick 0fb3666^..1be15a0`. Logo scelto: la «G» arancione con la stellina gialla.
+**Sito vetrina Gestì e marketing: ripreso il 01/11/2026** (era in pausa dal 27/10).
+- I 4 commit della PR #43 (chiusa senza unire) sono stati riportati sull'ultima `main` in una PR nuova, che chiude l'issue #42. Logo scelto: la «G» arancione con la stellina gialla.
+- Aggiunti rispetto alla PR #43:
+  - anteprima nei social con indirizzi completi (`og:image`, `og:url`), da cambiare quando c'è il dominio;
+  - `gesti/` nel test dei file pubblicati;
+  - la prova nel browser salvata in `test/browser/gesti.cjs` (sito su telefono e PC, calcolatore, modulo con le regole vere, richieste nel Super Admin con testo «trappola», «Richiamato», «Elimina»).
+- **Prima di pubblicizzare la pagina restano:** nome e P.IVA del titolare in `TITOLARE` (`gesti/index.html`, informativa privacy) e il dominio.
 
 Idee per dopo (non richieste):
 - ~~Togliere "Prendi a mano" dall'App Rider~~: **deciso di lasciarlo** (27/10/2026), serve se il QR non si legge.
@@ -452,6 +470,25 @@ Controllo automatico di tutto il codice più prove a mano; tutto corretto nella 
   - Palmare Sala su telefono: il «+» (nuovo tavolo) usciva dallo schermo;
   - Monitor Cucina su telefono: la barra in alto usciva di lato.
 - **Prove vecchie nello scratchpad**: alcune falliscono anche sulla versione di 4 giorni prima, perché simulano Firebase in modo superato (funzioni mancanti nei finti moduli, login prima dell'accesso del dispositivo). Non sono difetti del gestionale. Quelle importanti sono state rifatte (`collaudo/`).
+
+### File privati pubblicati sul sito (01/11/2026)
+- La radice del repository è la cartella dell'Hosting. La regola `**/.*` di `firebase.json` escludeva le cartelle nascoste ma **non i file al loro interno**: a ogni pubblicazione finivano online anche `.git/` (la copia del repository fatta da GitHub, con codice e diario) e `.github/`, più i registri degli emulatori (`firestore-debug.log`) se presenti.
+- Scoperto simulando la scelta dei file con la stessa funzione di `firebase-tools` usata da GitHub (versione 15.34.2): nella prova 139 file invece di 26 (il numero esatto dipende dalla copia di `.git`). Il sito vero non era raggiungibile dalla sessione: per controllare basta aprire `/.git/HEAD` sul sito (con la correzione deve dare «pagina non trovata»).
+- Corretto aggiungendo `**/.*/**` e `**/*.log` a `hosting.ignore`.
+- Nuovo test `test/file-pubblicati.test.mjs`, eseguito dalla CI dopo gli emulatori: fallisce se viene pubblicato un file privato (cartelle e file nascosti, `docs/`, `functions/`, `test/`, `agente-stampa/`, `CLAUDE.md`, `firebase.json`, `firestore.rules`, registri). Un file privato nuovo va aggiunto sia a `hosting.ignore` sia al test.
+- Dopo il merge, la nuova versione del sito contiene solo i file elencati dal test: quelli di `.git/` e `.github/` smettono di essere serviti (restano solo nella cronologia delle versioni dell'Hosting, non visibile al pubblico).
+- Durante il deploy `.git/config` contiene il token temporaneo di GitHub Actions (`GITHUB_TOKEN`, lo toglie la pulizia a fine job): se è stato pubblicato era già scaduto alla fine del job, quindi non utilizzabile.
+
+### Cambio password degli account dei locali dal Super Admin (01/11/2026)
+- In Super Admin → Account del Locale ogni account ha il pulsante **🔑 Password**: propone una password di 10 caratteri facili da dettare (modificabile, minimo 6), la cambia e la mostra per comunicarla al locale.
+- Cambiare la password chiude le sessioni aperte: cassa, telefoni e Agente di stampa chiedono di rifare l'accesso.
+- Come funziona: dal browser non si può cambiare la password di un altro account. La pagina scrive una richiesta in `utenti/{uid}/cambio_password/{id}`, che può scrivere e leggere **solo il Super Admin** (verificato con 8 casi nuovi nel test delle regole). La Cloud Function `cambioPasswordAccount` (`functions/account.js`):
+  - prende la richiesta in una transazione e toglie subito la password dal database;
+  - cambia la password solo agli account con `ruolo: 'locale'`, mai al Super Admin;
+  - scrive l'esito. La pagina lo aspetta fino a 45 secondi e poi cancella la richiesta.
+- Scelto un trigger su Firestore e non una funzione chiamabile dal browser (`onCall`), che richiederebbe il ruolo «Amministratore Cloud Run» all'account del deploy (vedi la sezione sulla firma di QZ Tray).
+- ✅ Provato in produzione il 01/11/2026 dal titolare su un account di prova: la funzione ha il permesso di modificare gli utenti di Authentication e la password cambia. Se in futuro comparisse «Password non cambiata», il messaggio di Google dice quale permesso manca.
+- Test: `functions/test/cambio-password.test.mjs` (in CI) e la prova nel browser `test/browser/superadmin-password.cjs` (primo script salvato in `test/browser/`).
 
 ## 8. Come riprendere in una nuova sessione
 

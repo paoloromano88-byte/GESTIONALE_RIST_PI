@@ -23,9 +23,12 @@
       "test/**",
       "functions/**",
       "docs/**",
+      "CLAUDE.md",
       "agente-stampa/**",
       "**/agente-stampa.json",
       "**/.*",
+      "**/.*/**",
+      "**/*.log",
       "**/node_modules/**"
     ],
     "headers": [
