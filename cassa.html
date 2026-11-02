@@ -347,15 +347,16 @@
                 <i class="fa fa-chart-pie"></i> STATISTICHE / Z
             </button>
             
-            <button onclick="window.location.href='mappa_sala.html?locale=' + (window.TENANT_ID || 'default') + '&from=cassa'" style="background:#4caf50; color:white; border:none; padding:8px 15px; border-radius:30px; font-weight:bold; cursor:pointer;">
+            <!-- data-modulo: il pulsante si vede solo se il modulo è acceso nel Super Admin (più moduli = basta uno) -->
+            <button data-modulo="sala agenda" onclick="window.location.href='mappa_sala.html?locale=' + (window.TENANT_ID || 'default') + '&from=cassa'" style="background:#4caf50; color:white; border:none; padding:8px 15px; border-radius:30px; font-weight:bold; cursor:pointer;">
                 <i class="fa fa-map"></i> MAPPA SALA
             </button>
             
-            <button onclick="window.location.href='agenda.html?locale=' + (window.TENANT_ID || 'default') + '&from=cassa'" style="background:#0288d1; color:white; border:none; padding:8px 15px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+            <button data-modulo="agenda" onclick="window.location.href='agenda.html?locale=' + (window.TENANT_ID || 'default') + '&from=cassa'" style="background:#0288d1; color:white; border:none; padding:8px 15px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
                 <i class="fa fa-book"></i> AGENDA
             </button>
 
-            <button onclick="window.open('delivery.html?locale=' + (window.TENANT_ID || 'default'), '_blank')" style="background:#f59e0b; color:black; border:none; padding:8px 15px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+            <button data-modulo="rider" onclick="window.open('delivery.html?locale=' + (window.TENANT_ID || 'default'), '_blank')" style="background:#f59e0b; color:black; border:none; padding:8px 15px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
                 <i class="fa fa-motorcycle"></i> FATTORINI
             </button>
 
@@ -363,7 +364,7 @@
                 <i class="fa fa-history"></i> STORICO 
             </button>
             
-            <button onclick="apriMonitorCucina()" id="btn-top-kds" style="display:none; background:#ff9800; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer; color:black;">
+            <button onclick="apriMonitorCucina()" id="btn-top-kds" data-modulo="kds" style="background:#ff9800; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer; color:black;">
                 <i class="fa fa-tv"></i> KDS <i class="fa fa-lock" id="kds-lock-icon" style="display:none; color:#d32f2f; margin-left:5px;"></i>
             </button>
             
@@ -837,7 +838,7 @@
                 <div class="tab" onclick="cambiaTab('crm')">👥 CLIENTI (CRM)</div>
                 <div class="tab" onclick="cambiaTab('dipendenti')">👨‍🍳 DIPENDENTI</div>
                 <div class="tab" onclick="cambiaTab('cestino')">🗑️ CESTINO</div>
-                <div class="tab" onclick="cambiaTab('kdsconfig')">📺 SETUP KDS</div>
+                <div class="tab" data-modulo="kds" onclick="cambiaTab('kdsconfig')">📺 SETUP KDS</div>
             </div>
             
             <!-- 1. VIEW IMPOSTAZIONI LOCALE COMPLETA (WHITE-LABEL + QR) -->
@@ -900,14 +901,14 @@
 
                 <!-- BOX QR CODE PRONTI PER LA STAMPA -->
                 <div style="display:flex; gap:15px; flex-wrap:wrap;">
-                    <div style="flex:1; min-width:250px; background:white; padding:20px; border-radius:8px; border:1px solid #ddd; text-align:center; color:#333;">
+                    <div data-modulo="menu" style="flex:1; min-width:250px; background:white; padding:20px; border-radius:8px; border:1px solid #ddd; text-align:center; color:#333;">
                         <h4 style="margin-top:0; color:#1565c0;"><i class="fa fa-qrcode"></i> QR Code Menu al Tavolo</h4>
                         <img id="qr-menu-img" src="" alt="QR Menu" style="width:150px; height:150px; margin:10px auto; display:block; border:1px solid #eee; padding:5px; border-radius:8px;">
                         <small id="qr-menu-link" style="display:block; color:#666; margin-bottom:10px; word-break:break-all;"></small>
                         <button class="btn-save" style="background:#ffb300; color:black; width:100%;" onclick="window.open(document.getElementById('qr-menu-img').src, '_blank')">🖨️ APRI E STAMPA QR MENU</button>
                     </div>
 
-                    <div style="flex:1; min-width:250px; background:white; padding:20px; border-radius:8px; border:1px solid #ddd; text-align:center; color:#333;">
+                    <div data-modulo="app_clienti" style="flex:1; min-width:250px; background:white; padding:20px; border-radius:8px; border:1px solid #ddd; text-align:center; color:#333;">
                         <h4 style="margin-top:0; color:#2e7d32;"><i class="fa fa-mobile-screen"></i> QR Code App Asporto</h4>
                         <img id="qr-app-img" src="" alt="QR App" style="width:150px; height:150px; margin:10px auto; display:block; border:1px solid #eee; padding:5px; border-radius:8px;">
                         <small id="qr-app-link" style="display:block; color:#666; margin-bottom:10px; word-break:break-all;"></small>

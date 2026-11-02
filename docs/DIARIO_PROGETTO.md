@@ -256,6 +256,7 @@ File condivisi:
     | `menu` | Menu QR |
 
   - Mappa Sale non ha un modulo suo: è usata da Cassa, Sala e Agenda.
+  - **Cassa** (decisione del 02/11/2026): mostra solo i pulsanti dei moduli accesi. AGENDA → `agenda`, FATTORINI → `rider`, KDS e «SETUP KDS» → `kds`, MAPPA SALA → `sala` o `agenda`, QR Menu → `menu`, QR App Asporto → `app_clienti`. Si aggiorna subito quando cambia la licenza. Senza licenza si vede tutto. Il riquadro «Sblocca KDS» in Abbonamento resta per proporre il modulo.
   - Un modulo che manca nella licenza vale acceso: i locali creati prima restano con tutto acceso.
   - Nel Super Admin link, testo «Copia tutti i link» e caselle dei moduli nascono da un solo elenco (`APP_LOCALE` in `superadmin.html`). Un'app nuova si aggiunge lì, e la sua pagina deve controllare il suo modulo.
 - Pubblico (clienti):
@@ -354,6 +355,7 @@ node test/file-pubblicati.test.mjs
 | #77 | **Sezioni del menu aggiunte dal locale**: oltre alle categorie di sempre, il locale crea le sue (es. Panini, Fritti, Gelati) con reparto di stampa, ingredienti sì/no e visibilità nell'App Clienti |
 | #79 | **Stampanti con il nome scelto e stampanti aggiunte** (es. Friggitoria, Pasticceria) con IP e categorie: comande, VIA TURNO e aggiunte anche lì; programma per Windows 1.1.1 |
 | #81 | **Ruoli dei dipendenti**: il Rider entra solo nell'App Rider, il Cameriere in Sala e Agenda, il Responsabile dappertutto |
+| #83 | **Cassa: solo i pulsanti dei moduli del locale**: Agenda, Fattorini, KDS (e Setup KDS), Mappa Sala, QR Menu e QR App Asporto si vedono solo se il modulo è acceso nel Super Admin |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue

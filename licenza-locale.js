@@ -11,6 +11,12 @@ export function motivoBlocco(lic, modulo) {
     return null;
 }
 
+// Vero se almeno uno dei moduli è acceso (un modulo assente dalla licenza, o licenza mancante, vale acceso).
+// La Cassa lo usa per mostrare solo i pulsanti dei moduli del locale (es. Mappa Sale: Sala o Agenda).
+export function moduloAcceso(lic, ...moduli) {
+    return moduli.some(m => !(lic && lic.moduli && lic.moduli[m] === false));
+}
+
 export function mostraBloccoLicenza(lic, { modulo = '', nomeModulo = '' } = {}) {
     const motivo = motivoBlocco(lic, modulo);
     let el = document.getElementById('licenza-blocco-overlay');
