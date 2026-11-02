@@ -622,6 +622,7 @@
                         await updateDoc(doc(db, "ordini", id), { 
                             cucina_completa: true,
                             stato: "Pronto",
+                            pronto_alle: serverTimestamp(), // timer «pronto da N min» in Cassa e App Rider
                             ultime_aggiunte: null,
                             ultime_aggiunte_real: null
                         });

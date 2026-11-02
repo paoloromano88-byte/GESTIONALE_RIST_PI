@@ -134,6 +134,9 @@
         .btn-take { background: var(--gold); color: #000; }
         .btn-done { background: var(--free); color: #000; }
         .btn-release { background: none; border: none; color: #94a3b8; font-size: 0.78em; text-decoration: underline; cursor: pointer; padding: 6px 0 0; width: 100%; }
+        /* Timer di attesa (timer-attesa.js) */
+        .timer-attesa { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .timer-attesa:empty { display: none; }
         .codice-ordine { font-size: 0.72em; color: #94a3b8; font-weight: 800; letter-spacing: 1px; margin-top: 4px; text-align: right; }
 
         /* PRESA IN CARICO CON IL QR DELLA BUSTA */
@@ -249,6 +252,8 @@
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
         import { applicaLogoLocale } from "./logo-locale.js";
         import { cercaPin, testoPinNonAbilitato } from "./ruoli-dipendenti.js";
+        import { margineConsegna } from "./zone-consegna.js";
+        import { timerOrdine, htmlTimer } from "./timer-attesa.js";
         import { mostraBloccoLicenza } from "./licenza-locale.js";
 
         const firebaseConfig = {
@@ -499,6 +504,8 @@
                     document.getElementById('header-locale-title').innerText = snap.data().nome.toUpperCase();
                 }
                 if (snap.exists()) applicaLogoLocale(snap.data().logo_url);
+                margineArrivo = margineConsegna(snap.exists() ? snap.data() : null);
+                aggiornaTimerAttesa();
             });
 
             const today = getTodayLocal();
@@ -517,6 +524,19 @@
                 avvisaOrdiniPronti(nuoviPronti);
             });
         }
+
+        // Timer di attesa (timer-attesa.js): consegna entro / pronto da / in consegna da.
+        // Si rifanno ogni 30 secondi senza ridisegnare le schede.
+        let margineArrivo = 15;
+        function aggiornaTimerAttesa() {
+            const adesso = new Date();
+            document.querySelectorAll('.timer-attesa[data-ordine]').forEach(el => {
+                const o = ordiniCache.find(x => x.id === el.dataset.ordine);
+                const html = o ? htmlTimer(timerOrdine(o, adesso, margineArrivo)) : '';
+                if (el.innerHTML !== html) el.innerHTML = html;
+            });
+        }
+        setInterval(aggiornaTimerAttesa, 30000);
 
         window.renderDeliveries = () => {
             const container = document.getElementById('deliveries-list');
@@ -586,6 +606,7 @@
                                 <div class="codice-ordine">#${esc(codiceBreve(o.id))}</div>
                             </div>
                         </div>
+                        <div class="timer-attesa" data-ordine="${esc(o.id)}"></div>
 
                         <div class="address-box">
                             <div class="address-text">
@@ -645,6 +666,7 @@
                     </div>
                 `;
             }).join('');
+            aggiornaTimerAttesa();
         };
 
         // Presa in carico in una transazione: se due rider ci provano insieme vince il primo.
