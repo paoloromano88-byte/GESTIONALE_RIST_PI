@@ -1,6 +1,7 @@
 import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, setDoc, orderBy, where, serverTimestamp, arrayUnion, arrayRemove, increment, writeBatch, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { verificaAccountLocale } from "./login-dispositivo.js";
+import { moduloAcceso } from "./licenza-locale.js";
 import { calcolaConsegna } from "./zone-consegna.js";
 import { applicaLogoLocale, logoValido, LOGO_BASE } from "./logo-locale.js";
 import { sezioniValide, applicaSezioni, nuovoIdSezione, senzaAggiunte, etichettaDaId, isSezione, REPARTI_SEZIONE, NOMI_REPARTI, MAX_SEZIONI } from "./categorie-menu.js";
@@ -50,19 +51,27 @@ window.nomeLocaleCorrenteCassa = window.TENANT_ID === 'default'
     : window.TENANT_ID.replace(/-/g, ' ').toUpperCase();
 const titoloCassa = () => window.nomeLocaleCorrenteCassa ? `${window.nomeLocaleCorrenteCassa} - CASSA` : 'CASSA';
 
+// Mostra solo i pulsanti e i riquadri dei moduli accesi per questo locale nel Super Admin.
+// Ogni elemento ha data-modulo="agenda" (o più moduli: "sala agenda" = basta che uno sia acceso).
+function mostraModuliCassa(lic) {
+    document.querySelectorAll('[data-modulo]').forEach(el => {
+        const moduli = el.dataset.modulo.split(/\s+/).filter(Boolean);
+        el.classList.toggle('modulo-spento', !moduloAcceso(lic, ...moduli));
+    });
+}
+
 // --- CONTROLLO STATO LICENZA E BLOCCO CASSA IN TEMPO REALE ---
 function attivaControlloLicenzaCassa() {
     const licRef = doc(db, "impostazioni", "licenza");
 
     onSnapshot(licRef, (docSnap) => {
+        mostraModuliCassa(docSnap.exists() ? docSnap.data() : null);
         if (docSnap.exists()) {
             const data = docSnap.data();
-            const btnTopKds = document.getElementById('btn-top-kds');
             const lockIcon = document.getElementById('kds-lock-icon');
             const kdsLockedUi = document.getElementById('kds-locked-ui');
             const kdsUnlockedUi = document.getElementById('kds-unlocked-ui');
 
-            if (btnTopKds) btnTopKds.style.display = 'inline-block';
             if (data.kds_sbloccato === false || (data.moduli && data.moduli.kds === false)) {
                 if (lockIcon) lockIcon.style.display = 'inline-block';
                 if (kdsLockedUi) kdsLockedUi.style.display = 'block';

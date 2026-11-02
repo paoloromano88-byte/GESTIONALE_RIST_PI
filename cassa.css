@@ -777,3 +777,6 @@ body {
 
 /* Dipendenti: chi entra dove col PIN (ruoli-dipendenti.js) */
 .nota-ruoli-dipendenti { font-size: 0.85em; color: #555; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 8px; padding: 6px 10px; margin: 0 0 10px; line-height: 1.5; }
+
+/* Pulsanti e riquadri dei moduli spenti dal Super Admin (data-modulo, vedi mostraModuliCassa in cassa.js) */
+.modulo-spento { display: none !important; }

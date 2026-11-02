@@ -34,6 +34,7 @@ node test/file-pubblicati.test.mjs    # file che l'Hosting pubblica (senza emula
 node test/categorie-menu.test.mjs     # sezioni del menu aggiunte dal locale (senza emulatori)
 node test/stampanti.test.mjs          # stampanti con nome e stampanti aggiunte (senza emulatori)
 node test/ruoli-dipendenti.test.mjs   # chi entra col PIN in Sala, Agenda e App Rider (senza emulatori)
+node test/licenza-locale.test.mjs     # moduli accesi/spenti della licenza (senza emulatori)
 ```
 
 - Non c'è un framework di test: ogni file è uno script Node autonomo (helper `t()` + `assert`). Per una sola suite si lancia solo il suo comando; non si filtrano i singoli casi.
@@ -64,7 +65,7 @@ La radice del repository **è** la cartella pubblicata dall'Hosting: ciò che no
 - Dispositivi del personale: email e password del locale, una sola volta per dispositivo (`login-dispositivo.js` → `assicuraLoginDispositivo()`). Gli operatori (Sala, Agenda, App Rider) entrano poi con un PIN di 4 cifre preso da `dipendenti`. Chi entra dove lo decide `ruoli-dipendenti.js`: Cameriere (anche senza ruolo) Sala e Agenda, Rider solo App Rider, Responsabile tutte. Clienti: accesso via SMS.
 - Pubblico: legge menu e alcune `impostazioni`, crea ordini che passano `ordineValido()` (elenco chiuso di campi con `hasOnly`, limiti su lunghezze e importi) e segue il proprio ordine. **Un campo nuovo negli ordini dell'App Clienti richiede di aggiornare `ordineValido()` e `test/regole-firestore.test.mjs`.**
 - Scorte, rubrica `clienti/{tel}` e `occupazione_forno` per gli ordini dell'App Clienti li aggiorna solo il server (Admin SDK).
-- Licenza: `impostazioni/licenza` (`attiva`, `moduli.<nome> === false`). Ogni pagina chiama `mostraBloccoLicenza()` di `licenza-locale.js` con il proprio modulo; un modulo assente dalla licenza vale acceso. Un'app nuova va aggiunta a `APP_LOCALE` in `superadmin.html` e deve controllare il suo modulo.
+- Licenza: `impostazioni/licenza` (`attiva`, `moduli.<nome> === false`). Ogni pagina chiama `mostraBloccoLicenza()` di `licenza-locale.js` con il proprio modulo; un modulo assente dalla licenza vale acceso. Un'app nuova va aggiunta a `APP_LOCALE` in `superadmin.html` e deve controllare il suo modulo. In Cassa i pulsanti e i riquadri di un modulo hanno `data-modulo="…"` (più moduli separati da spazio = basta uno acceso): `mostraModuliCassa()` nasconde quelli dei moduli spenti.
 - Firebase Storage non è attivo: le immagini (logo, foto) sono compresse e salvate dentro Firestore.
 - `richieste_demo` (dal sito vetrina `gesti/`): il pubblico può solo crearle, con campi e lunghezze controllati e consenso obbligatorio; le legge, segna e cancella solo il Super Admin (sezione «Richieste di demo dal sito»).
 
