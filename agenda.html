@@ -163,6 +163,8 @@
         .filter-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
         .btn-whatsapp { background: #dcfce7; color: #16a34a; text-decoration: none; }
         .btn-whatsapp:hover { background: #16a34a; color: white; transform: scale(1.05); }
+            /* I messaggi (PIN errato...) devono stare davanti alla schermata del PIN (#pin-overlay, z-index 9999) */
+        .swal2-container { z-index: 100000 !important; }
     </style>
 </head>
 <body>

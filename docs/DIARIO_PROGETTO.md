@@ -55,6 +55,7 @@ File condivisi:
     - **Rider**: solo l'App Rider;
     - **Responsabile**: tutte e tre. In Sala può entrare da più dispositivi insieme: è l'accesso d'emergenza del locale;
     - un PIN non abilitato riceve un messaggio che spiega dove vale e quale ruolo serve. Se due dipendenti hanno lo stesso PIN, vince quello abilitato all'app;
+    - i messaggi del PIN (non abilitato, non trovato, già connesso) restavano **nascosti dietro la schermata del PIN** in Sala, Agenda e App Rider, perché la loro z-index era più bassa. Ora `.swal2-container` ha `z-index: 100000` in quelle tre pagine;
   - clienti: SMS.
 - **Più locali (multi-tenant)**:
   - locale principale (Da Mimmo, id `default`): raccolte alla radice (`ordini`, `prodotti`, …);

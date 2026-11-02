@@ -170,6 +170,8 @@
         .btn-login { width: 100%; padding: 14px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: 900; font-size: 1.1em; cursor: pointer; }
 
         .empty-state { text-align: center; padding: 50px 20px; color: #64748b; font-weight: bold; font-size: 1.05em; }
+            /* I messaggi (PIN errato...) devono stare davanti alla schermata del PIN (#driver-login-overlay, z-index 9999) */
+        .swal2-container { z-index: 100000 !important; }
     </style>
 </head>
 <body>
