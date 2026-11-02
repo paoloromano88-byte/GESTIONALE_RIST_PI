@@ -88,3 +88,31 @@ export function calcolaConsegna(config, cap, totaleProdotti = 0) {
         mancanoPerMinimo: minimo > totale ? arrotonda(minimo - totale) : 0
     };
 }
+
+// ---------------------------------------------------------------------------
+// Fascia d'arrivo stimata della consegna (App Clienti): dall'orario scelto dal cliente
+// all'orario più il margine del locale (impostazioni/negozio.margine_consegna, minuti; 0 = non mostrarla).
+// ---------------------------------------------------------------------------
+export const MARGINE_CONSEGNA_PREDEFINITO = 15;
+
+export function margineConsegna(config) {
+    const n = parseInt(config?.margine_consegna, 10);
+    if (!Number.isFinite(n) || n < 0) return MARGINE_CONSEGNA_PREDEFINITO;
+    return Math.min(n, 120);
+}
+
+// "20:30", 15 -> { da: "20:30", a: "20:45" }; null se il margine è 0 o l'orario non è valido
+export function fasciaArrivo(orario, minuti) {
+    const m = String(orario ?? '').trim().match(/^(\d{1,2}):(\d{2})$/);
+    const margine = parseInt(minuti, 10);
+    if (!m || !(margine > 0)) return null;
+    const inizio = Number(m[1]) * 60 + Number(m[2]);
+    if (Number(m[1]) > 23 || Number(m[2]) > 59) return null;
+    const hhmm = (tot) => { const t = ((tot % 1440) + 1440) % 1440; return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+    return { da: hhmm(inizio), a: hhmm(inizio + margine) };
+}
+
+export function testoFasciaArrivo(orario, minuti) {
+    const f = fasciaArrivo(orario, minuti);
+    return f ? `Arrivo previsto tra le ${f.da} e le ${f.a}` : '';
+}

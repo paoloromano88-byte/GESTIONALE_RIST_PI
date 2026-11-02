@@ -2,7 +2,7 @@ import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { verificaAccountLocale } from "./login-dispositivo.js";
 import { moduloAcceso } from "./licenza-locale.js";
-import { calcolaConsegna } from "./zone-consegna.js";
+import { calcolaConsegna, margineConsegna } from "./zone-consegna.js";
 import { applicaLogoLocale, logoValido, LOGO_BASE } from "./logo-locale.js";
 import { sezioniValide, applicaSezioni, nuovoIdSezione, senzaAggiunte, etichettaDaId, isSezione, REPARTI_SEZIONE, NOMI_REPARTI, MAX_SEZIONI } from "./categorie-menu.js";
 import { datiOrdine, datiMessaggioCucina, repartiComande, nomeStampante, stampantiAggiunte, nuovoIdStampante, isStampanteAggiunta, MAX_STAMPANTI_AGGIUNTE, STAMPANTI_FISSE, raggruppaProdotti, descrizioneStampa, byteDatiStampa, base64Byte, righeServizioCucina } from "./comande-escpos.js";
@@ -3377,6 +3377,8 @@ function caricaEditorZone(dn) {
     const fuori = document.getElementById('setting-supp-fuori-zona');
     if (base && dn.supplemento_consegna !== undefined) base.value = parseFloat(dn.supplemento_consegna) || 0;
     if (fuori && dn.supplemento_fuori_zona !== undefined) fuori.value = parseFloat(dn.supplemento_fuori_zona) || 0;
+    const margine = document.getElementById('setting-margine-consegna');
+    if (margine) margine.value = margineConsegna(dn);
     renderZoneConsegna();
 }
 
@@ -3439,7 +3441,9 @@ window.salvaZoneConsegna = async () => {
     const payload = {
         zone_consegna: zone,
         supplemento_consegna: num(document.getElementById('setting-supp-base')?.value),
-        supplemento_fuori_zona: num(document.getElementById('setting-supp-fuori-zona')?.value)
+        supplemento_fuori_zona: num(document.getElementById('setting-supp-fuori-zona')?.value),
+        // Minuti dell'«Arrivo previsto» nell'App Clienti (0 = non mostrarlo)
+        margine_consegna: Math.min(120, Math.round(num(document.getElementById('setting-margine-consegna')?.value)))
     };
     await setDoc(doc(db, "impostazioni", "negozio"), payload, { merge: true });
     zoneModificate = false;

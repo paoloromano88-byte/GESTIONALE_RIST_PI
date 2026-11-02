@@ -35,6 +35,7 @@ node test/categorie-menu.test.mjs     # sezioni del menu aggiunte dal locale (se
 node test/stampanti.test.mjs          # stampanti con nome e stampanti aggiunte (senza emulatori)
 node test/ruoli-dipendenti.test.mjs   # chi entra col PIN in Sala, Agenda e App Rider (senza emulatori)
 node test/licenza-locale.test.mjs     # moduli accesi/spenti della licenza (senza emulatori)
+node test/zone-consegna.test.mjs      # fascia «Arrivo previsto» della consegna (senza emulatori)
 ```
 
 - Non c'è un framework di test: ogni file è uno script Node autonomo (helper `t()` + `assert`). Per una sola suite si lancia solo il suo comando; non si filtrano i singoli casi.
