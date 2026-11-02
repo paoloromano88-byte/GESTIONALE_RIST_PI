@@ -27,6 +27,8 @@ jobs:
         run: node test/categorie-menu.test.mjs
       - name: Stampanti con nome e stampanti aggiunte dal locale
         run: node test/stampanti.test.mjs
+      - name: Ruoli dei dipendenti (chi entra in Sala, Agenda e App Rider)
+        run: node test/ruoli-dipendenti.test.mjs
       - name: Regole Firestore
         run: npx firebase emulators:exec --only firestore --project demo-gestionale "node test/regole-firestore.test.mjs"
       - name: Agente di stampa (coda, stampanti finte)

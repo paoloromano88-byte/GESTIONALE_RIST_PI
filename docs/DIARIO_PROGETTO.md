@@ -49,7 +49,12 @@ File condivisi:
 - **Hosting**: la cartella principale del repository.
 - **Accessi**:
   - personale: email + password, un account per locale; il dispositivo resta collegato;
-  - operatori (Sala, Agenda, App Rider): PIN personale di 4 cifre, creato in Cassa → Gestionale → Dipendenti. Ruoli: Cameriere, Rider (App Rider), **Responsabile** (può entrare in Sala da più dispositivi insieme: è l'accesso d'emergenza del locale). Il vecchio PIN fisso `0000` non esiste più (PR #32) e non si può assegnare;
+  - operatori (Sala, Agenda, App Rider): PIN personale di 4 cifre, creato in Cassa → Gestionale → Dipendenti. Il vecchio PIN fisso `0000` non esiste più (PR #32) e non si può assegnare;
+  - **chi entra dove** (decisione del 02/11/2026, `ruoli-dipendenti.js`, prove in `test/ruoli-dipendenti.test.mjs`):
+    - **Cameriere**, compresi i dipendenti creati prima dei ruoli: Palmare Sala e Agenda, non l'App Rider;
+    - **Rider**: solo l'App Rider;
+    - **Responsabile**: tutte e tre. In Sala può entrare da più dispositivi insieme: è l'accesso d'emergenza del locale;
+    - un PIN non abilitato riceve un messaggio che spiega dove vale e quale ruolo serve. Se due dipendenti hanno lo stesso PIN, vince quello abilitato all'app;
   - clienti: SMS.
 - **Più locali (multi-tenant)**:
   - locale principale (Da Mimmo, id `default`): raccolte alla radice (`ordini`, `prodotti`, …);
@@ -347,6 +352,7 @@ node test/file-pubblicati.test.mjs
 | #65 | **Mappa Sale, disposizione per giorno**: oltre alla disposizione standard, ogni giorno può avere la sua (es. una cena di gruppo), salvata solo per quella data |
 | #77 | **Sezioni del menu aggiunte dal locale**: oltre alle categorie di sempre, il locale crea le sue (es. Panini, Fritti, Gelati) con reparto di stampa, ingredienti sì/no e visibilità nell'App Clienti |
 | #79 | **Stampanti con il nome scelto e stampanti aggiunte** (es. Friggitoria, Pasticceria) con IP e categorie: comande, VIA TURNO e aggiunte anche lì; programma per Windows 1.1.1 |
+| #81 | **Ruoli dei dipendenti**: il Rider entra solo nell'App Rider, il Cameriere in Sala e Agenda, il Responsabile dappertutto |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue

@@ -1307,13 +1307,14 @@
                 <div class="form-row">
                     <input type="text" id="dip-nome" class="input-std" placeholder="Nome Operatore">
                     <input type="tel" id="dip-pin" class="input-std" placeholder="PIN (es. 1234)" maxlength="4" style="-webkit-text-security: disc;" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
-                    <select id="dip-ruolo" class="input-std" title="Rider: accesso all'App Consegne. Responsabile: può entrare in Sala da più dispositivi insieme (accesso d'emergenza).">
+                    <select id="dip-ruolo" class="input-std" title="Cameriere: Palmare Sala e Agenda. Rider: solo App Rider. Responsabile: tutte, e in Sala da più dispositivi insieme (accesso d'emergenza).">
                         <option value="cameriere">Cameriere</option>
                         <option value="rider">🛵 Rider</option>
                         <option value="responsabile">⭐ Responsabile</option>
                     </select>
                     <button class="btn-save" onclick="salvaDipendente()">AGGIUNGI</button>
                 </div>
+                <div class="nota-ruoli-dipendenti">👤 <b>Cameriere</b>: Palmare Sala e Agenda · 🛵 <b>Rider</b>: solo App Rider · ⭐ <b>Responsabile</b>: tutte (anche da più dispositivi insieme)</div>
                 <div id="lista-dipendenti" class="db-list"></div>
             </div>
             

@@ -246,6 +246,7 @@
         import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
         import { applicaLogoLocale } from "./logo-locale.js";
+        import { cercaPin, testoPinNonAbilitato } from "./ruoli-dipendenti.js";
         import { mostraBloccoLicenza } from "./licenza-locale.js";
 
         const firebaseConfig = {
@@ -290,7 +291,7 @@
         // Abbonamento sospeso o modulo App Rider spento dal Super Admin: pagina bloccata
         onSnapshot(doc(db, "impostazioni", "licenza"), (snap) => mostraBloccoLicenza(snap.exists() ? snap.data() : null, { modulo: 'rider', nomeModulo: 'APP RIDER' }));
 
-        // Identità del fattorino: PIN personale creato in Cassa > Dipendenti con ruolo "Rider"
+        // Identità del fattorino: PIN personale creato in Cassa > Dipendenti con ruolo "Rider" (o "Responsabile")
         let currentDriverId = localStorage.getItem('delivery_driver_id') || "";
         let currentDriver = currentDriverId ? (localStorage.getItem('delivery_driver_name') || "") : "";
         let filtroCorrente = 'attive';
@@ -418,20 +419,16 @@
             btn.disabled = true;
             try {
                 const snap = await getDocs(collection(db, "dipendenti"));
-                let rider = null, pinNonRider = false;
-                snap.forEach(d => {
-                    const dip = d.data();
-                    if (String(dip.pin).trim() !== pin) return;
-                    if (dip.ruolo === 'rider') rider = { id: d.id, nome: dip.nome };
-                    else pinNonRider = true;
-                });
+                // Nell'App Rider entrano Rider e Responsabile (il Cameriere no): ruoli-dipendenti.js
+                const esito = cercaPin(snap.docs.map(d => ({ ...d.data(), id: d.id })), pin, 'rider');
+                const rider = esito?.dipendente ? { id: esito.dipendente.id, nome: esito.dipendente.nome } : null;
 
                 if (!rider) {
                     inputPin.value = "";
                     return Swal.fire({
                         icon: 'error',
-                        title: pinNonRider ? 'PIN non abilitato alle consegne' : 'PIN non trovato',
-                        text: pinNonRider ? 'Chiedi in cassa di impostare il tuo ruolo su "Rider".' : 'Controlla il PIN o chiedi in cassa.',
+                        title: esito?.negato ? 'PIN non abilitato alle consegne' : 'PIN non trovato',
+                        text: esito?.negato ? testoPinNonAbilitato(esito.negato, 'rider') : 'Controlla il PIN o chiedi in cassa.',
                         background: '#1e293b', color: '#fff'
                     });
                 }

@@ -352,6 +352,7 @@
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
         import { applicaLogoLocale } from "./logo-locale.js";
         import { sezioniValide, applicaSezioni, senzaAggiunte } from "./categorie-menu.js";
+        import { cercaPin, testoPinNonAbilitato } from "./ruoli-dipendenti.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU", 
@@ -587,10 +588,13 @@
                 if (snap.empty) return Swal.fire({ icon: 'info', title: 'Nessun operatore registrato', text: 'Aggiungi i PIN dalla Cassa: Gestionale → Dipendenti.' });
                 let userFound = null, docId = null, userData = null;
 
-                snap.forEach(docSnap => { 
-                    const data = docSnap.data(); 
-                    if (String(data.pin).trim() === input) { userFound = data.nome; docId = docSnap.id; userData = data; }
-                });
+                // Nel Palmare Sala entrano Cameriere e Responsabile (il Rider no): ruoli-dipendenti.js
+                const esito = cercaPin(snap.docs.map(d => ({ ...d.data(), id: d.id })), input, 'sala');
+                if (esito?.negato) {
+                    document.getElementById('pin-input').value = "";
+                    return Swal.fire({ icon: 'error', title: 'PIN non abilitato al Palmare Sala', text: testoPinNonAbilitato(esito.negato, 'sala') });
+                }
+                if (esito?.dipendente) { userData = esito.dipendente; userFound = userData.nome; docId = userData.id; }
 
                 if (userFound && docId) {
                     // Il Responsabile può entrare da più dispositivi insieme (accesso d'emergenza del locale)
