@@ -891,7 +891,12 @@
                             <label style="font-weight:bold; font-size:0.85em; color:#555; white-space:nowrap;">Fuori zona (€):</label>
                             <input type="number" id="setting-supp-fuori-zona" class="input-std" step="0.50" min="0" value="4.00" style="border:none; margin:0; font-weight:bold;">
                         </div>
+                        <div style="flex:1; display:flex; align-items:center; gap:8px; background:white; padding:0 10px; border-radius:5px; border:1px solid #ccc;" title="Nell'App Clienti, dopo l'orario scelto, il cliente vede: «Arrivo previsto tra le 20:30 e le 20:45». 0 = non mostrarlo.">
+                            <label for="setting-margine-consegna" style="font-weight:bold; font-size:0.85em; color:#555; white-space:nowrap;">Arrivo previsto entro (min):</label>
+                            <input type="number" id="setting-margine-consegna" class="input-std" step="5" min="0" max="120" value="15" style="border:none; margin:0; font-weight:bold;">
+                        </div>
                     </div>
+                    <p style="margin:6px 0 0 0; font-size:0.78em; color:#6d4c41;">«Arrivo previsto»: nell'App Clienti, dopo l'orario scelto, il cliente legge per esempio <b>Arrivo previsto tra le 20:30 e le 20:45</b> (con 15 minuti). Metti 0 per non mostrarlo.</p>
                     <div id="lista-zone-consegna" style="display:flex; flex-direction:column; gap:8px; margin:10px 0;"></div>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button class="btn-save" style="background:#fb8c00; flex:1;" onclick="aggiungiZonaConsegna()"><i class="fa fa-plus"></i> AGGIUNGI ZONA</button>

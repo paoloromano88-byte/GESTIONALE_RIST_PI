@@ -2,7 +2,8 @@ import { getFirestore, collection as _collection, query, onSnapshot, doc as _doc
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { verificaAccountLocale } from "./login-dispositivo.js";
 import { moduloAcceso } from "./licenza-locale.js";
-import { calcolaConsegna } from "./zone-consegna.js";
+import { calcolaConsegna, margineConsegna } from "./zone-consegna.js";
+import { timerOrdine, htmlTimer } from "./timer-attesa.js";
 import { applicaLogoLocale, logoValido, LOGO_BASE } from "./logo-locale.js";
 import { sezioniValide, applicaSezioni, nuovoIdSezione, senzaAggiunte, etichettaDaId, isSezione, REPARTI_SEZIONE, NOMI_REPARTI, MAX_SEZIONI } from "./categorie-menu.js";
 import { datiOrdine, datiMessaggioCucina, repartiComande, nomeStampante, stampantiAggiunte, nuovoIdStampante, isStampanteAggiunta, MAX_STAMPANTI_AGGIUNTE, STAMPANTI_FISSE, raggruppaProdotti, descrizioneStampa, byteDatiStampa, base64Byte, righeServizioCucina } from "./comande-escpos.js";
@@ -356,6 +357,7 @@ function htmlConsegneDelGiorno() {
                     </div>
                     ${dove ? `<div style="color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📍 ${esc(dove)}</div>` : ''}
                     <div style="color:${st.colore}; font-weight:bold;">${esc(st.testo)}</div>
+                    <div class="timer-attesa timer-attesa-piccolo" data-ordine="${esc(o.id)}"></div>
                 </div>`;
             }).join('')}
         </div>`;
@@ -628,6 +630,8 @@ async function init() {
     onSnapshot(doc(db, "impostazioni", "negozio"), (docNegozio) => {
         if(docNegozio.exists()) {
             const dn = docNegozio.data();
+            window.margineConsegnaMin = margineConsegna(dn);
+            aggiornaTimerAttesa();
             applicaLogoLocale(dn.logo_url);
             if (document.getElementById('day-closed')) document.getElementById('day-closed').value = dn.giorno_riposo || '';
             if (dn.nome) {
@@ -1048,6 +1052,7 @@ window.filtraOrdini = (text) => {
             }
         });
     }
+    aggiornaTimerAttesa();
 };
 
 window.caricaAllergeniBase = async () => {
@@ -1305,6 +1310,7 @@ function caricaOrdiniPerData(dateObj) {
         if(listPronti.length === 0) gridPronti.innerHTML = `<div style='grid-column:1/-1;text-align:center;padding:50px;color:#888;'>Nessun ordine pronto.</div>`;
         else listPronti.forEach(o => renderOrdine(o, gridPronti));
 
+        aggiornaTimerAttesa();
         isFirstBatch = false;
     });
 }
@@ -1428,6 +1434,7 @@ function renderOrdine(o, container) {
                 <span><i class="fa-regular ${iconaOrario}"></i> ${window.escapeHtml(orarioDisplay)} ${timerHtml}</span>
                 <i class="fa fa-trash trash-btn" onclick="eliminaOrdine('${window.safeId(o.id)}')"></i>
             </div>
+            <div class="timer-attesa" data-ordine="${window.escapeHtml(o.id)}"></div>
             <div class="card-client-box"><span class="client-name">${nomeCli} ${copertiHtml}</span><a href="tel:${String(telCli).replace(/[^\d+]/g, '')}" class="client-phone"><i class="fa fa-phone"></i> ${window.escapeHtml(telCli)}</a></div>
             ${agendaBadgesHtml}
             <div class="card-body">${alertViaHtml}${anomaliaHtml}${itemsHtml}${orarioPrenotazioneHtml}${noteHtml}<div class="card-total-box"><span>TOTALE</span><span>€ ${totaleStr}</span></div>
@@ -2524,7 +2531,22 @@ window.vaiOggi = () => {
 
 window.spostaData = (giorni) => { currentDateView.setDate(currentDateView.getDate() + giorni); caricaOrdiniPerData(currentDateView); };
 window.cambiaDataManuale = (val) => { if(!val) return; currentDateView = new Date(val); caricaOrdiniPerData(currentDateView); };
-window.cambiaStato = (id, s) => updateDoc(doc(db, "ordini", id), {stato:s});
+// Con «Pronto» si segna anche l'ora (per il timer «pronto da N min», timer-attesa.js)
+window.cambiaStato = (id, s) => updateDoc(doc(db, "ordini", id), s === 'Pronto' ? { stato: s, pronto_alle: serverTimestamp() } : { stato: s });
+
+// --- TIMER DI ATTESA sulle schede (timer-attesa.js): si riempiono i segnaposto .timer-attesa ---
+// La margine della fascia «Arrivo previsto» (domicilio) arriva da impostazioni/negozio.
+function aggiornaTimerAttesa() {
+    const adesso = new Date();
+    const perId = new Map([...(ordiniAttiviForno || []), ...(ordiniCache || [])].map(o => [o.id, o]));
+    document.querySelectorAll('.timer-attesa[data-ordine]').forEach(el => {
+        const o = perId.get(el.dataset.ordine);
+        const html = o ? htmlTimer(timerOrdine(o, adesso, window.margineConsegnaMin ?? 15)) : '';
+        if (el.innerHTML !== html) el.innerHTML = html;
+    });
+}
+window.aggiornaTimerAttesa = aggiornaTimerAttesa;
+setInterval(aggiornaTimerAttesa, 30000);
 
 window.eliminaOrdine = (id) => { 
     Swal.fire({
@@ -3377,6 +3399,8 @@ function caricaEditorZone(dn) {
     const fuori = document.getElementById('setting-supp-fuori-zona');
     if (base && dn.supplemento_consegna !== undefined) base.value = parseFloat(dn.supplemento_consegna) || 0;
     if (fuori && dn.supplemento_fuori_zona !== undefined) fuori.value = parseFloat(dn.supplemento_fuori_zona) || 0;
+    const margine = document.getElementById('setting-margine-consegna');
+    if (margine) margine.value = margineConsegna(dn);
     renderZoneConsegna();
 }
 
@@ -3439,7 +3463,9 @@ window.salvaZoneConsegna = async () => {
     const payload = {
         zone_consegna: zone,
         supplemento_consegna: num(document.getElementById('setting-supp-base')?.value),
-        supplemento_fuori_zona: num(document.getElementById('setting-supp-fuori-zona')?.value)
+        supplemento_fuori_zona: num(document.getElementById('setting-supp-fuori-zona')?.value),
+        // Minuti dell'«Arrivo previsto» nell'App Clienti (0 = non mostrarlo)
+        margine_consegna: Math.min(120, Math.round(num(document.getElementById('setting-margine-consegna')?.value)))
     };
     await setDoc(doc(db, "impostazioni", "negozio"), payload, { merge: true });
     zoneModificate = false;

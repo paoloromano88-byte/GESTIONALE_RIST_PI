@@ -221,6 +221,8 @@
         .storico-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold; color: var(--col-gold); }
         .storico-dettagli { color: var(--col-text-main); margin-bottom: 8px; font-style: italic; }
         .storico-stato { display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 0.8em; font-weight: bold; color: white; }
+            /* Arrivo previsto a domicilio, sotto l'orario */
+        .stima-arrivo { margin: -4px 0 12px 0; padding: 8px 12px; border-radius: 10px; background: rgba(46, 204, 113, 0.12); border: 1px solid rgba(46, 204, 113, 0.45); color: #c8f7dc; font-weight: 700; font-size: 0.92em; }
     </style>
 </head>
 <body>
@@ -322,6 +324,8 @@
                 <input type="date" id="data-ritiro" class="clean-input" onchange="aggiornaOrari()" style="flex:1;">
                 <select id="orario" class="clean-input" style="flex:1;"><option value="">Orario...</option></select>
             </div>
+            <!-- A domicilio, dopo l'orario scelto: «Arrivo previsto tra le 20:30 e le 20:45» (minuti in Cassa > Zone di consegna) -->
+            <div id="stima-arrivo" class="stima-arrivo" style="display:none;"></div>
             <input type="text" id="note-generali" class="clean-input" placeholder="Note per la cucina o per il rider (opzionale)">
         </div>
         <div id="cart-items-container"></div>
@@ -483,7 +487,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection as _collection, getDocs, addDoc, serverTimestamp, onSnapshot, doc as _doc, getDoc, query, where, orderBy, limit, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { calcolaConsegna } from "./zone-consegna.js";
+        import { calcolaConsegna, margineConsegna, testoFasciaArrivo } from "./zone-consegna.js";
         import { sezioniValide, applicaSezioni, senzaAggiunte, isSezione, etichettaDaId } from "./categorie-menu.js";
         import { applicaLogoLocale, logoValido, LOGO_BASE } from "./logo-locale.js";
         import { getAuth, signInWithPhoneNumber, RecaptchaVerifier, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -609,6 +613,16 @@
 
         window.aggiornaZonaApp = () => updateCartUI();
 
+        // Arrivo previsto a domicilio: dall'orario scelto all'orario più il margine del locale
+        let margineArrivoMin = 15;
+        window.aggiornaStimaArrivo = () => {
+            const box = document.getElementById('stima-arrivo');
+            if (!box) return;
+            const testo = window.modalitaConsegnaApp === 'DOMICILIO' ? testoFasciaArrivo(document.getElementById('orario')?.value, margineArrivoMin) : '';
+            box.textContent = testo ? `🛵 ${testo}` : '';
+            box.style.display = testo ? 'block' : 'none';
+        };
+
         window.setModalitaConsegnaApp = (modalita) => {
             window.modalitaConsegnaApp = modalita === 'DOMICILIO' ? 'DOMICILIO' : 'ASPORTO';
             const btnAsp = document.getElementById('btn-mode-asporto');
@@ -627,6 +641,7 @@
                 if (boxDom) boxDom.style.display = 'none';
                 if (lblDataOra) lblDataOra.innerText = 'Data e Orario di Ritiro:';
             }
+            window.aggiornaStimaArrivo();
             updateCartUI();
         };
 
@@ -1154,6 +1169,8 @@
                 if(docNegozio.exists()) {
                     const dn = docNegozio.data();
                     GIORNO_CHIUSURA = dn.giorno_riposo || "";
+                    margineArrivoMin = margineConsegna(dn);
+                    window.aggiornaStimaArrivo();
                     if (dn.nome) {
                         document.getElementById('app-window-title').innerText = `${dn.nome} - Ordina Online`;
                         document.getElementById('home-title-txt').innerText = dn.nome;
@@ -1508,7 +1525,7 @@
 
         // Orario scelto dal cliente: salvato alla selezione, perché più ricaricamenti della lista possono sovrapporsi
         let orarioSceltoCliente = '';
-        document.getElementById('orario').addEventListener('change', (e) => { orarioSceltoCliente = e.target.value; });
+        document.getElementById('orario').addEventListener('change', (e) => { orarioSceltoCliente = e.target.value; window.aggiornaStimaArrivo(); });
 
         window.aggiornaOrari = async () => {
             const sel = document.getElementById('orario'); sel.innerHTML="<option value=''>Caricamento...</option>"; const dateInput = document.getElementById('data-ritiro').value; const d = new Date(dateInput);
@@ -1529,6 +1546,7 @@
             }
             // Mantiene l'orario già scelto se è ancora disponibile (la lista si ricarica a ogni modifica del carrello)
             if (orarioSceltoCliente && [...sel.options].some(o => o.value === orarioSceltoCliente && !o.disabled)) sel.value = orarioSceltoCliente;
+            window.aggiornaStimaArrivo();
         };
 
         window.preInviaOrdine = async () => {
@@ -1629,8 +1647,9 @@
 
                 localStorage.setItem(LAST_ORDER_STORAGE_KEY, Date.now());
                 localStorage.removeItem(CART_STORAGE_KEY);
+                const fascia = isDom ? testoFasciaArrivo(ora, margineArrivoMin) : '';
                 const msgConferma = isDom
-                    ? `Il tuo ordine a domicilio per le ore ${ora} è stato ricevuto!`
+                    ? `Il tuo ordine a domicilio per le ore ${ora} è stato ricevuto!${fascia ? ` ${fascia}.` : ''}`
                     : `Il tuo ordine per il ritiro alle ore ${ora} è stato ricevuto!`;
                 Swal.fire({title: "Ordine Inviato!", text: msgConferma, icon: "success"}).then(() => { location.reload(); });
             } catch(e) {
@@ -1662,7 +1681,7 @@
         function monitoraOrdineLive(id) { if(activeOrderListener) activeOrderListener(); activeOrderListener = onSnapshot(doc(db, "ordini", id), (docSnap) => { if(docSnap.exists()) renderStato(docSnap.data()); }); }
         function renderStato(d) {
             const rb = document.getElementById('result-box'); if (!rb) return;
-            rb.style.display='block'; document.getElementById('res-orario').innerText=d.orario; document.getElementById('res-nome').innerText=d.cliente?.nome||d.nome;
+            rb.style.display='block'; const fasciaStato = d.tipo === 'DOMICILIO' ? testoFasciaArrivo(d.orario, margineArrivoMin) : ''; document.getElementById('res-orario').innerText = fasciaStato ? `${d.orario} (${fasciaStato.toLowerCase()})` : d.orario; document.getElementById('res-nome').innerText=d.cliente?.nome||d.nome;
             let st="IN ATTESA", cls="st-attesa"; if(d.stato.toLowerCase().includes('forno')){st="🔥 IN FORNO";cls="st-forno";} if(d.stato.toLowerCase().includes('pronto')){st="✅ PRONTO";cls="st-pronto";} if(d.stato.toLowerCase().includes('consegnato')){st="RITIRATO";cls="st-consegnato";}
             if (d.stato_consegna === 'In consegna') { st = "🛵 IN CONSEGNA"; cls = "st-forno"; }
             if (d.stato_consegna === 'Consegnato') { st = "✅ CONSEGNATO"; cls = "st-consegnato"; }

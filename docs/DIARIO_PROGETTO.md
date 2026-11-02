@@ -112,6 +112,12 @@ File condivisi:
 - Gli ordini del personale (cassa, sala, …) aggiornano scorte e rubrica dal proprio dispositivo.
 
 ### Consegne a domicilio: dall'ordine alla consegna
+- **Arrivo previsto** (decisione del 02/11/2026): a domicilio, dopo che il cliente sceglie l'orario, l'App Clienti mostra «🛵 Arrivo previsto tra le 20:30 e le 20:45». La fascia va dall'orario scelto all'orario più `impostazioni/negozio.margine_consegna` minuti (predefinito 15, al massimo 120, 0 = non mostrarla). Si imposta in Cassa → Gestionale → Dati Locale → Zone di consegna («Arrivo previsto entro (min)»). Compare anche nella conferma dell'ordine e in «Segui il tuo ordine». Non si salva nell'ordine: viene calcolata da `fasciaArrivo()` in `zone-consegna.js` (prove in `test/zone-consegna.test.mjs`). Per l'asporto non c'è.
+- **Timer di attesa** (decisione del 02/11/2026, issue #86): sulle schede di Cassa (anche nel riepilogo «Consegne di oggi») e dell'App Rider compaiono dei riquadri colorati, rifatti ogni 30 secondi:
+  - «⏱ Ritiro tra 25 min» (asporto) / «⏱ Consegna entro 25 min» (domicilio: fino alla fine della fascia «Arrivo previsto», orario + `margine_consegna`). Arancione negli ultimi 10 minuti, poi rosso «⚠️ In ritardo di N min». Sparisce a ordine chiuso (domicilio: quando il rider segna Consegnato), per gli ordini di altri giorni e dopo 3 ore di ritardo.
+  - «🍕 Pronto da N min»: da `pronto_alle`, che scrivono la Cassa (pulsante PRONTO, `cambiaStato`) e il Monitor Cucina («TUTTO PRONTO»). Arancione da 5, rosso da 10. Gli ordini segnati pronti prima di questa versione non ce l'hanno.
+  - «🛵 In consegna da N min»: da `timestamp_consegna_avvio` (presa in carico dell'App Rider). Arancione da 20, rosso da 30.
+  - I tavoli hanno già il loro timer in Cassa: niente di nuovo per loro. Calcolo in `timer-attesa.js` (ora italiana), prove in `test/timer-attesa.test.mjs`. Sono campi scritti dal personale: `ordineValido()` non cambia.
 1. **Ordine**: arriva dall'App Clienti oppure viene inserito in Cassa.
    - La zona e il supplemento si calcolano dal CAP (`zone-consegna.js`).
    - C'è un limite di consegne ogni 15 minuti: gli orari al completo compaiono come "PIENO".
@@ -356,6 +362,7 @@ node test/file-pubblicati.test.mjs
 | #79 | **Stampanti con il nome scelto e stampanti aggiunte** (es. Friggitoria, Pasticceria) con IP e categorie: comande, VIA TURNO e aggiunte anche lì; programma per Windows 1.1.1 |
 | #81 | **Ruoli dei dipendenti**: il Rider entra solo nell'App Rider, il Cameriere in Sala e Agenda, il Responsabile dappertutto |
 | #83 | **Cassa: solo i pulsanti dei moduli del locale**: Agenda, Fattorini, KDS (e Setup KDS), Mappa Sala, QR Menu e QR App Asporto si vedono solo se il modulo è acceso nel Super Admin |
+| #85 | **App Clienti: «Arrivo previsto»** a domicilio dopo l'orario scelto (es. tra le 20:30 e le 20:45); minuti in Cassa → Zone di consegna ; nella stessa PR i **timer di attesa** in Cassa e App Rider (ritiro/consegna tra N min, pronto da, in consegna da) |
 | #34 | **QZ Tray**: tolta dal codice la chiave privata. Ogni locale ha chiave e certificato suoi (in `impostazioni/qz_firma`), da scaricare in Gestionale → Stampanti e installare come `override.crt` |
 
 ## 6. Issue

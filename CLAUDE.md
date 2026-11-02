@@ -35,6 +35,8 @@ node test/categorie-menu.test.mjs     # sezioni del menu aggiunte dal locale (se
 node test/stampanti.test.mjs          # stampanti con nome e stampanti aggiunte (senza emulatori)
 node test/ruoli-dipendenti.test.mjs   # chi entra col PIN in Sala, Agenda e App Rider (senza emulatori)
 node test/licenza-locale.test.mjs     # moduli accesi/spenti della licenza (senza emulatori)
+node test/zone-consegna.test.mjs      # fascia «Arrivo previsto» della consegna (senza emulatori)
+node test/timer-attesa.test.mjs       # timer di attesa in Cassa e App Rider (senza emulatori)
 ```
 
 - Non c'è un framework di test: ogni file è uno script Node autonomo (helper `t()` + `assert`). Per una sola suite si lancia solo il suo comando; non si filtrano i singoli casi.
@@ -73,6 +75,7 @@ La radice del repository **è** la cartella pubblicata dall'Hosting: ciò che no
 - `zone-consegna.js` (zone e supplementi per CAP) e `comande-escpos.js` (testo ESC/POS di comande, conti, turni, QR) sono usati sia dalle pagine sia da `functions/`, così i risultati sono identici. Non devono toccare il DOM: ciò che dipende dall'ambiente (ora, fuso `Europe/Rome`, QR…) arriva nel parametro `ctx`.
 - Il testo per le termiche è solo ASCII (`pulisciTestoESC`).
 - `categorie-menu.js` (solo browser): sezioni del menu aggiunte dal locale in `impostazioni/categorie` (id `sez_…`). Le pagine aggiungono le sezioni ai loro elenchi fissi di categorie con `applicaSezioni()`. Il reparto di una sezione è quello in cui è spuntata nelle stampanti: `comande-escpos.js` lo legge da `ctx.stampanti` con una copia della stessa regola, perché gira anche sul server.
+- `timer-attesa.js` (solo browser): timer sulle schede di Cassa e App Rider (⏱ all'orario, per il domicilio fino alla fine della fascia «Arrivo previsto»; 🍕 pronto da, da `pronto_alle` scritto da Cassa e KDS quando segnano «Pronto»; 🛵 in consegna da, da `timestamp_consegna_avvio`). Le pagine mettono segnaposto `.timer-attesa[data-ordine]` e li riempiono ogni 30 secondi.
 - `sanitize.js`: ogni testo che viene dai clienti va protetto con `escapeHtml`/`sanitizeHtml`, `argJs` per gli argomenti degli `onclick`, `immagineSicura` per le foto. In SweetAlert2 `title` e `html` sono HTML, `text` no.
 
 ### Stampa

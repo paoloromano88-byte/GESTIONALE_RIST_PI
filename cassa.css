@@ -293,6 +293,11 @@ body {
     align-items: center;
 }
 
+/* Timer di attesa (timer-attesa.js): ⏱ all'orario, 🍕 pronto da, 🛵 in consegna da */
+.timer-attesa { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px; background: #eceff1; }
+.timer-attesa:empty { display: none; }
+.timer-attesa-piccolo { background: transparent; padding: 3px 0 0; gap: 4px; font-size: 0.9em; }
+
 .trash-btn { font-size: 0.5em; color: var(--danger); cursor: pointer; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 50%; }
 
 .card-client-box {

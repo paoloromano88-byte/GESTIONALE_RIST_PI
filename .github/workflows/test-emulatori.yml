@@ -31,6 +31,10 @@ jobs:
         run: node test/ruoli-dipendenti.test.mjs
       - name: Licenza del locale (moduli accesi e spenti)
         run: node test/licenza-locale.test.mjs
+      - name: Arrivo previsto della consegna (zone-consegna.js)
+        run: node test/zone-consegna.test.mjs
+      - name: Timer di attesa in Cassa e App Rider (timer-attesa.js)
+        run: node test/timer-attesa.test.mjs
       - name: Regole Firestore
         run: npx firebase emulators:exec --only firestore --project demo-gestionale "node test/regole-firestore.test.mjs"
       - name: Agente di stampa (coda, stampanti finte)
