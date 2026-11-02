@@ -163,6 +163,8 @@
         .filter-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
         .btn-whatsapp { background: #dcfce7; color: #16a34a; text-decoration: none; }
         .btn-whatsapp:hover { background: #16a34a; color: white; transform: scale(1.05); }
+            /* I messaggi (PIN errato...) devono stare davanti alla schermata del PIN (#pin-overlay, z-index 9999) */
+        .swal2-container { z-index: 100000 !important; }
     </style>
 </head>
 <body>
@@ -290,6 +292,7 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { verificaAccountLocale } from "./login-dispositivo.js";
         import { applicaLogoLocale } from "./logo-locale.js";
+        import { cercaPin, testoPinNonAbilitato } from "./ruoli-dipendenti.js";
 
         // --- CONFIGURAZIONE FIREBASE ---
         const firebaseConfig = {
@@ -765,13 +768,13 @@
                 
                 const snap = await getDocs(collection(db, "dipendenti"));
                 if (snap.empty) return Swal.fire({ icon: 'info', title: 'Nessun operatore registrato', text: 'Aggiungi i PIN dalla Cassa: Gestionale → Dipendenti.' });
-                let dipendenteTrovato = null;
-
-                snap.forEach(docSnap => {
-                    if (String(docSnap.data().pin).trim() === pinInserito) {
-                        dipendenteTrovato = docSnap.data();
-                    }
-                });
+                // Nell'Agenda entrano Cameriere e Responsabile (il Rider no): ruoli-dipendenti.js
+                const esito = cercaPin(snap.docs.map(d => ({ ...d.data(), id: d.id })), pinInserito, 'agenda');
+                if (esito?.negato) {
+                    document.getElementById('pin-input-sala').value = "";
+                    return Swal.fire({ icon: 'error', title: "PIN non abilitato all'Agenda", text: testoPinNonAbilitato(esito.negato, 'agenda') });
+                }
+                const dipendenteTrovato = esito?.dipendente || null;
 
                 if(dipendenteTrovato) {
                     sessionStorage.setItem('operatore_corrente', dipendenteTrovato.nome);

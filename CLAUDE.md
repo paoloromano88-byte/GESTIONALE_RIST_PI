@@ -33,6 +33,7 @@ npx firebase emulators:exec --only auth,functions,firestore --project demo-gesti
 node test/file-pubblicati.test.mjs    # file che l'Hosting pubblica (senza emulatori)
 node test/categorie-menu.test.mjs     # sezioni del menu aggiunte dal locale (senza emulatori)
 node test/stampanti.test.mjs          # stampanti con nome e stampanti aggiunte (senza emulatori)
+node test/ruoli-dipendenti.test.mjs   # chi entra col PIN in Sala, Agenda e App Rider (senza emulatori)
 ```
 
 - Non c'è un framework di test: ogni file è uno script Node autonomo (helper `t()` + `assert`). Per una sola suite si lancia solo il suo comando; non si filtrano i singoli casi.
@@ -60,7 +61,7 @@ La radice del repository **è** la cartella pubblicata dall'Hosting: ciò che no
 
 ### Accessi e permessi (`firestore.rules`)
 - `utenti/{uid}`: `{ruolo: 'superadmin'}` (accesso a tutto) oppure `{ruolo: 'locale', locale: '<id>'}` (solo il proprio locale, tranne `impostazioni/licenza`). Se `locale` manca, ogni scrittura viene rifiutata con «Missing or insufficient permissions».
-- Dispositivi del personale: email e password del locale, una sola volta per dispositivo (`login-dispositivo.js` → `assicuraLoginDispositivo()`). Gli operatori (Sala, Agenda, App Rider) entrano poi con un PIN di 4 cifre preso da `dipendenti` (ruoli Cameriere, Rider, Responsabile). Clienti: accesso via SMS.
+- Dispositivi del personale: email e password del locale, una sola volta per dispositivo (`login-dispositivo.js` → `assicuraLoginDispositivo()`). Gli operatori (Sala, Agenda, App Rider) entrano poi con un PIN di 4 cifre preso da `dipendenti`. Chi entra dove lo decide `ruoli-dipendenti.js`: Cameriere (anche senza ruolo) Sala e Agenda, Rider solo App Rider, Responsabile tutte. Clienti: accesso via SMS.
 - Pubblico: legge menu e alcune `impostazioni`, crea ordini che passano `ordineValido()` (elenco chiuso di campi con `hasOnly`, limiti su lunghezze e importi) e segue il proprio ordine. **Un campo nuovo negli ordini dell'App Clienti richiede di aggiornare `ordineValido()` e `test/regole-firestore.test.mjs`.**
 - Scorte, rubrica `clienti/{tel}` e `occupazione_forno` per gli ordini dell'App Clienti li aggiorna solo il server (Admin SDK).
 - Licenza: `impostazioni/licenza` (`attiva`, `moduli.<nome> === false`). Ogni pagina chiama `mostraBloccoLicenza()` di `licenza-locale.js` con il proprio modulo; un modulo assente dalla licenza vale acceso. Un'app nuova va aggiunta a `APP_LOCALE` in `superadmin.html` e deve controllare il suo modulo.

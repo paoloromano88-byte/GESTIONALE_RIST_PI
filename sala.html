@@ -20,7 +20,8 @@
         :root { --primary: #2962ff; --occupied: #d32f2f; --free: #2e7d32; --reserved: #ffb300; --bg: #050505; --card-bg: #1e1e1e; --text: #ffffff; --gold: #ffea00; --header-bg: #111111; --border: #444; --add-color: #00e676; --rem-color: #ff5252; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html, body { height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background: var(--bg); color: var(--text); user-select: none; overflow: hidden; }
-        .swal2-container { z-index: 10000 !important; }
+        /* I messaggi (PIN errato, già connesso...) devono stare davanti alla schermata del PIN (z-index 99999) */
+        .swal2-container { z-index: 100000 !important; }
         #login-overlay { position: fixed; inset: 0; background: #111; z-index: 99999; display: flex; justify-content: center; align-items: center; flex-direction: column; color: white; }
         .login-box { background: #222; padding: 40px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid var(--primary); }
         .login-input { padding: 15px; font-size: 1.5em; text-align: center; border-radius: 10px; border: 1px solid #555; background: #333; color: white; width: 200px; margin-bottom: 20px; outline: none; letter-spacing: 5px; }
@@ -352,6 +353,7 @@
         import { assicuraLoginDispositivo } from "./login-dispositivo.js";
         import { applicaLogoLocale } from "./logo-locale.js";
         import { sezioniValide, applicaSezioni, senzaAggiunte } from "./categorie-menu.js";
+        import { cercaPin, testoPinNonAbilitato } from "./ruoli-dipendenti.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDjNba4HvtDZpcoDfnXTOWysn_i1UFwPWU", 
@@ -587,10 +589,13 @@
                 if (snap.empty) return Swal.fire({ icon: 'info', title: 'Nessun operatore registrato', text: 'Aggiungi i PIN dalla Cassa: Gestionale → Dipendenti.' });
                 let userFound = null, docId = null, userData = null;
 
-                snap.forEach(docSnap => { 
-                    const data = docSnap.data(); 
-                    if (String(data.pin).trim() === input) { userFound = data.nome; docId = docSnap.id; userData = data; }
-                });
+                // Nel Palmare Sala entrano Cameriere e Responsabile (il Rider no): ruoli-dipendenti.js
+                const esito = cercaPin(snap.docs.map(d => ({ ...d.data(), id: d.id })), input, 'sala');
+                if (esito?.negato) {
+                    document.getElementById('pin-input').value = "";
+                    return Swal.fire({ icon: 'error', title: 'PIN non abilitato al Palmare Sala', text: testoPinNonAbilitato(esito.negato, 'sala') });
+                }
+                if (esito?.dipendente) { userData = esito.dipendente; userFound = userData.nome; docId = userData.id; }
 
                 if (userFound && docId) {
                     // Il Responsabile può entrare da più dispositivi insieme (accesso d'emergenza del locale)
