@@ -231,8 +231,10 @@
         // Registro HACCP: il pannello lo fornisce l'app HACCP stessa (stesso codice della sua console)
         const MODULO_HACCP = 'https://haccp-90df1.web.app/js/integrazione/gestionale.js';
         const nomiRistoranti = new Map();
+        // Link dell'app HACCP del locale collegato a ogni ristorante (null = non collegato): va nei link isolati
+        const linkHaccp = new Map();
         const pannelloHaccp = import(MODULO_HACCP)
-            .then((m) => m.montaRegistroHaccp(document.getElementById('box-haccp')))
+            .then((m) => m.montaRegistroHaccp(document.getElementById('box-haccp'), { alCambio: () => aggiornaLinkHaccp(currentTenant) }))
             .catch((e) => {
                 console.error('Registro HACCP non caricato', e);
                 document.getElementById('box-haccp').innerHTML =
@@ -241,6 +243,17 @@
             });
         function mostraHaccp(tenantId) {
             pannelloHaccp.then((p) => p?.mostra(tenantId, nomiRistoranti.get(tenantId) || ''));
+            aggiornaLinkHaccp(tenantId);
+        }
+        // Il link arriva quando il pannello HACCP ha letto i suoi locali (dopo l'accesso HACCP)
+        function aggiornaLinkHaccp(tenantId) {
+            pannelloHaccp
+                .then((p) => (p?.linkHaccp ? p.linkHaccp(tenantId) : null))
+                .then((l) => {
+                    linkHaccp.set(tenantId, l || null);
+                    if (tenantId === currentTenant) disegnaLinkCliente(tenantId);
+                })
+                .catch((e) => console.warn('Link HACCP non disponibile', e));
         }
 
         let currentTenant = "default";
@@ -732,9 +745,13 @@
 
             mostraHaccp(tenantId);
 
+            disegnaLinkCliente(tenantId);
+        };
+
+        function disegnaLinkCliente(tenantId) {
             document.getElementById('client-links').innerHTML = linkDelLocale(tenantId)
                 .map(l => `<a href="${window.escapeHtml(l.url)}" target="_blank" rel="noopener">${l.icona} ${window.escapeHtml(l.nome)}: ${window.escapeHtml(l.url)}</a>`).join('');
-        };
+        }
 
         // Tutti i link per un locale: le sue app (con ?locale=) e i programmi da installare
         function linkDelLocale(tenantId) {
@@ -742,6 +759,8 @@
             const param = `?locale=${encodeURIComponent(tenantId)}`;
             return [
                 ...APP_LOCALE.map(a => ({ ...a, url: `${base}/${a.file}${param}` })),
+                // Registro HACCP: app separata, il link apre direttamente il locale HACCP collegato (sezione Registro HACCP)
+                ...(linkHaccp.get(tenantId) ? [{ nome: 'Registro HACCP', icona: '🧾', url: linkHaccp.get(tenantId).url }] : []),
                 ...LINK_INSTALLAZIONE.map(a => ({ ...a, url: `${base}/${a.file}` })),
             ];
         }

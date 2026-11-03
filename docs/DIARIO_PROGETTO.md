@@ -279,6 +279,7 @@ File condivisi:
 - Il pannello usa un'app Firebase separata (nome `registro-haccp`, SDK 12.19.0, indipendente dal 10.7.1 della console): la prima volta chiede l'accesso con l'account Super Admin **dell'HACCP**; il dispositivo poi lo ricorda.
 - Il collegamento ristorante ↔ locale HACCP è il campo `gestionaleTenant` del locale HACCP (`default` per il locale principale). Dal pannello: attiva l'HACCP (locale, licenza, invito al titolare), collega un locale HACCP già esistente, licenza HACCP (attiva, scadenza, moduli, note), inviti del titolare, messaggio per il cliente, scollega.
 - Se il sito dell'HACCP non risponde, la sezione mostra un avviso e il resto della console funziona normalmente.
+- **Link isolato HACCP** (PR successiva alla #87): se il ristorante ha un locale HACCP collegato, tra i «link diretti isolati» (e in «Copia tutti i link») c'è «🧾 Registro HACCP» = `https://haccp-90df1.web.app/?l=<locale HACCP>`, che apre l'app HACCP direttamente su quel locale. Il link lo fornisce il pannello (`linkHaccp(idRistorante)`), quindi compare dopo l'accesso HACCP nella sezione; il pannello avvisa la console (`alCambio`) quando un collegamento cambia.
 
 ### Marketing: Gestì (decisioni del 27/10/2026)
 - **Nome del prodotto: Gestì** (generico: pizzerie, ristoranti, pasticcerie, forni, bar). Da verificare prima di investire: dominio libero (es. gesti.app, gestiapp.it), marchio su UIBM/TMview, nome su Instagram/Facebook.
