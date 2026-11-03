@@ -7,7 +7,7 @@ Questo file riassume quanto fatto finora, le decisioni prese e come riprendere i
 Va aggiornato a ogni tappa importante. Non è pubblicato sul sito: `docs/**` è escluso
 dall'hosting in `firebase.json`.
 
-**Ultimo aggiornamento:** 01/11/2026: marketing ripreso, sito vetrina **Gestì** riportato sull'ultima versione (sezione 2, «Marketing: Gestì»), cambio password dal Super Admin, file privati non più pubblicati (sezione 7).
+**Ultimo aggiornamento:** 03/11/2026: sezione **Registro HACCP** nella console Super Admin (sezione 2). Prima, 01/11/2026: marketing ripreso, sito vetrina **Gestì** riportato sull'ultima versione (sezione 2, «Marketing: Gestì»), cambio password dal Super Admin, file privati non più pubblicati (sezione 7).
 
 > Non scrivere qui password, chiavi o codici segreti. Vanno solo nei segreti di
 > GitHub o nella console Firebase/Google Cloud.
@@ -27,7 +27,7 @@ dall'hosting in `firebase.json`.
 | `agenda.html` | Prenotazioni (PIN personale) | personale |
 | `mappa_sala.html` | Mappa dei tavoli | personale |
 | `delivery.html` | **App Rider**: consegne del giorno (PIN personale con ruolo "Rider"), scanner QR per prendere in carico la busta, avviso "ordine pronto" | rider |
-| `superadmin.html` | **Super Admin**: crea i locali, licenze e moduli, account dei locali, link da mandare al cliente | titolare del software |
+| `superadmin.html` | **Super Admin**: crea i locali, licenze e moduli, account dei locali, link da mandare al cliente; sezione **Registro HACCP** (licenze dell'app HACCP, vedi sezione 2) | titolare del software |
 | `agente-windows.html` | Scarica il **programma di stampa per Windows** (Agente di stampa), con le istruzioni | cliente / installatore |
 | `esp32.html` | Programma un **ESP32-C3** come Agente di stampa, dal browser via USB (ESP Web Tools 10.2.1), e istruzioni | titolare / installatore |
 
@@ -272,6 +272,13 @@ File condivisi:
   - crea ordini validi;
   - segue i propri ordini tramite ID o con il telefono verificato via SMS.
 - Il pubblico **non** può toccare scorte, rubrica o contatori: lo fa solo il server.
+
+### Registro HACCP nella console Super Admin (03/11/2026)
+- L'app HACCP è un progetto a parte (repository `paoloromano88-byte/haccp`, Firebase `haccp-90df1`, sito `https://haccp-90df1.web.app`), con i suoi locali, licenze (`licenze/{lid}`) e Super Admin (`superadmin/{uid}`).
+- Per avere **una sola pagina di controllo**, `superadmin.html` carica il pannello dal sito dell'HACCP: `import('https://haccp-90df1.web.app/js/integrazione/gestionale.js')` → `montaRegistroHaccp(box)`, poi `mostra(idRistorante, nome)` a ogni cambio di ristorante. Il codice del pannello sta nel repository dell'HACCP (che manda l'intestazione CORS per i suoi `js/**`): le modifiche all'HACCP arrivano qui senza toccare il gestionale.
+- Il pannello usa un'app Firebase separata (nome `registro-haccp`, SDK 12.19.0, indipendente dal 10.7.1 della console): la prima volta chiede l'accesso con l'account Super Admin **dell'HACCP**; il dispositivo poi lo ricorda.
+- Il collegamento ristorante ↔ locale HACCP è il campo `gestionaleTenant` del locale HACCP (`default` per il locale principale). Dal pannello: attiva l'HACCP (locale, licenza, invito al titolare), collega un locale HACCP già esistente, licenza HACCP (attiva, scadenza, moduli, note), inviti del titolare, messaggio per il cliente, scollega.
+- Se il sito dell'HACCP non risponde, la sezione mostra un avviso e il resto della console funziona normalmente.
 
 ### Marketing: Gestì (decisioni del 27/10/2026)
 - **Nome del prodotto: Gestì** (generico: pizzerie, ristoranti, pasticcerie, forni, bar). Da verificare prima di investire: dominio libero (es. gesti.app, gestiapp.it), marchio su UIBM/TMview, nome su Instagram/Facebook.

@@ -162,6 +162,12 @@
 
         <button class="btn btn-save" onclick="salvaLicenza(false)"><i class="fa-solid fa-floppy-disk"></i> SALVA CONFIGURAZIONE RISTORANTE</button>
 
+        <!-- REGISTRO HACCP: app separata con il suo progetto Firebase. Il pannello arriva dal sito dell'HACCP
+             (montaRegistroHaccp), ha il suo accesso e salva da sé: il pulsante qui sopra non lo riguarda. -->
+        <div class="section-box" id="box-haccp">
+            <p style="margin:0; color:#8b949e;">Caricamento del Registro HACCP…</p>
+        </div>
+
         <!-- LINK RAPIDI DA INVIARE AL CLIENTE -->
         <div class="links-box">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -221,6 +227,21 @@
 
         // Accesso con il proprio account; poi si verifica che sia Super Admin (utenti/{uid}.ruolo)
         const utenteCorrente = await assicuraLoginDispositivo({ titolo: "Super Admin", verificaLocale: false });
+
+        // Registro HACCP: il pannello lo fornisce l'app HACCP stessa (stesso codice della sua console)
+        const MODULO_HACCP = 'https://haccp-90df1.web.app/js/integrazione/gestionale.js';
+        const nomiRistoranti = new Map();
+        const pannelloHaccp = import(MODULO_HACCP)
+            .then((m) => m.montaRegistroHaccp(document.getElementById('box-haccp')))
+            .catch((e) => {
+                console.error('Registro HACCP non caricato', e);
+                document.getElementById('box-haccp').innerHTML =
+                    '<p style="margin:0; color:#f85149;">Registro HACCP non raggiungibile in questo momento: riprova più tardi.</p>';
+                return null;
+            });
+        function mostraHaccp(tenantId) {
+            pannelloHaccp.then((p) => p?.mostra(tenantId, nomiRistoranti.get(tenantId) || ''));
+        }
 
         let currentTenant = "default";
         let statoAttuale = true;
@@ -491,6 +512,7 @@
                 snap.forEach(d => {
                     const info = d.data();
                     if (info.eliminato) return;
+                    nomiRistoranti.set(d.id, info.nome || d.id);
                     sel.innerHTML += `<option value="${window.escapeHtml(d.id)}">🍕 ${window.escapeHtml(info.nome || d.id)} (${window.escapeHtml(d.id)})</option>`;
                 });
             } catch(e) { console.log(e); }
@@ -707,6 +729,8 @@
                     document.getElementById('wl-coperto').value = 2.50;
                 }
             });
+
+            mostraHaccp(tenantId);
 
             document.getElementById('client-links').innerHTML = linkDelLocale(tenantId)
                 .map(l => `<a href="${window.escapeHtml(l.url)}" target="_blank" rel="noopener">${l.icona} ${window.escapeHtml(l.nome)}: ${window.escapeHtml(l.url)}</a>`).join('');
