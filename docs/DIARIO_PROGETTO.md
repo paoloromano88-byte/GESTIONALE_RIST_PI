@@ -288,6 +288,7 @@ File condivisi:
 - **Messaggio principale:** «ordini online senza commissioni» (le piattaforme trattengono circa 15-30% per ordine) + «nato in una pizzeria vera».
 - **Sito vetrina** `gesti/index.html` (online su `/gesti/`): funzioni, calcolatore del risparmio, prezzi, domande, modulo «Richiedi una demo». Immagini in `gesti/img/` fatte con dati finti («Pizzeria Demo»). Il modulo scrive in `richieste_demo` (solo creazione, campi controllati dalle regole); le richieste si vedono nel **Super Admin** in alto («Richieste di demo dal sito»).
 - **Prima di pubblicizzare la pagina:** completare `TITOLARE` nell'informativa privacy di `gesti/index.html` (nome e P.IVA del titolare); poi comprare il dominio e collegarlo (meglio un secondo sito di Firebase Hosting solo per la vetrina).
+- **Collegamento al Registro HACCP** (08/11/2026): riquadro «E i controlli HACCP?» prima delle domande, con la demo dell'HACCP (`https://haccp-90df1.web.app/?demo`) e la pagina comune delle due app (`/ristorante.html` sul sito dell'HACCP).
 - **Da preparare dopo:** locale DEMO con dati finti per le videochiamate, presentazione per le visite, contratto di abbonamento e accordo privacy da «responsabile del trattamento» (da far vedere a un avvocato/commercialista), caso Da Mimmo con numeri veri (con il suo permesso), costo per locale (SMS dell'App Clienti).
 
 ## 3. Pubblicazione (GitHub Actions)
