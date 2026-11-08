@@ -165,6 +165,11 @@
         .storia { background: var(--bianco); border-top: 1px solid var(--bordo); border-bottom: 1px solid var(--bordo); }
         .storia blockquote { margin: 0 auto; max-width: 820px; font-family: 'Fraunces', Georgia, serif; font-size: clamp(1.3rem, 3.4vw, 1.75rem); color: var(--inchiostro); line-height: 1.4; text-align: center; }
         .storia blockquote i { color: var(--pomodoro); }
+        .anche-haccp { padding-top: 0; }
+        .riquadro-haccp { display: grid; grid-template-columns: 1.6fr 1fr; gap: 24px; align-items: center; background: var(--bianco); border: 1px solid var(--bordo); border-left: 6px solid #1d5fc4; border-radius: var(--raggio); padding: 28px; }
+        .riquadro-haccp p { margin: 0; }
+        .azioni-haccp { display: grid; gap: 10px; }
+        @media (max-width: 760px) { .riquadro-haccp { grid-template-columns: 1fr; padding: 22px; } }
 
         /* Domande */
         .domande { max-width: 820px; margin: 30px auto 0; }
@@ -410,6 +415,24 @@
     <section class="storia">
         <div class="contenitore">
             <blockquote><i class="fa-solid fa-quote-left"></i> Gestì non è nato in un ufficio: è stato costruito e collaudato ogni sera, durante il servizio vero di una pizzeria con sala, asporto e consegne a domicilio.</blockquote>
+        </div>
+    </section>
+
+    <section class="anche-haccp">
+        <div class="contenitore">
+            <div class="riquadro-haccp">
+                <div>
+                    <span class="occhiello">Insieme a Gestì</span>
+                    <h2>E i controlli HACCP?</h2>
+                    <p>Con il <b>Registro HACCP</b> temperature, pulizie, merci, abbattimento, igiene del personale e allergeni si registrano
+                        dal telefono, firmati e con l'ora certa. Il manuale HACCP lo scrive l'app, e se arriva l'ASL il fascicolo è pronto in un minuto.
+                        Da 12 € al mese, anche senza Gestì.</p>
+                </div>
+                <div class="azioni-haccp">
+                    <a class="btn btn-primario" href="https://haccp-90df1.web.app/?demo">Guarda la demo del Registro HACCP</a>
+                    <a class="btn btn-secondario" href="https://haccp-90df1.web.app/ristorante.html">Le due app insieme</a>
+                </div>
+            </div>
         </div>
     </section>
 
